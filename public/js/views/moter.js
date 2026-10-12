@@ -52,7 +52,10 @@ export function liste(main, S) {
   main.innerHTML = html`
     <div class="sidetopp">
       <h1>Møter</h1>
-      ${erStyret(S) ? raw(`<a class="knapp" href="#/mote-skjema/ny">+ Ny innkalling</a>`) : ""}
+      <div class="knapperad">
+        <a class="knapp sekundaer" href="#/styret">${raw(ikon("medlemmer"))} Styret</a>
+        ${erStyret(S) ? raw(`<a class="knapp" href="#/mote-skjema/ny">+ Ny innkalling</a>`) : ""}
+      </div>
     </div>
 
     ${venter.map((m) => raw(html`

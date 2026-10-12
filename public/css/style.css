@@ -339,6 +339,25 @@ h2 .status { text-transform: none; letter-spacing: 0; margin-left: 8px; vertical
 .velgliste { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 16px; margin: 10px 0 4px; }
 .velgliste label.avkryss { margin: 0; padding: 7px 0; }
 
+/* Styret */
+.vervliste li { align-items: baseline; }
+.verv-navn { font-weight: 600; min-width: 9em; }
+.vervliste li > span:last-child { text-align: right; }
+.vervredigering { display: flex; flex-direction: column; }
+.vervrad { padding: 14px 0; border-top: 1px solid var(--linje); }
+.vervrad:first-child { border-top: 0; padding-top: 0; }
+.vervrad-topp { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.verv-navnfelt { flex: 1; min-width: 0; font: 600 .95rem var(--sans); padding: 7px 11px; border: 1px solid var(--linje-sterk); border-radius: 9px; }
+.vervrad-knapper { display: flex; gap: 2px; }
+.ikonknapp:disabled { opacity: .3; cursor: default; }
+.ikon.opp { transform: rotate(-90deg); }
+.ikon.ned { transform: rotate(90deg); }
+.vervrad .brikke { cursor: default; padding-right: 4px; }
+.vervrad .brikke .ikonknapp { padding: 3px; }
+.legg-til-person { padding: 5px 10px; border: 1px dashed var(--linje-sterk); border-radius: 16px; background: var(--kort); font: 500 .84rem var(--sans); color: var(--dempet); cursor: pointer; }
+.nytt-verv { margin-top: 16px; }
+.nytt-verv input { width: min(260px, 60vw); }
+
 .sumlinje { text-align: right; color: var(--dempet); font-size: .85rem; font-variant-numeric: tabular-nums; }
 
 .medlemsliste { list-style: none; margin: 0; padding: 0; background: var(--kort); border: 1px solid var(--linje); border-radius: var(--radius); box-shadow: var(--skygge); overflow: hidden; }

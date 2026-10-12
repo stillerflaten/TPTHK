@@ -9,6 +9,7 @@ import {
 import { melding, medKnapp, bekreft, dialog } from "../ui.js";
 import { gaaTil } from "../app.js";
 import { ikon } from "../ikoner.js";
+import { vervFor } from "./styret.js";
 
 const filter = { sok: "", vis: "aktive" };
 
@@ -60,7 +61,7 @@ export function liste(main, S) {
         <li class="${m.aktiv === false ? "utmeldt" : ""}">
           <a href="#/medlem/${m.id}" class="medlem-info">
             <strong>${m.navn}</strong>
-            <span class="hint">${[m.hund && `Hund: ${m.hund}`, m.epost].filter(Boolean).join(" · ")}${t ? ` · ${t.admin ? "administrator" : t.rolle === "kasserer" ? "kasserer" : t.styre ? "styret" : "har innlogging"}` : ""}${m.aktiv === false ? " · utmeldt" : ""}</span>
+            <span class="hint">${[m.hund && `Hund: ${m.hund}`, m.epost].filter(Boolean).join(" · ")}${t ? ` · ${[t.admin ? "administrator" : t.rolle === "kasserer" ? "kasserer" : "", ...vervFor(S, t.id).map((v) => v.toLowerCase())].filter(Boolean).join(", ") || "har innlogging"}` : ""}${m.aktiv === false ? " · utmeldt" : ""}</span>
           </a>
           <button class="kontingent ${betalt ? "betalt" : ""}" data-kontingent="${m.id}" title="Kontingent ${aar}">
             ${betalt ? `✓ Betalt ${aar}` : `Ikke betalt ${aar}`}
@@ -99,7 +100,7 @@ export function liste(main, S) {
 }
 liste.live = true;
 liste.tittel = "Medlemmer";
-liste.trenger = ["medlemmer", "brukere", "foresporsler", "poster", "innst", "info"];
+liste.trenger = ["medlemmer", "brukere", "foresporsler", "poster", "innst", "info", "verv"];
 
 function registrer(S, m, aar) {
   const standard = S.info.kontingentBelop || 0;
@@ -183,8 +184,7 @@ export function skjema(main, S, id) {
       <label class="avkryss"><input type="checkbox" name="aktiv" ${m.aktiv !== false ? "checked" : ""}> Aktivt medlem</label>
       <label class="avkryss"><input type="checkbox" name="tilgang" ${tilgang ? "checked" : ""} ${erMeg ? "disabled" : ""}>
         Kan logge inn og sende søknader om refusjon</label>
-      <label class="avkryss" id="styre-valg" ${tilgang || erMeg ? "" : "hidden"}><input type="checkbox" name="styre" ${tilgang?.styre ? "checked" : ""}>
-        Sitter i styret (kan legge ut møteinnkallinger og referater)</label>
+      ${tilgang ? raw(html`<p class="hint">Styreverv: ${vervFor(S, tilgang.id).join(", ") || "ingen"}. <a href="#/styret">Endre under Styret</a></p>`) : ""}
       <p class="hint">Personen oppretter selv konto på nettsiden med samme e-post. ${tilgang?.rolle === "kasserer" ? "Denne personen er kasserer (endres under Innstillinger)." : ""}</p>
       <div class="knapper">
         ${ny ? "" : raw(`<button type="button" class="knapp farlig sekundaer" id="slett">Slett</button>`)}
@@ -199,7 +199,6 @@ export function skjema(main, S, id) {
       </section>`) : ""}`;
 
   const f = main.querySelector("#skjema");
-  f.elements.tilgang.addEventListener("change", () => { main.querySelector("#styre-valg").hidden = !f.elements.tilgang.checked; });
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(f));
@@ -217,7 +216,7 @@ export function skjema(main, S, id) {
       if (tilgang && tilgang.rolle !== "kasserer" && (gammelEpost !== epost || !vilHaTilgang)) await slettBruker(gammelEpost);
       if (vilHaTilgang) {
         const rolle = (gammelEpost === epost && tilgang?.rolle) || S.brukere.find((b) => b.id === epost)?.rolle || "medlem";
-        await lagreBruker(epost, { rolle, navn: v.navn.trim(), medlemId, styre: Boolean(v.styre) });
+        await lagreBruker(epost, { rolle, navn: v.navn.trim(), medlemId });
       }
       melding(ny ? "Medlemmet er lagt til." : "Endringene er lagret.");
       gaaTil("medlemmer");
@@ -235,4 +234,4 @@ export function skjema(main, S, id) {
   });
 }
 skjema.tittel = "Medlem";
-skjema.trenger = ["medlemmer", "brukere"];
+skjema.trenger = ["medlemmer", "brukere", "verv"];

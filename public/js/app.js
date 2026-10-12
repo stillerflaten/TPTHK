@@ -2,7 +2,7 @@
 
 import {
   klar, auth, konto, lyttProfil, lyttSamling, lyttDokument, lyttMineSoknader, lyttMinForesporsel, normalEpost,
-  lagrePersonliste, lyttSupport,
+  lagrePersonliste, lyttSupport, lagreVerv,
 } from "./firebase.js";
 import { html, raw, esc, aarNaa } from "./util.js";
 import { medStandard, tilgjengeligeAar, nummererBilag } from "./regnskap.js";
@@ -15,8 +15,9 @@ import * as medlemmer from "./views/medlemmer.js";
 import * as innstillinger from "./views/innstillinger.js";
 import * as minside from "./views/minside.js";
 import * as moter from "./views/moter.js";
+import * as styret from "./views/styret.js";
 import { ikon } from "./ikoner.js";
-import { erKasserer as kasserer, erStyret, supportAktiv } from "./tilgang.js";
+import { erKasserer as kasserer, erStyret, supportAktiv, harVerv, erAdmin } from "./tilgang.js";
 import { supportStripe, oppdaterSupportKort } from "./views/support.js";
 
 const main = document.getElementById("innhold");
@@ -31,6 +32,7 @@ export const S = {
   poster: [], medlemmer: [], soknader: [], brukere: [], foresporsler: [],
   moter: [], signaturer: [], personer: [],
   support: null,
+  verv: undefined, // undefined = ikke lastet, null = ikke opprettet ennå
   innst: medStandard(null),
   info: {},
   mittMedlem: null,
@@ -75,6 +77,7 @@ const moteSider = {
   mote: { side: moter.detalj },
   "mote-skjema": { side: moter.skjema },
   referat: { side: moter.referat },
+  styret: { side: styret.styret },
 };
 Object.assign(kassererSider, moteSider);
 
@@ -112,6 +115,7 @@ function dataEndret() {
     planlagt = false;
     if (!S.bruker) return;
     oppdaterPersonliste();
+    opprettVerv();
     if (!gjeldendeSide || gjeldendeSide.live || gjeldendeSide.venter) tegn();
     else { tegnMeny(lesSti().navn); oppdaterSupportKort(main, S); }
   });
@@ -152,7 +156,7 @@ const utloggKnapp = () =>
   html`<button class="utlogg" id="loggut" title="Logg ut ${S.bruker.email}">${raw(ikon("utlogg"))}<span>Logg ut</span></button>`;
 
 function tegnMeny(aktiv) {
-  document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? (supportAktiv(S) ? "support" : "admin") : erKasserer() ? "kasserer" : S.profil.styre ? "styret" : "medlem") : "";
+  document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? (supportAktiv(S) ? "support" : "admin") : erKasserer() ? "kasserer" : harVerv(S) ? "styret" : "medlem") : "";
   if (!S.bruker || !S.profil) {
     meny.innerHTML = "";
     topp.innerHTML = S.bruker ? utloggKnapp() : "";
@@ -183,7 +187,7 @@ function tegnMeny(aktiv) {
 
 // Undersider markerer menypunktet de hører til.
 const hører = (navn) => ({ post: "poster", soknad: "soknader", medlem: "medlemmer", "ny-soknad": "mine", "min-soknad": "mine",
-  mote: "moter", "mote-skjema": "moter", referat: "moter" })[navn];
+  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter" })[navn];
 
 // ---------- Data ----------
 
@@ -207,6 +211,7 @@ function startLyttere() {
   // Supportstatus kan bare leses av dem som har tilgang, så den lyttes på først når profilen finnes.
   rolle = undefined;
   let stoppSupport = null;
+  let stoppVerv = null;
   lyttere.push(lyttProfil((p) => {
     S.profil = p;
     if (p && !stoppSupport) {
@@ -216,10 +221,19 @@ function startLyttere() {
       stoppSupport = null;
       S.support = null;
     }
+    // Styrevervene avgjør hvem som er i styret, så de lyttes på sammen med profilen.
+    if (p && !stoppVerv) {
+      stoppVerv = lyttDokument("innstillinger", "verv", (v) => { S.verv = v; S.lastet.add("verv"); vurderRolle(); dataEndret(); }, () => { stoppVerv = null; });
+    } else if (!p && stoppVerv) {
+      stoppVerv();
+      stoppVerv = null;
+      S.verv = undefined;
+    }
     vurderRolle();
     dataEndret();
   }, visFeil));
   lyttere.push(() => stoppSupport?.());
+  lyttere.push(() => stoppVerv?.());
   lyttere.push(lyttMinForesporsel((f) => { S.foresporsel = f; dataEndret(); }, () => {}));
   stoppProfil = () => lyttere.forEach((f) => f());
 }
@@ -248,6 +262,7 @@ function startRolleLyttere() {
   stopp();
   S.lastet = new Set();
   const sett = (felt, navn = felt) => (data) => { S[felt] = data; S.lastet.add(navn); dataEndret(); };
+  if (S.verv !== undefined) S.lastet.add("verv");
   if (!S.profil?.rolle) return;
 
   stoppLyttere.push(lyttDokument("innstillinger", "medlemsinfo", (d) => sett("info")(d || {}), visFeil));
@@ -261,7 +276,7 @@ function startRolleLyttere() {
 
   stoppLyttere.push(lyttSamling("moter", sett("moter"), visFeil));
   stoppLyttere.push(lyttSamling("signaturer", sett("signaturer"), visFeil));
-  if (moter.erStyret(S)) {
+  if (moter.erStyret(S) || erAdmin(S)) {
     stoppLyttere.push(lyttDokument("innstillinger", "personer", (d) => sett("personer")(d?.liste || []), visFeil));
   } else {
     S.personer = [];
@@ -284,9 +299,9 @@ function startRolleLyttere() {
  */
 let sistePersonliste = null;
 function oppdaterPersonliste() {
-  if (!erKasserer() || !S.lastet.has("brukere") || !S.lastet.has("personer")) return;
+  if (!erKasserer() || !S.lastet.has("brukere") || !S.lastet.has("personer") || !S.lastet.has("verv")) return;
   const liste = S.brukere
-    .map((b) => ({ epost: b.id, navn: b.navn || "", styre: b.styre === true || (b.rolle === "kasserer" && !b.admin) }))
+    .map((b) => ({ epost: b.id, navn: b.navn || "", styre: (S.verv?.styre || []).includes(b.id) || (b.rolle === "kasserer" && !b.admin) }))
     .sort((a, b) => a.epost.localeCompare(b.epost));
   const ny = JSON.stringify(liste);
   const naa = JSON.stringify(S.personer.map((p) => ({ epost: p.epost, navn: p.navn, styre: p.styre }))
@@ -294,6 +309,21 @@ function oppdaterPersonliste() {
   if (ny === naa || ny === sistePersonliste) return;
   sistePersonliste = ny;
   lagrePersonliste(liste).catch(visFeil);
+}
+
+/**
+ * Første gang kassereren eller administratoren logger inn, lagres standardvervene.
+ * De som var merket «Sitter i styret» fra før (styre: true), blir styremedlemmer.
+ */
+let vervOpprettet = false;
+function opprettVerv() {
+  if (vervOpprettet || S.verv !== null || !S.lastet.has("verv")) return;
+  if (!erKasserer() || !S.lastet.has("brukere")) return;
+  vervOpprettet = true;
+  const tidligere = S.brukere.filter((b) => b.styre === true).map((b) => b.id);
+  const data = styret.byggVerv(styret.STANDARDVERV, tidligere.length ? { styremedlem: tidligere } : {},
+    S.brukere.map((b) => ({ epost: b.id, navn: b.navn || "" })));
+  lagreVerv(data).catch((e) => { vervOpprettet = false; visFeil(e); });
 }
 
 // ---------- Oppstart ----------
@@ -307,8 +337,9 @@ if (klar) {
     Object.assign(S, {
       bruker, profil: undefined, foresporsel: null, poster: [], medlemmer: [], soknader: [], mineSoknader: [],
       brukere: [], foresporsler: [], innst: medStandard(null), info: {}, mittMedlem: null, lastet: new Set(),
-      moter: [], signaturer: [], personer: [], support: null,
+      moter: [], signaturer: [], personer: [], support: null, verv: undefined,
     });
+    vervOpprettet = false;
     rolle = undefined;
     clearTimeout(supportTimer);
     if (bruker?.emailVerified) startLyttere();

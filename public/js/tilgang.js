@@ -10,7 +10,10 @@ export const supportPaagaar = (S) =>
   Boolean(S.support) && !S.support.avsluttet && S.support.utloper != null && S.support.utloper > Date.now();
 
 export const ekteKasserer = (S) => S.profil?.rolle === "kasserer";
-export const ekteStyret = (S) => ekteKasserer(S) || S.profil?.styre === true;
+/** Har et styreverv (se innstillinger/verv). */
+export const harVerv = (S) => Boolean(S.bruker) && (S.verv?.styre || []).includes(String(S.bruker.email || "").toLowerCase());
+export const ekteStyret = (S) => ekteKasserer(S) || harVerv(S);
+export const erAdmin = (S) => S.profil?.admin === true;
 
 /** Kan be om support: kasserer eller styret, men ikke administratoren selv. */
 export const kanBeOmSupport = (S) => ekteStyret(S) && S.profil?.admin !== true;
