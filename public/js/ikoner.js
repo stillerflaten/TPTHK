@@ -2,6 +2,8 @@
 // så de ser ut som et sett. Fargen arves fra teksten rundt (currentColor).
 
 const STI = {
+  // Hjelp: spørsmålstegn i sirkel
+  hjelp: `<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.8"/><path d="M12 17.2h.01"/>`,
   // Oversikt: stjernen fra logoen i et skjold av søyler
   oversikt: `<path d="M4 20h16"/><path d="M6 20v-6"/><path d="M10.5 20v-9"/><path d="M15 20v-5"/><path d="M19 20v-3"/>
     <path d="m12 2.6 1.1 2.3 2.5.3-1.8 1.7.4 2.5L12 8.2l-2.2 1.2.4-2.5-1.8-1.7 2.5-.3z"/>`,

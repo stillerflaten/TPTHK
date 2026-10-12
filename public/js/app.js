@@ -16,6 +16,7 @@ import * as innstillinger from "./views/innstillinger.js";
 import * as minside from "./views/minside.js";
 import * as moter from "./views/moter.js";
 import * as styret from "./views/styret.js";
+import { hjelp } from "./views/hjelp.js";
 import { ikon } from "./ikoner.js";
 import { erKasserer as kasserer, erStyret, supportAktiv, harVerv, erAdmin } from "./tilgang.js";
 import { supportStripe, oppdaterSupportKort } from "./views/support.js";
@@ -78,6 +79,7 @@ const moteSider = {
   "mote-skjema": { side: moter.skjema },
   referat: { side: moter.referat },
   styret: { side: styret.styret },
+  hjelp: { side: hjelp },
 };
 Object.assign(kassererSider, moteSider);
 
@@ -166,6 +168,7 @@ function venter() {
   main.innerHTML = `<div class="laster"><div class="spinner"></div></div>`;
 }
 
+const hjelpLenke = () => `<a class="utlogg" href="#/hjelp" title="Hjelp" aria-label="Hjelp">${ikon("hjelp")}<span>Hjelp</span></a>`;
 const utloggKnapp = () =>
   html`<button class="utlogg" id="loggut" title="Logg ut ${S.bruker.email}">${raw(ikon("utlogg"))}<span>Logg ut</span></button>`;
 
@@ -194,7 +197,7 @@ function tegnMeny(aktiv) {
   const aarValg = seRegnskap()
     ? html`<label class="aarvalg"><span class="skjult">Regnskapsår</span><select id="aar">${tilgjengeligeAar(S.poster).map((a) => raw(html`<option ${a === S.aar ? "selected" : ""}>${a}</option>`))}</select></label>`
     : "";
-  topp.innerHTML = aarValg + utloggKnapp();
+  topp.innerHTML = aarValg + hjelpLenke() + utloggKnapp();
   topp.querySelector("#loggut").addEventListener("click", () => konto.loggUt());
   topp.querySelector("#aar")?.addEventListener("change", (e) => { S.aar = Number(e.target.value); tegn(); });
 }
