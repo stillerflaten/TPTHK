@@ -76,6 +76,8 @@ code { background: var(--papir); border: 1px solid var(--linje); padding: .05em 
   font: 500 .875rem var(--sans); color: rgb(255 255 255 / 75%); padding: 8px 6px; border-radius: 8px;
 }
 .utlogg:hover { color: #fff; }
+a.utlogg { text-decoration: none; }
+@media (max-width: 600px) { a.utlogg span { display: none; } }
 .utlogg .ikon { width: 18px; height: 18px; }
 .aarvalg select {
   appearance: none; -webkit-appearance: none;
@@ -169,6 +171,15 @@ body.har-meny .levert { padding-bottom: calc(var(--bunnmeny) + 20px + env(safe-a
   body.har-meny .innhold { padding-bottom: 32px; }
   body.har-meny .levert { margin-left: var(--sidemeny); padding-bottom: 28px; }
 }
+
+/* Hjelp */
+.hjelp details { border-top: 1px solid var(--linje); }
+.hjelp details:last-child { border-bottom: 1px solid var(--linje); }
+.hjelp summary { cursor: pointer; padding: 12px 2px; font-weight: 600; color: var(--blekk); list-style-position: inside; }
+.hjelp summary:hover { color: var(--tekst); }
+.hjelp-tekst { padding: 0 2px 14px; }
+.hjelp-tekst p, .hjelp-tekst ol, .hjelp-tekst ul { margin: 0 0 10px; }
+.hjelp-tekst li { margin-bottom: 4px; }
 
 /* ---------- Byggeklosser ---------- */
 
