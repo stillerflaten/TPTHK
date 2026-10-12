@@ -22,7 +22,7 @@ export function personvern(main, S) {
       <h2>Hva vi lagrer</h2>
       <ul>
         <li><strong>Innlogging:</strong> e-postadresse og navn. Passordet ditt lagres kryptert hos Google og kan ikke leses av klubben.</li>
-        <li><strong>Medlemslisten:</strong> navn, e-post, telefon, navnet på hunden din og om du har betalt kontingent.</li>
+        <li><strong>Medlemslisten:</strong> navn, e-post, telefon, navnet på hunden din om du har betalt kontingent, og når du sist fikk påminnelse om den.</li>
         <li><strong>Søknader om refusjon:</strong> hva du har lagt ut for, beløp, dato, kontonummeret ditt og bilder av kvitteringene.</li>
         <li><strong>Regnskapet:</strong> poster som kan nevne deg, for eksempel kontingent eller refusjon til deg.</li>
         <li><strong>Møter:</strong> styreverv, og når du har signert et referat (navn, tidspunkt og en kontrollsum av teksten).</li>

@@ -101,6 +101,15 @@ const DELER = [
       ["Medlemmer og kontingent", `<p>Under <a href="#/medlemmer">Medlemmer</a> legger du inn medlemmene med navn, e-post og telefon.
         Trykk på et medlem for å registrere betalt kontingent. Da føres den også i regnskapet. Har dere fått ett samlet beløp (f.eks. fra Vipps),
         kan du fjerne haken og føre totalen som én post selv. «Excel» laster ned medlemslisten.</p>`, ["medlemmer"]],
+      ["Påminnelse om kontingent", `
+        <ol>
+          <li>Under <a href="#/medlemmer">Medlemmer</a> velger du «Ikke betalt» i listen over medlemmene. Da ser du hvem som mangler, og når de sist fikk påminnelse.</li>
+          <li>Trykk «Send påminnelse». Velg frist og se over teksten. Beløp og kontonummer hentes fra Innstillinger.</li>
+          <li>«Åpne e-post» åpner e-postprogrammet med alle som ikke har betalt som blindkopi (Bcc), så ingen ser hverandres adresser. Trykk send der.
+            «Kopier adressene» er for deg som heller vil lime dem inn selv.</li>
+        </ol>
+        <p>Medlemmer uten e-post står i en egen liste, så du kan ringe eller sende SMS. Når du sender, noteres datoen på hvert medlem.
+        Nettsiden sender ikke e-post selv. Det er alltid du som trykker send i e-postprogrammet.</p>`],
       ["Gi nye brukere tilgang", `<p>Når noen ber om tilgang, vises de øverst under Medlemmer. Trykk «Gi tilgang» eller «Avvis».
         Du kan også åpne et medlem med e-post og huke av for innlogging. Da kommer personen inn når hen lager konto med samme e-post.</p>`],
       ["Styreverv", `<p>Under «Møter» og «Styret» trykker du «Endre verv» for å velge hvem som har hvilket verv. Den som har et verv,

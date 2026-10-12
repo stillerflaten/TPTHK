@@ -4,7 +4,7 @@ import { html, raw, kr, iDag, tolkBelop, belopTilInput, datoTekst, lastNedCsv } 
 import { kontovalg } from "./poster.js";
 import {
   lagreMedlem, slettMedlem, registrerKontingent, angreKontingent, godkjennForesporsel, slettForesporsel,
-  lagreBruker, slettBruker, normalEpost,
+  lagreBruker, slettBruker, normalEpost, registrerPaminnelse,
 } from "../firebase.js";
 import { melding, medKnapp, bekreft, dialog } from "../ui.js";
 import { gaaTil } from "../app.js";
@@ -22,6 +22,7 @@ export function liste(main, S) {
     (filter.vis === "alle" || (filter.vis === "aktive" && m.aktiv !== false)
       || (filter.vis === "ubetalt" && m.aktiv !== false && !m.kontingent?.[aar]?.betalt))
     && (!sok || `${m.navn} ${m.epost} ${m.telefon}`.toLowerCase().includes(sok)));
+  const ubetalte = ikkeBetalt(S, aar);
 
   main.innerHTML = html`
     <div class="sidetopp">
@@ -54,6 +55,16 @@ export function liste(main, S) {
       </select>
     </div>
 
+    ${ubetalte.length && filter.vis === "ubetalt" ? raw(html`
+      <section class="kort uthevet paminnelse">
+        <p><strong>${ubetalte.length}</strong> aktive medlemmer har ikke betalt kontingent for ${aar}.
+          ${sistPaminnet(ubetalte, aar) ? `Sist påminnet ${datoTekst(sistPaminnet(ubetalte, aar))}.` : ""}</p>
+        <div class="knapperad">
+          <button class="knapp liten" id="paminnelse">${raw(ikon("send"))} Send påminnelse</button>
+        </div>
+      </section>`) : ubetalte.length && filter.vis === "aktive" && !sok ? raw(html`
+      <p class="hint">${ubetalte.length} har ikke betalt for ${aar}. <a href="#/medlemmer" id="visUbetalte">Vis dem og send påminnelse</a></p>`) : ""}
+
     ${synlige.length ? raw(html`<ul class="medlemsliste">${synlige.map((m) => {
       const betalt = m.kontingent?.[aar]?.betalt;
       const t = m.epost ? tilgang.get(normalEpost(m.epost)) : null;
@@ -61,7 +72,8 @@ export function liste(main, S) {
         <li class="${m.aktiv === false ? "utmeldt" : ""}">
           <a href="#/medlem/${m.id}" class="medlem-info">
             <strong>${m.navn}</strong>
-            <span class="hint">${[m.epost, t && ([t.admin ? "administrator" : t.rolle === "kasserer" ? "kasserer" : "", ...vervFor(S, t.id).map((v) => v.toLowerCase())].filter(Boolean).join(", ") || "har innlogging"), m.aktiv === false && "utmeldt"].filter(Boolean).join(" · ")}</span>
+            <span class="hint">${[filter.vis === "ubetalt" && !m.epost && "mangler e-post", m.epost, t && ([t.admin ? "administrator" : t.rolle === "kasserer" ? "kasserer" : "", ...vervFor(S, t.id).map((v) => v.toLowerCase())].filter(Boolean).join(", ") || "har innlogging"), m.aktiv === false && "utmeldt",
+              filter.vis === "ubetalt" && m.paminnet?.[aar] && `påminnet ${datoTekst(m.paminnet[aar])}`].filter(Boolean).join(" · ")}</span>
           </a>
           <button class="kontingent ${betalt ? "betalt" : ""}" data-kontingent="${m.id}" title="Kontingent ${aar}">
             ${betalt ? `✓ Betalt ${aar}` : `Ikke betalt ${aar}`}
@@ -80,6 +92,8 @@ export function liste(main, S) {
   });
   main.querySelector("#vis").addEventListener("change", (e) => { filter.vis = e.target.value; liste(main, S); });
   main.querySelector("#eksport").addEventListener("click", () => eksporter(S, sortert));
+  main.querySelector("#paminnelse")?.addEventListener("click", () => paminnelse(S, ubetalte, aar));
+  main.querySelector("#visUbetalte")?.addEventListener("click", (e) => { e.preventDefault(); filter.vis = "ubetalt"; liste(main, S); });
 
   main.querySelectorAll("[data-kontingent]").forEach((b) => b.addEventListener("click", () => {
     const m = S.medlemmer.find((x) => x.id === b.dataset.kontingent);
@@ -101,6 +115,102 @@ export function liste(main, S) {
 liste.live = true;
 liste.tittel = "Medlemmer";
 liste.trenger = ["medlemmer", "brukere", "foresporsler", "poster", "innst", "info", "verv"];
+
+// ---------- Påminnelse om kontingent ----------
+
+const ikkeBetalt = (S, aar) => S.medlemmer
+  .filter((m) => m.aktiv !== false && !m.kontingent?.[aar]?.betalt)
+  .sort((a, b) => (a.navn || "").localeCompare(b.navn || "", "nb"));
+
+function sistPaminnet(medlemmer, aar) {
+  return medlemmer.map((m) => m.paminnet?.[aar]).filter(Boolean).sort().pop() || "";
+}
+
+function omDager(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function paminnelseTekst(S, aar, frist) {
+  const info = S.info;
+  const klubb = info.klubbnavn || S.innst.klubbnavn;
+  return [
+    "Hei!",
+    "",
+    `Vi kan ikke se at vi har fått kontingenten for ${aar} fra deg ennå.`,
+    "",
+    info.kontingentBelop ? `Beløp: ${kr(info.kontingentBelop)}` : null,
+    info.kontonummer ? `Kontonummer: ${info.kontonummer}` : null,
+    frist ? `Frist: ${datoTekst(frist)}` : null,
+    "Merk betalingen med navnet ditt.",
+    info.betalingsinfo ? `\n${info.betalingsinfo}` : null,
+    "",
+    "Har du betalt nylig, kan du se bort fra denne e-posten.",
+    "",
+    "Hilsen",
+    `Kassereren i ${klubb}`,
+  ].filter((x) => x !== null).join("\n");
+}
+
+function paminnelse(S, ubetalte, aar) {
+  const medEpost = ubetalte.filter((m) => m.epost);
+  const utenEpost = ubetalte.filter((m) => !m.epost);
+  const adr = medEpost.map((m) => m.epost);
+  const klubb = S.info.klubbnavn || S.innst.klubbnavn;
+  let fristStandard = omDager(14);
+  const d = dialog(html`
+    <h2>Påminnelse om kontingent ${aar}</h2>
+    <form class="skjema" id="p">
+      <p class="hint">Går som blindkopi (Bcc) til ${medEpost.length} ${medEpost.length === 1 ? "medlem" : "medlemmer"} som ikke har betalt.</p>
+      ${utenEpost.length ? raw(html`<div class="varsel info">Mangler e-post: ${utenEpost.map((m) => m.navn).join(", ")}. Ring eller send SMS til ${utenEpost.length === 1 ? "denne" : "disse"}.</div>`) : ""}
+      ${!S.info.kontonummer || !S.info.kontingentBelop ? raw(`<div class="varsel info">Beløp eller kontonummer mangler. Fyll det inn under <a href="#/innstillinger">Innstillinger</a>, eller skriv det i teksten under.</div>`) : ""}
+      <label>Frist<input type="date" name="frist" value="${fristStandard}"></label>
+      <label>Emne<input name="emne" value="Påminnelse om kontingent ${aar}, ${klubb}"></label>
+      <label>Tekst<textarea name="tekst" rows="12">${paminnelseTekst(S, aar, fristStandard)}</textarea></label>
+      <label class="avkryss"><input type="checkbox" name="merk" checked> Noter at de er påminnet i dag</label>
+      <div class="knapper">
+        <button type="button" class="knapp sekundaer" data-lukk>Avbryt</button>
+        <button type="button" class="knapp sekundaer" id="kopierAdr" ${adr.length ? "" : "disabled"}>Kopier adressene</button>
+        <button type="submit" class="knapp" ${adr.length ? "" : "disabled"}>${raw(ikon("send"))} Åpne e-post</button>
+      </div>
+    </form>`, { bred: true });
+  const f = d.querySelector("#p");
+  // Ny frist oppdaterer teksten, så lenge kassereren ikke har skrevet om den selv.
+  f.elements.frist.addEventListener("change", () => {
+    if (f.elements.tekst.value === paminnelseTekst(S, aar, fristStandard)) f.elements.tekst.value = paminnelseTekst(S, aar, f.elements.frist.value);
+    fristStandard = f.elements.frist.value;
+  });
+  const merk = async () => {
+    if (f.elements.merk.checked) await registrerPaminnelse(medEpost.map((m) => m.id), String(aar), iDag());
+  };
+  d.querySelector("#kopierAdr").addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
+    try {
+      await navigator.clipboard.writeText(adr.join(", "));
+    } catch {
+      return melding("Klarte ikke å kopiere. Prøv igjen.", "feil");
+    }
+    await merk();
+    melding("Adressene er kopiert. Lim dem inn i Bcc-feltet i e-posten.");
+  }));
+  f.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const emne = encodeURIComponent(f.elements.emne.value);
+    const tekst = encodeURIComponent(f.elements.tekst.value.replace(/\n/g, "\r\n"));
+    let url = `mailto:?bcc=${adr.map(encodeURIComponent).join(",")}&subject=${emne}&body=${tekst}`;
+    medKnapp(e.submitter, async () => {
+      // Svært lange lenker (mange mottakere) kan e-postprogrammer avvise. Da kopieres adressene i stedet.
+      if (url.length > 8000) {
+        url = `mailto:?subject=${emne}&body=${tekst}`;
+        await navigator.clipboard.writeText(adr.join(", ")).catch(() => {});
+        melding("Det er for mange mottakere til å legge dem inn direkte. Adressene er kopiert, så lim dem inn i Bcc-feltet.");
+      }
+      await merk();
+      d.close();
+      location.href = url;
+    });
+  });
+}
 
 function registrer(S, m, aar) {
   const standard = S.info.kontingentBelop || 0;

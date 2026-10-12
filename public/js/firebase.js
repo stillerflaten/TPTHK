@@ -196,6 +196,13 @@ export async function angreKontingent(medlem, aar) {
   await batch.commit();
 }
 
+/** Husker når kassereren sist sendte påminnelse om kontingent til disse medlemmene. */
+export async function registrerPaminnelse(medlemIder, aar, dato) {
+  const batch = writeBatch(db);
+  for (const id of medlemIder) batch.update(doc(db, "medlemmer", id), { [`paminnet.${aar}`]: dato });
+  await batch.commit();
+}
+
 /** Godkjenner en tilgangsforespørsel: oppretter medlem (om nødvendig) og gir tilgang. */
 export async function godkjennForesporsel(f, eksisterendeMedlemId) {
   const batch = writeBatch(db);
