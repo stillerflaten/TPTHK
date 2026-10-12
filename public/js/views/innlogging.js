@@ -115,4 +115,16 @@ export function ingenTilgang(main, S) {
   });
 }
 
+/** For en revisor utenfor klubben når tilgangen har gått ut. */
+export function revisorUtlopt(main, S) {
+  main.innerHTML = html`
+    <div class="sentrert kort">
+      ${raw(logo)}
+      <h1>Revisortilgangen er utløpt</h1>
+      <p>Du er logget inn som <strong>${S.bruker.email}</strong>. Tilgangen til regnskapet har gått ut. Ta kontakt med kassereren hvis du trenger den igjen.</p>
+      <div class="lenker"><button class="lenkeknapp" id="ut">Logg ut</button></div>
+    </div>`;
+  main.querySelector("#ut").addEventListener("click", () => konto.loggUt());
+}
+
 export { feilmelding };

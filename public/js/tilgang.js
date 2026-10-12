@@ -28,5 +28,8 @@ export const revisorUtloper = (p) => p?.revisorTil?.toMillis?.() ?? null;
 export const erRevisor = (S) => S.profil?.revisor === true
   && (revisorUtloper(S.profil) == null || revisorUtloper(S.profil) > Date.now());
 
+/** Revisor som ikke er medlem av klubben. Ser bare regnskapet. */
+export const eksternRevisor = (S) => S.profil?.rolle === "revisor";
+
 /** Ser regnskapet (oversikt, årsrapport). */
 export const seRegnskap = (S) => erKasserer(S) || erStyret(S) || erRevisor(S);

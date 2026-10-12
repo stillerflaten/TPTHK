@@ -8,7 +8,7 @@ import { erKasserer, erStyret, erAdmin, erRevisor } from "../tilgang.js";
 // Skjermbildene ligger i public/hjelp/ og er tatt med oppdiktede testdata.
 const DELER = [
   {
-    id: "medlem", tittel: "For alle medlemmer", gjelder: () => true,
+    id: "medlem", tittel: "For alle medlemmer", gjelder: (S) => S.profil?.rolle !== "revisor",
     emner: [
       ["Første gang: lag konto og få tilgang", `
         <ol>
@@ -84,6 +84,8 @@ const DELER = [
       ["Hva revisor kan se", `<p>Som revisor kan du lese hele regnskapet, men ikke endre noe. Du ser <strong>Oversikt</strong> med saldo og årets tall,
         alle <strong>Poster</strong> med bilagsnummer og kvitteringer, og <strong>Årsrapport</strong>. Søknadene om refusjon og medlemmenes kontonumre ser du ikke.
         Har kassereren satt en sluttdato, stenges tilgangen av seg selv etter den dagen.</p>`, ["oversikt"]],
+      ["Første gang (revisor utenfor klubben)", `<p>Kassereren legger inn e-postadressen din. Gå til nettsiden, trykk «Ny bruker? Opprett konto»
+        og bruk den samme e-postadressen. Bekreft adressen med lenken du får på e-post, og logg inn. Da kommer du rett inn i regnskapet.</p>`],
       ["Gå gjennom bilagene", `<p>Velg år øverst. Under «Poster» kan du søke og filtrere på type, kategori og konto. Trykk på en post for å se bilaget,
         hvem som førte det, og kvitteringene. Trykk på «Kvittering» for å åpne bildet eller PDF-en.</p>`],
       ["Last ned til Excel eller PDF", `<p>«Excel» under Poster laster ned alle postene for året som en fil du kan åpne i Excel.
@@ -119,8 +121,9 @@ const DELER = [
         ser oversikten og søknadene og kan legge ut møter. Vervet «Kasserer» er bare en tittel. Tilgang til regnskapet gis under Innstillinger.</p>`, ["verv"]],
       ["Årsrapport", `<p><a href="#/rapport">Årsrapport</a> samler resultatregnskap, saldo på kontoene, medlemmer og bilagsliste for året.
         Trykk «Skriv ut / lagre PDF» og velg «Lagre som PDF» for å sende den til revisor eller årsmøtet.</p>`],
-      ["Gi revisor tilgang", `<p>Revisor må først ha innlogging, som et vanlig medlem. Gå til <a href="#/innstillinger">Innstillinger</a>, velg personen under «Revisor»,
-        sett gjerne en sluttdato, og trykk «Gi revisortilgang». Revisor kan lese regnskapet med kvitteringer og årsrapporten, men ikke endre noe
+      ["Gi revisor tilgang", `<p>Gå til <a href="#/innstillinger">Innstillinger</a> og finn «Revisor». Er revisoren medlem med innlogging, velger du personen i lista.
+        Er revisoren ikke medlem, skriver du navn og e-post under «Revisor utenfor klubben». Revisoren lager så konto med den e-postadressen og kommer rett inn.
+        Sett gjerne en sluttdato. Revisor kan lese regnskapet med kvitteringer og årsrapporten, men ikke endre noe
         eller se søknadene. Trykk «Fjern» når revisjonen er ferdig, hvis du ikke satte sluttdato.</p>`],
       ["Sikkerhetskopi", `<p>Under <a href="#/innstillinger">Innstillinger</a> trykker du «Last ned sikkerhetskopi». Du får én ZIP-fil med regnskapet,
         medlemmene og søknadene (som filer du kan åpne i Excel), alle kvitteringer (navngitt etter bilagsnummer), og møter og referater.
