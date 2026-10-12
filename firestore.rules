@@ -1,0 +1,101 @@
+rules_version = '2';
+
+// Sikkerhetsregler for TPTHK kasserer.
+// Disse limes inn i Firebase-konsollen under Firestore Database → Regler (Rules) → Publiser.
+//
+// Kort fortalt:
+//  • Bare innloggede med bekreftet e-post, som kassereren har gitt tilgang (en rad i «brukere»), kommer inn.
+//  • Kasserere ser og endrer alt.
+//  • Medlemmer ser bare sine egne søknader og kvitteringer, sitt eget medlemskort og betalingsinfo.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function innlogget() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function epost() {
+      return request.auth.token.email.lower();
+    }
+    function profilSti() {
+      return /databases/$(database)/documents/brukere/$(epost());
+    }
+    function harTilgang() {
+      return innlogget() && exists(profilSti());
+    }
+    function profil() {
+      return get(profilSti()).data;
+    }
+    function erKasserer() {
+      return harTilgang() && profil().rolle == 'kasserer';
+    }
+    function gyldigBelop(b) {
+      return b is int && b > 0 && b < 100000000;
+    }
+
+    // Hvem som har tilgang, og med hvilken rolle. Dokument-ID er e-postadressen med små bokstaver.
+    match /brukere/{e} {
+      allow get: if innlogget() && (e == epost() || erKasserer());
+      allow list, create, delete: if erKasserer();
+      allow update: if erKasserer()
+        || (harTilgang() && e == epost()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['navn', 'kontonummer']));
+    }
+
+    // Personer som har opprettet konto og ber om tilgang.
+    match /foresporsler/{e} {
+      allow get: if innlogget() && e == epost();
+      allow create: if innlogget() && e == epost()
+        && request.resource.data.keys().hasOnly(['navn', 'epost', 'tidspunkt'])
+        && request.resource.data.epost == epost()
+        && request.resource.data.navn is string && request.resource.data.navn.size() > 0 && request.resource.data.navn.size() < 100;
+      allow list, delete: if erKasserer();
+    }
+
+    // Regnskapet: bare kasserer.
+    match /poster/{id} {
+      allow read, delete: if erKasserer();
+      allow create, update: if erKasserer()
+        && request.resource.data.type in ['inntekt', 'utgift']
+        && gyldigBelop(request.resource.data.belop)
+        && request.resource.data.dato is string;
+    }
+
+    match /medlemmer/{id} {
+      allow read, write: if erKasserer();
+      allow get: if harTilgang() && profil().get('medlemId', '') == id;
+    }
+
+    match /innstillinger/klubb {
+      allow read, write: if erKasserer();
+    }
+    match /innstillinger/medlemsinfo {
+      allow read: if harTilgang();
+      allow write: if erKasserer();
+    }
+
+    // Søknader om refusjon av utlegg.
+    match /soknader/{id} {
+      allow read: if erKasserer() || (harTilgang() && resource.data.epost == epost());
+      allow create: if harTilgang()
+        && request.resource.data.epost == epost()
+        && request.resource.data.status == 'sendt'
+        && gyldigBelop(request.resource.data.belop);
+      allow update: if erKasserer();
+      allow delete: if erKasserer()
+        || (harTilgang() && resource.data.epost == epost() && resource.data.status == 'sendt');
+    }
+
+    // Kvitteringsbilder. «laast» settes når en søknad er utbetalt, så de ikke kan slettes av medlemmet.
+    match /kvitteringer/{id} {
+      allow read: if erKasserer() || (harTilgang() && resource.data.eier == epost());
+      allow create: if harTilgang()
+        && request.resource.data.eier == epost()
+        && request.resource.data.data is string
+        && request.resource.data.data.size() < 1000000;
+      allow update: if erKasserer();
+      allow delete: if erKasserer()
+        || (harTilgang() && resource.data.eier == epost() && resource.data.get('laast', false) != true);
+    }
+  }
+}
