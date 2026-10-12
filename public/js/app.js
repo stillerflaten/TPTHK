@@ -12,6 +12,7 @@ import * as poster from "./views/poster.js";
 import * as rapport from "./views/rapport.js";
 import { budsjett } from "./views/budsjett.js";
 import { bankimport } from "./views/bankimport.js";
+import { avstemming } from "./views/avstemming.js";
 import * as soknader from "./views/soknader.js";
 import * as medlemmer from "./views/medlemmer.js";
 import * as innstillinger from "./views/innstillinger.js";
@@ -71,6 +72,7 @@ const kassererSider = {
   medlemmer: { meny: "Medlemmer", ikon: "medlemmer", side: medlemmer.liste },
   medlem: { side: medlemmer.skjema },
   rapport: { meny: "Årsrapport", ikon: "rapport", side: rapport.rapport },
+  avstemming: { side: avstemming },
   budsjett: { side: budsjett },
   moter: { meny: "Møter", ikon: "moter", side: moter.liste },
   innstillinger: { meny: "Innstillinger", ikon: "innstillinger", side: innstillinger.innstillinger },
@@ -108,6 +110,7 @@ const medlemSider = {
 const styreSider = {
   oversikt: { meny: "Oversikt", ikon: "oversikt", side: oversikt.oversikt },
   rapport: { meny: "Årsrapport", ikon: "rapport", side: rapport.rapport },
+  avstemming: { side: avstemming },
   soknader: { meny: "Søknader", ikon: "soknader", side: soknader.kassererListe },
   soknad: { side: soknader.kassererDetalj },
   mine: { meny: "Mine søknader", ikon: "poster", side: soknader.mineListe },
@@ -126,6 +129,7 @@ const revisorSider = (styre) => ({
   poster: { meny: "Poster", ikon: "poster", side: poster.liste },
   post: { side: poster.visning },
   rapport: { meny: "Årsrapport", ikon: "rapport", side: rapport.rapport },
+  avstemming: { side: avstemming },
   ...(styre ? { soknader: styreSider.soknader, soknad: styreSider.soknad } : {}),
   mine: { meny: "Mine søknader", ikon: "soknader", side: soknader.mineListe },
   "ny-soknad": { side: soknader.nySoknad },
@@ -142,6 +146,7 @@ const eksternRevisorSider = {
   poster: { meny: "Poster", ikon: "poster", side: poster.liste },
   post: { side: poster.visning },
   rapport: { meny: "Årsrapport", ikon: "rapport", side: rapport.rapport },
+  avstemming: { side: avstemming },
   hjelp: { side: hjelp },
 };
 
@@ -254,7 +259,7 @@ function tegnMeny(aktiv) {
 
 // Undersider markerer menypunktet de hører til.
 const hører = (navn) => ({ post: "poster", bankimport: "poster", soknad: "soknader", medlem: "medlemmer", "ny-soknad": "mine", "min-soknad": "mine",
-  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter", budsjett: "rapport", "regel-skjema": "regelverk" })[navn];
+  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter", budsjett: "rapport", avstemming: "rapport", "regel-skjema": "regelverk" })[navn];
 
 // ---------- Data ----------
 

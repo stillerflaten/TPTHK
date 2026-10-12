@@ -1,7 +1,7 @@
 // Liste over inntekter, utgifter og overføringer, og skjema for å føre en ny post.
 
 import { html, raw, kr, tall, datoTekst, iDag, tolkBelop, belopTilInput, lastNedCsv } from "../util.js";
-import { aarFor, sorterPoster, bilagsnrForNy, endring, kontoFor, kontonavn } from "../regnskap.js";
+import { aarFor, sorterPoster, bilagsnrForNy, endring, kontoFor, kontonavn, foeringslinjer } from "../regnskap.js";
 import { lagrePost, slettPost, slettKvittering } from "../firebase.js";
 import { melding, medKnapp, bekreft, kvitteringsvelger, kvitteringslenker, kobleKvitteringslenker } from "../ui.js";
 import { gaaTil } from "../app.js";
@@ -24,6 +24,19 @@ export function belopHtml(p, innst, konto) {
   if (p.type === "overforing" && !konto) return html`<span class="post-belop noytral">${kr(p.belop)}</span>`;
   const e = endring(p, innst, konto);
   return html`<span class="post-belop ${e < 0 ? "minus" : "pluss"}">${e < 0 ? "−" : "+"}${kr(Math.abs(e))}</span>`;
+}
+
+/** Posten ført som minus på én konto og pluss på en annen, slik kassereren er vant til fra kontoplanen. */
+export function foeringHtml(p, innst) {
+  const linjer = foeringslinjer(p, innst);
+  return html`<table class="regnskap foering">
+    <thead><tr><th>Konto</th><th class="tall">Beløp</th></tr></thead>
+    <tbody>${linjer.map((l) => raw(html`
+      <tr><td>${l.konto}${l.bank ? raw(` <span class="dempet">(bank)</span>`) : ""}</td>
+      <td class="tall ${l.belop < 0 ? "minus" : "pluss"}">${l.belop < 0 ? "−" : "+"}${kr(Math.abs(l.belop))}</td></tr>`))}
+      <tr class="sum"><td>Sum</td><td class="tall">${kr(linjer.reduce((s, l) => s + l.belop, 0))}</td></tr>
+    </tbody>
+  </table>`;
 }
 
 export function liste(main, S) {
@@ -158,6 +171,7 @@ export function skjema(main, S, id) {
       <label data-vis="vanlig">Kategori
         <select name="kategori" id="kategori"></select>
       </label>
+      <div id="foering" aria-live="polite"></div>
       <label>Beskrivelse<input name="beskrivelse" value="${p?.beskrivelse || ""}" placeholder="F.eks. Leie av hall til samling" maxlength="200"></label>
 
       <fieldset>
@@ -194,12 +208,27 @@ export function skjema(main, S, id) {
     const forrige = katSelect.value || (p?.type === type ? p.kategori : "");
     katSelect.innerHTML = `<option value="">Velg kategori …</option>` + valg.map((k) => html`<option ${k === forrige ? "selected" : ""}>${k}</option>`).join("");
   };
+  // Vis føringen (minus på bankkontoen, pluss på kategorien) mens kassereren fyller ut.
+  const visFoering = () => {
+    const f = Object.fromEntries(new FormData(skjemaEl));
+    const belop = tolkBelop(f.belop);
+    const el = main.querySelector("#foering");
+    if (!belop || belop <= 0) { el.innerHTML = ""; return; }
+    const utkast = type === "overforing"
+      ? { type, belop, fraKonto: f.fraKonto, tilKonto: f.tilKonto }
+      : { type, belop, kategori: f.kategori, konto: f.konto || forsteKonto };
+    el.innerHTML = html`<p class="hint">Slik blir posten ført:</p>${raw(foeringHtml(utkast, S.innst))}`;
+  };
+  skjemaEl.addEventListener("input", visFoering);
+  skjemaEl.addEventListener("change", visFoering);
   skjemaEl.querySelectorAll("[data-type]").forEach((b) => b.addEventListener("click", () => {
     if (laastType) return;
     type = b.dataset.type;
     tegnType();
+    visFoering();
   }));
   tegnType();
+  visFoering();
 
   // Bilagsnummeret følger datoen. Vis hva det blir.
   const visBilag = () => {
@@ -273,6 +302,7 @@ export function visning(main, S, id) {
         <dt>Beløp</dt><dd><strong>${raw(belopHtml(p, S.innst))}</strong></dd>
         <dt>Konto</dt><dd>${kontotekst(p, S.innst)}</dd>
         ${p.type !== "overforing" ? raw(html`<dt>Kategori</dt><dd>${p.kategori || "–"}</dd>`) : ""}
+        <dt>Føring</dt><dd>${raw(foeringHtml(p, S.innst))}</dd>
         <dt>Beskrivelse</dt><dd class="fritekst">${p.beskrivelse || "–"}</dd>
         ${p.opprettetAv ? raw(html`<dt>Ført av</dt><dd>${p.opprettetAv}</dd>`) : ""}
         ${p.endretAv && p.endretAv !== p.opprettetAv ? raw(html`<dt>Sist endret av</dt><dd>${p.endretAv}</dd>`) : ""}

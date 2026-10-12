@@ -114,7 +114,12 @@ const DELER = [
         </ol>`, ["innstillinger"]],
       ["Før inntekter og utgifter", `<p>Trykk «+ Ny post» på Oversikt eller Poster. Velg inntekt, utgift eller overføring mellom kontoer, og fyll inn dato,
         beløp, kategori og beskrivelse. Hver post får et bilagsnummer. Velg år øverst for å se et annet regnskapsår.
-        «Excel» laster ned postene som en fil du kan åpne i Excel.</p>`, ["ny-post"]],
+        Under beløpet ser du hvordan posten blir ført: en utgift gir minus på bankkontoen og pluss på kategorien (f.eks. «Premier og gaver»),
+        en inntekt gir pluss på bankkontoen og minus på kategorien. Du fører bare beløpet én gang, så tar nettsiden seg av begge linjene.
+        «Excel» laster ned postene som en fil du kan åpne i Excel.</p>
+        <p>Vil du se hva klubben sitter igjen med etter et arrangement, f.eks. et seminar, lager du en kategori med samme navn under både inntekter og utgifter
+        i <a href="#/innstillinger">Innstillinger</a> (f.eks. «Seminar 2026»). Før påmeldinger som inntekt og kostnader som utgift på den kategorien.
+        Årsrapporten viser da inntekter, utgifter og hva dere sitter igjen med. Under Poster kan du også velge kategorien og se «Netto» nederst.</p>`, ["ny-post"]],
       ["Importer kontoutskrift fra banken", `
         <ol>
           <li>I Nordea nettbank: åpne kontoen, velg perioden og last ned transaksjonene som CSV eller Excel.</li>
@@ -157,6 +162,14 @@ const DELER = [
       ["Årsrapport", `<p><a href="#/rapport">Årsrapport</a> samler resultatregnskap, saldo på kontoene, medlemmer og bilagsliste for året.
         Er det lagt inn budsjett, vises regnskapet, budsjettet og avviket ved siden av hverandre, og budsjettet for neste år hvis det finnes.
         Trykk «Skriv ut / lagre PDF» og velg «Lagre som PDF» for å sende den til revisor eller årsmøtet. «Excel» laster ned resultatregnskapet som en fil du kan åpne i Excel.</p>`],
+      ["Avstem mot banken", `
+        <ol>
+          <li>Når alt for året er ført, gå til <a href="#/rapport">Årsrapport</a> og trykk «Avstemming».</li>
+          <li>Skriv inn saldoen per 31.12. fra årsoppgaven fra banken for hver konto (og tell opp kontantkassa). Har kontoen minus, skriv minus foran.</li>
+          <li>Nettsiden sammenligner med saldoen i regnskapet og viser «Stemmer» eller avviket i kroner. Trykk «Lagre avstemming».</li>
+        </ol>
+        <p>Stemmer alle kontoene, stemmer regnskapet. Er det avvik, velg kontoen under <a href="#/poster">Poster</a> og sammenlign med kontoutskriften.
+        Årsrapporten viser om saldoene er avstemt. Styret og revisor kan se avstemmingen, men bare kassereren kan endre den.</p>`],
       ["Budsjett", `
         <ol>
           <li>Gå til <a href="#/rapport">Årsrapport</a> og trykk «Budsjett». Velg år øverst. Skal du lage budsjett for neste år (f.eks. til årsmøtet), trykk «Lag budsjett for …».</li>

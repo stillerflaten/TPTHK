@@ -552,6 +552,15 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 .skjema .budsjett-rad input { margin-top: 0; }
 .tallkort .budsjett { font-size: .75rem; color: var(--dempet); }
 
+/* Føring (minus/pluss) og avstemming mot banken */
+.varsel.ok { background: var(--pluss-lys); color: var(--pluss); }
+.hint.blokk { display: block; margin: 2px 0 0; }
+.avstemming input { width: 9.5em; text-align: right; margin: 0; }
+.avstemming td { vertical-align: middle; }
+.foering { margin: 4px 0 0; max-width: 420px; }
+.foering td { padding: 5px 8px; }
+.foering tr.sum td { color: var(--dempet); font-weight: 400; }
+
 /* Import fra banken */
 .bankliste li { display: grid; grid-template-columns: auto 1fr auto auto; gap: 14px; align-items: center; padding: 12px 18px; }
 .bankliste li.bank-fort, .bankliste li.bank-hoppet, .bankliste li.bank-forStart { opacity: .7; }
