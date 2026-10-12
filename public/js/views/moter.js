@@ -93,6 +93,70 @@ liste.live = true;
 liste.tittel = "Møter";
 liste.trenger = ["moter", "signaturer"];
 
+// ---------- Innkalling på e-post ----------
+// Gratis løsning: åpner e-postprogrammet med mottakerne i Bcc, så ingen ser hverandres adresser.
+
+/** Hvem som skal ha innkallingen: aktive medlemmer med e-post, eller bare styret for styremøter. */
+function mottakere(S, m) {
+  if (!erAapent(m)) return [...new Set((S.personer || []).filter((p) => p.styre).map((p) => p.epost))];
+  return [...new Set(S.medlemmer.filter((x) => x.aktiv !== false && x.epost).map((x) => normalEpost(x.epost)))];
+}
+
+function epostboks(S, m) {
+  const klar = erAapent(m) ? S.lastet.has("medlemmer") : S.lastet.has("personer");
+  if (!klar) return "";
+  const antall = mottakere(S, m).length;
+  return html`
+    <div class="epostboks">
+      <p class="hint">${antall
+        ? `Send innkallingen til ${erAapent(m) ? `alle ${antall} aktive medlemmer med e-post` : `styret (${antall})`}. E-postprogrammet ditt åpnes med adressene som blindkopi (Bcc).`
+        : erAapent(m) ? "Ingen aktive medlemmer har e-post i medlemslisten." : "Fant ingen i styret med e-post."}</p>
+      ${antall ? raw(html`<div class="knapperad">
+        <button type="button" class="knapp liten" id="sendEpost">${raw(ikon("send"))} Send på e-post</button>
+        <button type="button" class="knapp sekundaer liten" id="kopierAdresser">Kopier adressene</button>
+        <button type="button" class="knapp sekundaer liten" id="kopierTekst">Kopier teksten</button>
+      </div>`) : ""}
+    </div>`;
+}
+
+function epostTekst(m) {
+  const lenke = `${location.origin}${location.pathname}#/mote/${m.id}`;
+  return [
+    `Innkalling til ${typeTekst[m.type].toLowerCase()}${erAapent(m) ? " (åpent for alle medlemmer)" : ""}`,
+    "",
+    `Tid: ${datoTekst(m.dato)}${m.tid ? ` kl. ${m.tid}` : ""}`,
+    m.sted ? `Sted: ${m.sted}` : null,
+    "",
+    m.innkalling || null,
+    m.innkalling ? "" : null,
+    `Innkallingen ligger også på nettsiden: ${lenke}`,
+  ].filter((x) => x !== null).join("\n");
+}
+
+async function kopier(tekst, ok) {
+  try {
+    await navigator.clipboard.writeText(tekst);
+    melding(ok);
+  } catch {
+    melding("Klarte ikke å kopiere. Prøv igjen.", "feil");
+  }
+}
+
+function kobleEpost(main, S, m) {
+  main.querySelector("#sendEpost")?.addEventListener("click", () => {
+    const adr = mottakere(S, m);
+    const emne = `Innkalling: ${motetittel(m)}`;
+    const url = `mailto:?bcc=${adr.map(encodeURIComponent).join(",")}&subject=${encodeURIComponent(emne)}&body=${encodeURIComponent(epostTekst(m).replace(/\n/g, "\r\n"))}`;
+    // Svært lange lenker (mange mottakere) kan e-postprogrammer avvise. Da er kopiering tryggere.
+    if (url.length > 8000) return melding("Det er for mange mottakere til å åpne e-postprogrammet direkte. Bruk «Kopier adressene» og «Kopier teksten».", "feil");
+    location.href = url;
+  });
+  main.querySelector("#kopierAdresser")?.addEventListener("click", () =>
+    kopier(mottakere(S, m).join(", "), "Adressene er kopiert. Lim dem inn i Bcc-feltet i e-posten."));
+  main.querySelector("#kopierTekst")?.addEventListener("click", () =>
+    kopier(epostTekst(m), "Teksten er kopiert. Lim den inn i e-posten."));
+}
+
 // ---------- Ett møte ----------
 
 export function detalj(main, S, id) {
@@ -120,6 +184,7 @@ export function detalj(main, S, id) {
       </dl>
       ${m.innkalling ? raw(html`<div class="fritekst dokumenttekst">${m.innkalling}</div>`) : raw(`<p class="hint">Ingen saksliste er lagt inn.</p>`)}
       ${styret && m.referatStatus !== "godkjent" ? raw(html`<div class="knapper venstre"><a class="knapp sekundaer liten" href="#/mote-skjema/${m.id}">Rediger innkalling</a></div>`) : ""}
+      ${styret ? raw(epostboks(S, m)) : ""}
     </section>
 
     <section class="kort ${kanSignere ? "uthevet" : ""}">
@@ -176,6 +241,7 @@ export function detalj(main, S, id) {
     markerGodkjent(m).catch(() => {});
   }
 
+  kobleEpost(main, S, m);
   const lest = main.querySelector("#lest");
   main.querySelector("#signer")?.addEventListener("click", (ev) => {
     if (!lest.checked) return melding("Huk av for at du har lest referatet først.", "feil");
