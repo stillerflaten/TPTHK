@@ -7,7 +7,8 @@
 //  • moter/          innkallinger og referater som tekst, med hvem som har signert
 //  • regelverk/      vedtekter og andre regler som PDF
 //
-// Gjenoppretting legger bare tilbake dokumenter som mangler. Ingenting som finnes, blir endret eller slettet.
+// Gjenoppretting legger bare tilbake dokumenter som mangler. Ingenting som finnes, blir endret eller slettet, bortsett fra at
+// søknader og kontingent som hører til en post som legges tilbake, igjen merkes som utbetalt/betalt.
 
 import { html, raw, datoTekst, tall, csvTekst, lastNed, iDag } from "../util.js";
 import {
@@ -92,10 +93,8 @@ export function kobleKopi(main, S) {
 
   main.querySelector("#lagKopi")?.addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
     try {
-      const { blob, filnavn } = await lagSikkerhetskopi(S, vis);
-      lastNed(filnavn, blob);
-      await merkSikkerhetskopi(S.profil?.navn || "");
-      vis(`Lastet ned ${filnavn} (${mb(blob.size)}).`);
+      const { filnavn, storrelse } = await lastNedSikkerhetskopi(S, vis);
+      vis(`Lastet ned ${filnavn} (${mb(storrelse)}).`);
       melding("Sikkerhetskopien er lastet ned.");
     } catch (err) {
       vis("");
@@ -142,6 +141,14 @@ function fraJson(v) {
 const utenId = ({ id, ...rest }) => rest;
 
 // ---------- Lage sikkerhetskopi ----------
+
+/** Lager sikkerhetskopien, laster den ned og husker når den ble tatt. Brukes også før regnskapet nullstilles. */
+export async function lastNedSikkerhetskopi(S, vis) {
+  const { blob, filnavn } = await lagSikkerhetskopi(S, vis);
+  lastNed(filnavn, blob);
+  await merkSikkerhetskopi(S.profil?.navn || "");
+  return { filnavn, storrelse: blob.size };
+}
 
 async function lagSikkerhetskopi(S, vis) {
   if (!navigator.onLine) throw new Error("Du må være på nett for å ta sikkerhetskopi.");
@@ -385,8 +392,10 @@ async function gjenopprett(fil, S, vis) {
 
   vis("Sjekker hva som mangler …");
   const finnes = {};
+  const naa = {};
   for (const navn of ["brukere", "poster", "medlemmer", "soknader", "kvitteringer", "moter", "referatutkast", "regelverk"]) {
-    finnes[navn] = new Set((await hentSamling(navn)).map((d) => d.id));
+    naa[navn] = await hentSamling(navn);
+    finnes[navn] = new Set(naa[navn].map((d) => d.id));
   }
   const naaInnst = (await Promise.all(["klubb", "medlemsinfo", "verv", "personer"].map((id) => hentDokument("innstillinger", id)))).filter(Boolean);
   finnes.innstillinger = new Set(naaInnst.map((d) => d.id));
@@ -415,8 +424,14 @@ async function gjenopprett(fil, S, vis) {
   const klubbNaa = naaInnst.find((d) => d.id === "klubb");
   const budsjettKopi = kopi.innstillinger.find((d) => d.id === "klubb")?.budsjett || {};
   const budsjettAar = klubbNaa ? Object.keys(budsjettKopi).filter((aar) => !klubbNaa.budsjett?.[aar]).sort() : [];
+  // Avstemming og overhoppede banktransaksjoner som er borte (f.eks. etter «Nullstill regnskapet»), legges også tilbake.
+  const klubbKopi = kopi.innstillinger.find((d) => d.id === "klubb") || {};
+  const avstemmingAar = klubbNaa ? Object.keys(klubbKopi.avstemming || {}).filter((aar) => !klubbNaa.avstemming?.[aar]).sort() : [];
+  const hoppet = klubbNaa ? Object.entries(klubbKopi.bankHoppet || {}).filter(([id]) => !klubbNaa.bankHoppet?.[id]) : [];
+  const koblinger = koblingerTilPoster(plan.poster, kopi, naa);
   const signerte = plan.moter.filter((m) => m.referatStatus === "signering" || m.referatStatus === "godkjent");
-  const totalt = Object.values(plan).reduce((s, l) => s + l.length, 0) + (verv ? 1 : 0) + (budsjettAar.length ? 1 : 0);
+  const totalt = Object.values(plan).reduce((s, l) => s + l.length, 0) + (verv ? 1 : 0) + (budsjettAar.length ? 1 : 0)
+    + (avstemmingAar.length ? 1 : 0) + (hoppet.length ? 1 : 0);
 
   vis("");
   const laget = new Date(manifest.laget).toLocaleString("nb-NO", { dateStyle: "long", timeStyle: "short" });
@@ -432,11 +447,14 @@ async function gjenopprett(fil, S, vis) {
     <p>Sikkerhetskopien er fra <strong>${laget}</strong>. Dette mangler i dag og kan legges tilbake:</p>
     <ul>${Object.entries(plan).filter(([, l]) => l.length).map(([navn, l]) => raw(html`<li>${antallTekst(navn, l.length)}</li>`))}
       ${verv ? raw("<li>hvem som har hvilke styreverv</li>") : ""}
-      ${budsjettAar.length ? raw(html`<li>budsjettet for ${budsjettAar.join(", ")}</li>`) : ""}</ul>
+      ${budsjettAar.length ? raw(html`<li>budsjettet for ${budsjettAar.join(", ")}</li>`) : ""}
+      ${avstemmingAar.length ? raw(html`<li>avstemmingen for ${avstemmingAar.join(", ")}</li>`) : ""}
+      ${hoppet.length ? raw(html`<li>${hoppet.length} overhoppede banktransaksjoner</li>`) : ""}</ul>
+    ${koblinger.length ? raw(html`<p class="hint">Søknader og kontingent som hører til postene, merkes som utbetalt og betalt igjen.</p>`) : ""}
     ${signerte.length ? raw(html`<p class="hint">${signerte.length} ${signerte.length === 1 ? "referat var" : "referater var"} sendt til signering eller godkjent.
       Signaturer kan ikke legges tilbake, så ${signerte.length === 1 ? "det" : "de"} kommer tilbake som utkast og må signeres på nytt.
       Den signerte teksten med navn og tidspunkt ligger i mappa «moter» i ZIP-fila.</p>`) : ""}
-    <p class="hint">Ingenting som finnes i dag, blir endret eller slettet.</p>
+    <p class="hint">Ingenting som finnes i dag, blir slettet.</p>
     <div class="knapper"><button class="knapp sekundaer" data-lukk>Avbryt</button><button class="knapp" id="startGjenoppretting">Legg tilbake</button></div>`);
 
   d.querySelector("#startGjenoppretting").addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
@@ -445,6 +463,12 @@ async function gjenopprett(fil, S, vis) {
     if (budsjettAar.length) {
       etterpaa.push({ samling: "innstillinger", id: "klubb", endre: Object.fromEntries(budsjettAar.map((aar) => [`budsjett.${aar}`, budsjettKopi[aar]])) });
     }
+    const klubbEndring = {
+      ...Object.fromEntries(avstemmingAar.map((aar) => [`avstemming.${aar}`, klubbKopi.avstemming[aar]])),
+      ...Object.fromEntries(hoppet.map(([id, v]) => [`bankHoppet.${id}`, v])),
+    };
+    if (Object.keys(klubbEndring).length) etterpaa.push({ samling: "innstillinger", id: "klubb", endre: klubbEndring });
+    etterpaa.push(...koblinger);
     const alle = forst.length + etterpaa.length;
     vis(`Legger tilbake 0 av ${alle} …`);
     await skrivMange(forst, (n) => vis(`Legger tilbake ${n} av ${alle} …`));
@@ -454,6 +478,31 @@ async function gjenopprett(fil, S, vis) {
     d.close();
     melding("Ferdig. Det som manglet, er lagt tilbake.");
   }));
+}
+
+/**
+ * Når en post legges tilbake, skal søknaden den kom fra igjen stå som utbetalt, og kontingenten igjen som betalt.
+ * (Slettes en post, går søknaden tilbake til «Godkjent» og kontingenten til ubetalt.)
+ */
+function koblingerTilPoster(poster, kopi, naa) {
+  const ut = [];
+  const soknadNaa = new Map(naa.soknader.map((s) => [s.id, s]));
+  const soknadKopi = new Map(kopi.soknader.map((s) => [s.id, s]));
+  const medlemNaa = new Map(naa.medlemmer.map((m) => [m.id, m]));
+  const medlemKopi = new Map(kopi.medlemmer.map((m) => [m.id, m]));
+  for (const p of poster) {
+    const s = soknadNaa.get(p.soknadId);
+    const sk = soknadKopi.get(p.soknadId);
+    if (s && !s.postId && s.status === "godkjent" && sk?.postId === p.id) {
+      ut.push({ samling: "soknader", id: s.id, endre: { status: "utbetalt", postId: p.id, utbetaltDato: sk.utbetaltDato || p.dato } });
+    }
+    const m = medlemNaa.get(p.medlemId);
+    const k = medlemKopi.get(p.medlemId)?.kontingent?.[p.kontingentAar];
+    if (m && p.kontingentAar && !m.kontingent?.[p.kontingentAar] && k?.postId === p.id) {
+      ut.push({ samling: "medlemmer", id: m.id, endre: { [`kontingent.${p.kontingentAar}`]: k } });
+    }
+  }
+  return ut;
 }
 
 /** Gjør planen om til skrivinger, i en rekkefølge som tilgangsreglene godtar. */

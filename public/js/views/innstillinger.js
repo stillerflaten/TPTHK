@@ -1,4 +1,4 @@
-// Innstillinger: klubbinfo, kontingent, startsaldo, kategorier, hvem som er kasserer og revisor, support og sikkerhetskopi.
+// Innstillinger: klubbinfo, kontingent, startsaldo, kategorier, hvem som er kasserer og revisor, support, sikkerhetskopi og nullstilling.
 
 import { html, raw, tolkBelop, belopTilInput, datoTekst, iDag } from "../util.js";
 import { lagreInnstillinger, lagreMedlemsinfo, lagreBruker, slettBruker, normalEpost, tidspunktFra } from "../firebase.js";
@@ -6,6 +6,7 @@ import { melding, medKnapp, bekreft } from "../ui.js";
 import { ikon } from "../ikoner.js";
 import { supportKort, kobleSupport } from "./support.js";
 import { kopiKort, kobleKopi } from "./sikkerhetskopi.js";
+import { nullstillKort, kobleNullstill } from "./nullstill.js";
 import { revisorUtloper } from "../tilgang.js";
 
 export function innstillinger(main, S) {
@@ -84,7 +85,9 @@ export function innstillinger(main, S) {
 
     ${raw(revisorKort(S))}
 
-    ${raw(kopiKort(S))}`;
+    ${raw(kopiKort(S))}
+
+    ${raw(nullstillKort(S))}`;
 
   const klubb = main.querySelector("#klubb");
   klubb.addEventListener("submit", async (e) => {
@@ -127,6 +130,7 @@ export function innstillinger(main, S) {
 
   kobleSupport(main, S);
   kobleKopi(main, S);
+  kobleNullstill(main, S);
   kobleRevisor(main, S);
   main.querySelector("#tilSupport")?.addEventListener("click", async (e) => {
     if (!(await bekreft("Bli vanlig medlem som administrator? Du mister tilgangen til regnskapet med en gang, og får den bare tilbake når kassereren eller styret ber om support.", { ja: "Bytt" }))) return;

@@ -97,7 +97,7 @@ export function bankimport(main, S) {
   const finn = (el) => T.transaksjoner.find((t) => t.id === el.closest("[data-id]").dataset.id);
   main.querySelectorAll("[data-for]").forEach((b) => b.addEventListener("click", () => forDialog(S, finn(b), nye)));
   main.querySelectorAll("[data-hopp]").forEach((b) => b.addEventListener("click", () =>
-    medKnapp(b, () => hoppOverBank(finn(b).id, b.dataset.hopp === "ja"))));
+    medKnapp(b, () => { const t = finn(b); return hoppOverBank(t.id, b.dataset.hopp === "ja", t.dato); })));
   main.querySelectorAll("[data-koble]").forEach((b) => b.addEventListener("click", () =>
     medKnapp(b, async () => {
       const t = finn(b);

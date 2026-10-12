@@ -189,6 +189,18 @@ const DELER = [
         Ta en kopi minst hvert kvartal og lagre den et sted klubben har tilgang til. Det kommer et varsel på Oversikt når det er over tre måneder siden sist.</p>
         <p>Har noe forsvunnet, trykk «Gjenopprett fra sikkerhetskopi» og velg fila. Det som mangler, legges tilbake. Ingenting som finnes, blir endret eller slettet.
         Referater som var signert, kommer tilbake som utkast og må signeres på nytt.</p>`],
+      ["Prøveperiode og nullstilling", `<p>Vil dere prøve nettsiden før dere bestemmer dere? Før regnskapet som vanlig, med ekte bilag. Blir dere fornøyd, beholder dere alt,
+        og det er ingenting mer å gjøre.</p>
+        <p>Vil dere begynne på nytt, gå til <a href="#/innstillinger">Innstillinger</a> og finn «Nullstill regnskapet» nederst.</p>
+        <ol>
+          <li>Velg året som skal nullstilles, eller «Alle år».</li>
+          <li>Trykk «Nullstill …». Du ser hvor mange poster og kvitteringer som slettes.</li>
+          <li>Skriv NULLSTILL og trykk «Ta sikkerhetskopi og nullstill». Først lastes en sikkerhetskopi ned, så slettes postene.</li>
+        </ol>
+        <p>Postene, kvitteringene til postene, avstemmingen og banktransaksjoner du har hoppet over, slettes. Søknader som var ført som utbetalt,
+        går tilbake til «Godkjent», og kontingent som var ført, merkes som ubetalt. Medlemmer, søknader, kategorier, kontoer, startsaldo,
+        budsjett, møter og regelverk beholdes. Sjekk gjerne startsaldo og startdato under «Kontoer» før dere begynner på nytt.</p>
+        <p>Angrer du, trykk «Gjenopprett fra sikkerhetskopi» og velg fila som ble lastet ned.</p>`],
       ["Ny kasserer", `<p>Legg den nye kassereren inn som medlem med e-post og gi vedkommende tilgang. Gjør personen til kasserer under
         Innstillinger, og fjern deg selv etterpå.</p>`],
       ["Trenger du hjelp?", `<p>Under Innstillinger kan du be om support. Da får administratoren full tilgang i 24 timer, og tilgangen stenges av seg selv.</p>`],

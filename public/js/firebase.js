@@ -144,8 +144,46 @@ export const kobleTilBank = (postId, kontoId, transId) =>
   updateDoc(doc(db, "poster", postId), { [`bank.${kontoId}`]: transId });
 
 /** Transaksjoner kassereren har valgt å hoppe over, huskes i innstillingene. */
-export const hoppOverBank = (transId, hopp) =>
-  setDoc(doc(db, "innstillinger", "klubb"), { bankHoppet: { [transId]: hopp ? true : deleteField() } }, { merge: true });
+/** Datoen lagres, så «Nullstill regnskap» kan fjerne overhoppingene for ett år. */
+export const hoppOverBank = (transId, hopp, dato) =>
+  setDoc(doc(db, "innstillinger", "klubb"), { bankHoppet: { [transId]: hopp ? (dato || true) : deleteField() } }, { merge: true });
+
+// ---------- Nullstille regnskapet ----------
+
+/**
+ * Sletter postene (for ett år eller alle), og rydder opp som når én post slettes: kvitteringene slettes,
+ * søknader går tilbake til «godkjent», og kontingenten merkes som ubetalt. Fjerner også avstemmingen og
+ * overhoppede banktransaksjoner for de samme årene. Medlemmer, søknader, kategorier, kontoer, budsjett og møter beholdes.
+ * @param {number|null} aar  null = alle år
+ */
+export async function nullstillRegnskap({ poster, soknader, medlemmer, innst, aar }, fremdrift) {
+  const soknadIds = new Set(soknader.map((s) => s.id));
+  const medlemIds = new Set(medlemmer.map((m) => m.id));
+  const liste = [];
+  for (const p of poster) {
+    liste.push({ samling: "poster", id: p.id, slett: true });
+    if (p.soknadId) {
+      if (soknadIds.has(p.soknadId)) liste.push({ samling: "soknader", id: p.soknadId, endre: { status: "godkjent", postId: deleteField() } });
+    } else {
+      for (const k of p.kvitteringIds || []) liste.push({ samling: "kvitteringer", id: k, slett: true });
+    }
+    if (p.medlemId && p.kontingentAar && medlemIds.has(p.medlemId)) {
+      liste.push({ samling: "medlemmer", id: p.medlemId, endre: { [`kontingent.${p.kontingentAar}`]: deleteField() } });
+    }
+  }
+  const klubb = {};
+  if (aar == null) {
+    klubb.avstemming = deleteField();
+    klubb.bankHoppet = deleteField();
+  } else {
+    if (innst.avstemming?.[aar]) klubb[`avstemming.${aar}`] = deleteField();
+    for (const [id, v] of Object.entries(innst.bankHoppet || {})) {
+      if (String(v).startsWith(`${aar}-`)) klubb[`bankHoppet.${id}`] = deleteField();
+    }
+  }
+  if (Object.keys(klubb).length) liste.push({ samling: "innstillinger", id: "klubb", endre: klubb });
+  await skrivMange(liste, fremdrift);
+}
 
 // ---------- Kvitteringer ----------
 // Lagres som komprimerte bilder i egne dokumenter, så de bare lastes når noen åpner dem.
@@ -430,7 +468,7 @@ export const merkSikkerhetskopi = (navn) => setDoc(doc(db, "innstillinger", "klu
 /**
  * Skriver dokumenter i omganger. Firestore tåler maks 500 endringer og 10 MB per omgang,
  * og kvitteringene er store, så vi deler opp etter både antall og størrelse.
- * @param {{samling: string, id: string, data?: object, endre?: object}[]} liste  data = nytt dokument, endre = oppdater felt
+ * @param {{samling: string, id: string, data?: object, endre?: object, slett?: boolean}[]} liste  data = nytt dokument, endre = oppdater felt, slett = slett dokumentet
  */
 export async function skrivMange(liste, fremdrift = () => {}) {
   let batch = writeBatch(db);
@@ -439,9 +477,10 @@ export async function skrivMange(liste, fremdrift = () => {}) {
   let ferdig = 0;
   for (const s of liste) {
     const ref = doc(db, s.samling, s.id);
-    if (s.endre) batch.update(ref, s.endre);
+    if (s.slett) batch.delete(ref);
+    else if (s.endre) batch.update(ref, s.endre);
     else batch.set(ref, s.data);
-    const str = JSON.stringify(s.data || s.endre).length;
+    const str = s.slett ? 100 : JSON.stringify(s.data || s.endre).length;
     antall++;
     bytes += str;
     if (antall >= 400 || bytes > 4_000_000) {
