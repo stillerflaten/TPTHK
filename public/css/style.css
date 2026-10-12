@@ -551,3 +551,12 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 .skjema label.budsjett-rad { display: grid; margin: 0; }
 .skjema .budsjett-rad input { margin-top: 0; }
 .tallkort .budsjett { font-size: .75rem; color: var(--dempet); }
+
+/* Føring (minus/pluss) og avstemming mot banken */
+.varsel.ok { background: var(--pluss-lys); color: var(--pluss); }
+.hint.blokk { display: block; margin: 2px 0 0; }
+.avstemming input { width: 9.5em; text-align: right; margin: 0; }
+.avstemming td { vertical-align: middle; }
+.foering { margin: 4px 0 0; max-width: 420px; }
+.foering td { padding: 5px 8px; }
+.foering tr.sum td { color: var(--dempet); font-weight: 400; }

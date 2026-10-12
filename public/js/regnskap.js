@@ -160,3 +160,48 @@ export function avvik(type, faktisk, budsjett) {
   const diff = faktisk - budsjett;
   return { diff, bra: type === "utgift" ? diff <= 0 : diff >= 0 };
 }
+
+// ---------- Føring og avstemming ----------
+
+/**
+ * Posten som to føringslinjer, slik den ville stått i en kontoplan: pengene ut av én konto og inn på en annen.
+ * Utgift: minus på bankkontoen, pluss på kategorien. Inntekt: pluss på bankkontoen, minus på kategorien.
+ * Linjene går alltid i null. Beløp i øre, med fortegn.
+ */
+export function foeringslinjer(p, innst) {
+  if (p.type === "overforing") {
+    return [
+      { konto: kontonavn(p.fraKonto, innst), bank: true, belop: -p.belop },
+      { konto: kontonavn(p.tilKonto, innst), bank: true, belop: p.belop },
+    ];
+  }
+  const bank = kontonavn(kontoFor(p, innst), innst);
+  const kategori = p.kategori || "Uten kategori";
+  return p.type === "utgift"
+    ? [{ konto: bank, bank: true, belop: -p.belop }, { konto: kategori, belop: p.belop }]
+    : [{ konto: bank, bank: true, belop: p.belop }, { konto: kategori, belop: -p.belop }];
+}
+
+// Lagres i innstillinger/klubb som avstemming: { "2026": { kontoer: { [kontoId]: øre | null }, endret, endretAv } }.
+
+/**
+ * Avstemming mot bankens årsoppgave for et år: beregnet saldo 31.12 per konto, saldoen kassereren
+ * har skrevet inn fra årsoppgaven, og differansen. «stemmer» er null når årsoppgaven ikke er lagt inn.
+ */
+export function avstemming(poster, innst, aar) {
+  const a = innst.avstemming?.[aar] || {};
+  const til = `${aar + 1}-01-01`;
+  const kontoer = innst.kontoer.map((k) => {
+    const beregnet = saldoVed(poster, innst, til, k.id);
+    const bank = typeof a.kontoer?.[k.id] === "number" ? a.kontoer[k.id] : null;
+    const antall = poster.filter((p) => aarFor(p) === aar && endring(p, innst, k.id) !== 0).length;
+    return { ...k, beregnet, bank, antall, differanse: bank == null ? null : beregnet - bank, stemmer: bank == null ? null : beregnet === bank };
+  });
+  const utfylt = kontoer.filter((k) => k.bank != null);
+  return {
+    aar, kontoer, endret: a.endret || null, endretAv: a.endretAv || "",
+    ferdig: utfylt.length === kontoer.length && kontoer.length > 0,
+    stemmer: utfylt.length === kontoer.length && kontoer.every((k) => k.stemmer),
+    finnes: utfylt.length > 0,
+  };
+}

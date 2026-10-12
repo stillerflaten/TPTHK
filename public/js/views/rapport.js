@@ -1,7 +1,8 @@
 // Årsregnskap til årsmøtet, laget for utskrift (eller «Lagre som PDF»).
 
 import { html, raw, kr, tall, datoTekst, lastNedCsv } from "../util.js";
-import { aarsregnskap, sorterPoster, kontingentStatus, budsjettFor, kategorierFra, avvik } from "../regnskap.js";
+import { aarsregnskap, sorterPoster, kontingentStatus, budsjettFor, kategorierFra, avvik, avstemming } from "../regnskap.js";
+import { avstemtTekst } from "./avstemming.js";
 import { erKasserer } from "../tilgang.js";
 import { kontotekst } from "./poster.js";
 import { ikon } from "../ikoner.js";
@@ -15,6 +16,8 @@ export function rapport(main, S) {
   const kolonner = resultatKolonner(S, r, forrige);
   const harBudsjett = kolonner.some((c) => c.id === "budsjett");
   const kasserer = erKasserer(S);
+  const avst = avstemming(S.poster, S.innst, S.aar);
+  const bankKonto = new Map(avst.kontoer.map((k) => [k.id, k]));
 
   const celle = (c, v, bra) => raw(html`<td class="tall${c.dempet ? " dempet" : ""}${bra == null ? "" : bra ? " pluss" : " minus"}">${c.id === "avvik" ? fortegn(v) : kr(v)}</td>`);
   const tabell = (tittel, type) => {
@@ -33,6 +36,7 @@ export function rapport(main, S) {
       <div class="knapperad">
         <label class="avkryss"><input type="checkbox" id="bilag" ${medBilagsliste ? "checked" : ""}> Ta med bilagsliste</label>
         ${kasserer ? raw(html`<a class="knapp sekundaer" href="#/budsjett/${S.aar}">${raw(ikon("poster"))} Budsjett</a>`) : ""}
+        <a class="knapp sekundaer" href="#/avstemming">Avstemming</a>
         <button class="knapp sekundaer" id="eksport">${raw(ikon("lastned"))} Excel</button>
         <button class="knapp" id="skriv">${raw(ikon("skriver"))} Skriv ut / lagre PDF</button>
       </div>
@@ -64,15 +68,18 @@ export function rapport(main, S) {
 
       <h2>Bank og kontanter</h2>
       <table class="regnskap">
-        <thead><tr><th></th><th class="tall">1.1.${S.aar}</th><th class="tall">31.12.${S.aar}</th></tr></thead>
+        <thead><tr><th></th><th class="tall">1.1.${S.aar}</th><th class="tall">31.12.${S.aar}</th>${avst.finnes ? raw(`<th class="tall">Mot årsoppgaven</th>`) : ""}</tr></thead>
         <tbody>
           ${r.kontoer.map((k) => raw(html`
             <tr><td>${k.navn}${k.kontonummer ? raw(html` <span class="dempet">(${k.kontonummer})</span>`) : ""}</td>
-            <td class="tall">${kr(k.inngaende)}</td><td class="tall">${kr(k.utgaende)}</td></tr>`))}
-          <tr class="totalt"><td>Sum</td><td class="tall">${kr(r.inngaende)}</td><td class="tall">${kr(r.utgaende)}</td></tr>
+            <td class="tall">${kr(k.inngaende)}</td><td class="tall">${kr(k.utgaende)}</td>
+            ${avst.finnes ? raw(html`<td class="tall">${raw(avstemtTekst(bankKonto.get(k.id)))}</td>`) : ""}</tr>`))}
+          <tr class="totalt"><td>Sum</td><td class="tall">${kr(r.inngaende)}</td><td class="tall">${kr(r.utgaende)}</td>${avst.finnes ? raw(`<td></td>`) : ""}</tr>
         </tbody>
       </table>
-      <p class="dempet liten">Endring i året: ${kr(r.utgaende - r.inngaende)} (= årsresultat ${kr(r.resultat)}).</p>
+      <p class="dempet liten">Endring i året: ${kr(r.utgaende - r.inngaende)} (= årsresultat ${kr(r.resultat)}).
+        ${avst.ferdig && avst.stemmer ? `Saldoene er avstemt mot bankens årsoppgave og stemmer.` : ""}</p>
+      ${!avst.ferdig ? raw(html`<p class="hint ikke-utskrift">Saldoene er ikke avstemt mot bankens årsoppgave ennå. <a href="#/avstemming">Gå til avstemming</a>.</p>`) : ""}
 
       <h2>Medlemmer</h2>
       <p>${k.antall} aktive medlemmer, hvorav ${k.betalt} har betalt kontingent for ${S.aar}.</p>
