@@ -7,10 +7,10 @@
 // Det er sikkerhetsreglene (firestore.rules) som bestemmer hvem som får lese og skrive.
 
 export const firebaseConfig = {
-  apiKey: "LIM-INN-HER",
-  authDomain: "LIM-INN-HER",
-  projectId: "LIM-INN-HER",
-  storageBucket: "LIM-INN-HER",
-  messagingSenderId: "LIM-INN-HER",
-  appId: "LIM-INN-HER",
+  apiKey: "AIzaSyA-CMrfTowPPWQTqWJ_KM11Cd6kQ2E32VE",
+  authDomain: "tpthk-3405f.firebaseapp.com",
+  projectId: "tpthk-3405f",
+  storageBucket: "tpthk-3405f.firebasestorage.app",
+  messagingSenderId: "700544728176",
+  appId: "1:700544728176:web:fe899d700caf65063ec8b5",
 };
