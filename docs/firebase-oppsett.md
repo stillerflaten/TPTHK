@@ -24,7 +24,7 @@ Prosjektet er nå på gratisplanen **Spark**. Den holder lenge for en klubb, og 
 
 ## Steg 2: Registrer nettsiden og hent oppsettet
 
-1. På forsiden av prosjektet: trykk på ikonet **`</>`** (Web).
+1. På forsiden av prosjektet (Project Overview): trykk **+ Add app**, og velg **Web** (ikonet **`</>`**).
 2. App nickname: `TPTHK kasserer`.
 3. **IKKE** huk av for «Also set up Firebase Hosting».
 4. Trykk **Register app**.
