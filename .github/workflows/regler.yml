@@ -40,8 +40,4 @@ jobs:
         if: steps.sjekk.outputs.har == 'ja'
         env:
           NOKKEL: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: |
-          printf '%s' "$NOKKEL" > "$RUNNER_TEMP/nokkel.json"
-          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/nokkel.json"
-          npx --yes firebase-tools@14 deploy --only firestore:rules --project tpthk-3405f --non-interactive
-          rm -f "$RUNNER_TEMP/nokkel.json"
+        run: node .github/publiser-regler.mjs tpthk-3405f
