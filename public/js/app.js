@@ -17,6 +17,7 @@ import * as minside from "./views/minside.js";
 import * as moter from "./views/moter.js";
 import * as styret from "./views/styret.js";
 import { hjelp } from "./views/hjelp.js";
+import { personvern } from "./views/personvern.js";
 import { ikon } from "./ikoner.js";
 import { erKasserer as kasserer, erStyret, supportAktiv, harVerv, erAdmin } from "./tilgang.js";
 import { supportStripe, oppdaterSupportKort } from "./views/support.js";
@@ -139,6 +140,13 @@ function dataEndret() {
 
 function tegn() {
   if (!klar) return innlogging.ikkeKonfigurert(main);
+  // Personvernerklæringen skal kunne leses uten å logge inn.
+  if (location.hash.startsWith("#/personvern")) {
+    gjeldendeSide = { live: false, venter: false };
+    tegnMeny("personvern");
+    document.title = `Personvern · ${S.innst.kortnavn || "TPTHK"}`;
+    return personvern(main, S);
+  }
   if (!S.bruker) { tegnMeny(); return innlogging.loggInn(main); }
   if (!S.bruker.emailVerified) { tegnMeny(); return innlogging.bekreftEpost(main, S); }
   if (S.profil === undefined) { tegnMeny(); return venter(); }

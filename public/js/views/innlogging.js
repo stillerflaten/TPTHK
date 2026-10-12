@@ -26,7 +26,7 @@ export function loggInn(main) {
       <div class="sentrert kort">
         ${raw(logo)}
         <h1>${tittel}</h1>
-        ${modus === "ny" ? raw(`<p class="hint">Bruk e-postadressen du er registrert med i klubben. Du får en e-post for å bekrefte adressen.</p>`) : ""}
+        ${modus === "ny" ? raw(`<p class="hint">Bruk e-postadressen du er registrert med i klubben. Du får en e-post for å bekrefte adressen. Les hvordan vi behandler opplysningene dine i <a href="#/personvern">personvernerklæringen</a>.</p>`) : ""}
         ${modus === "glemt" ? raw(`<p class="hint">Du får en e-post med lenke for å lage nytt passord.</p>`) : ""}
         <form id="skjema" class="skjema">
           <label>E-post<input name="epost" type="email" autocomplete="email" required></label>
@@ -38,6 +38,7 @@ export function loggInn(main) {
           ${modus !== "inn" ? raw(`<button class="lenkeknapp" data-modus="inn">Tilbake til innlogging</button>`) : ""}
           ${modus === "inn" ? raw(`<button class="lenkeknapp" data-modus="glemt">Glemt passord?</button>
           <button class="lenkeknapp" data-modus="ny">Ny bruker? Opprett konto</button>`) : ""}
+          <a class="lenkeknapp" href="#/personvern">Personvern</a>
         </div>
       </div>`;
 

@@ -43,6 +43,8 @@ const DELER = [
         ikke er endret etter at den ble signert. Det er ikke BankID.</p>`, ["signer"]],
       ["Min side og kontingent", `<p>På <a href="#/minside">Min side</a> ser du navnet ditt, kontonummeret for refusjoner og om kontingenten
         for i år er registrert som betalt. Der står også hvordan du betaler kontingenten. Har du nettopp betalt, kan det ta litt tid før kassereren registrerer det.</p>`, ["minside"]],
+      ["Personvern", `<p>I <a href="#/personvern">personvernerklæringen</a> står det hva som lagres om deg, hvem som ser det, og hvilke rettigheter du har.
+        Den ligger også som lenke nederst på siden og på innloggingssiden.</p>`],
     ],
   },
   {
