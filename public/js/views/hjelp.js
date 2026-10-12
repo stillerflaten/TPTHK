@@ -24,7 +24,8 @@ const DELER = [
         <ul>
           <li><strong>iPhone:</strong> Åpne siden i Safari, trykk Del-knappen (firkant med pil opp) og velg «Legg til på Hjem-skjerm».</li>
           <li><strong>Android:</strong> Åpne siden i Chrome, trykk de tre prikkene øverst til høyre og velg «Installer app» eller «Legg til på startsiden».</li>
-        </ul>`],
+        </ul>
+        <p>Ikonet blir klubblogoen. Viser det bare en bokstav eller et bilde av siden, fjerner du ikonet fra hjemskjermen og legger det til på nytt.</p>`],
       ["Få igjen penger du har lagt ut", `
         <ol>
           <li>Gå til «Ny søknad» (eller «Mine søknader» og «+ Ny søknad»).</li>
