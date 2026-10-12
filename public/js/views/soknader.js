@@ -98,6 +98,7 @@ export function kassererDetalj(main, S, id) {
           ${s.status === "sendt" ? raw(`<button class="knapp sekundaer" id="godkjenn">Godkjenn</button>`) : ""}
           ${s.status === "sendt" || s.status === "godkjent" ? raw(`<button class="knapp farlig sekundaer" id="avslaa">Avslå</button>`) : ""}
           ${s.status === "avslatt" ? raw(`<button class="knapp sekundaer" id="gjenaapne">Gjenåpne</button>`) : ""}
+          <button class="knapp farlig sekundaer" id="slettSoknad">Slett søknad</button>
         </div>
       </section>`) : ""}
 
@@ -135,6 +136,14 @@ export function kassererDetalj(main, S, id) {
     await medKnapp(e.currentTarget, async () => {
       await behandleSoknad(s.id, { status: "avslatt", kommentar: kommentar() });
       melding("Søknaden er avslått.");
+      gaaTil("soknader");
+    });
+  });
+  main.querySelector("#slettSoknad")?.addEventListener("click", async (e) => {
+    if (!(await bekreft("Slette søknaden og kvitteringene for godt? Bruk dette for testsøknader eller feil.", { ja: "Slett", farlig: true }))) return;
+    await medKnapp(e.currentTarget, async () => {
+      await trekkSoknad(s);
+      melding("Søknaden er slettet.");
       gaaTil("soknader");
     });
   });
