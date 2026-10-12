@@ -339,6 +339,9 @@ h2 .status { text-transform: none; letter-spacing: 0; margin-left: 8px; vertical
 .velgliste { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 16px; margin: 10px 0 4px; }
 .velgliste label.avkryss { margin: 0; padding: 7px 0; }
 
+.epostboks { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--linje); }
+.epostboks .hint { margin: 0 0 10px; }
+
 /* Styret */
 .vervliste li { align-items: baseline; }
 .verv-navn { font-weight: 600; min-width: 9em; }

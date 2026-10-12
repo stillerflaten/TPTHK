@@ -34,7 +34,7 @@ export function feilmelding(e) {
 
 /** Kjører en handling med knappen deaktivert, og viser feil hvis den feiler. */
 export async function medKnapp(knapp, fn) {
-  const tekst = knapp?.textContent;
+  const innhold = knapp?.innerHTML;
   if (knapp) { knapp.disabled = true; knapp.textContent = "Vent litt …"; }
   try {
     return await fn();
@@ -43,7 +43,7 @@ export async function medKnapp(knapp, fn) {
     melding(feilmelding(e), "feil");
     return undefined;
   } finally {
-    if (knapp && knapp.isConnected) { knapp.disabled = false; knapp.textContent = tekst; }
+    if (knapp && knapp.isConnected) { knapp.disabled = false; knapp.innerHTML = innhold; }
   }
 }
 
