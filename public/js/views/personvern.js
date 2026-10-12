@@ -59,6 +59,8 @@ export function personvern(main, S) {
         <li>Søknader som er avslått eller trukket, kan slettes når de er ferdig behandlet.</li>
         <li>Når du melder deg ut, slettes innloggingen din, og opplysningene i medlemslisten slettes eller anonymiseres. Det som må beholdes i regnskapet, beholdes til fristen er ute.</li>
         <li>Godkjente møtereferater og signaturer er en del av klubbens historikk og beholdes.</li>
+        <li>Kassereren tar en sikkerhetskopi av alt minst hvert kvartal, så ingenting går tapt. Kopiene oppbevares trygt av klubben,
+          og eldre kopier slettes når nyere finnes.</li>
       </ul>
 
       <h2>Rettighetene dine</h2>

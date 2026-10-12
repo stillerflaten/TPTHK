@@ -5,6 +5,7 @@ import { saldoNaa, aarsregnskap, sorterPoster, kontingentStatus } from "../regns
 import { belopHtml } from "./poster.js";
 import { ikon } from "../ikoner.js";
 import { erKasserer } from "../tilgang.js";
+import { kopiVarsel } from "./sikkerhetskopi.js";
 
 export function oversikt(main, S) {
   const kasserer = erKasserer(S);
@@ -30,6 +31,7 @@ export function oversikt(main, S) {
       <a class="varsel info lenke" href="#/soknader">${raw(ikon("soknader"))} ${venter.length} ${venter.length === 1 ? "søknad venter" : "søknader venter"} på behandling eller utbetaling</a>`) : ""}
     ${S.foresporsler.length ? raw(html`
       <a class="varsel info lenke" href="#/medlemmer">${raw(ikon("person"))} ${S.foresporsler.length} ${S.foresporsler.length === 1 ? "person ber" : "personer ber"} om tilgang</a>`) : ""}
+    ${raw(kopiVarsel(S))}
 
     <div class="nokkeltall">
       <div class="tallkort"><span class="etikett">Saldo nå</span><span class="verdi">${kr(saldoNaa(S.poster, S.innst))}</span></div>

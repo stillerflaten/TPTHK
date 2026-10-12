@@ -61,12 +61,15 @@ export function datoTekst(iso) {
 
 /** Lager en CSV-fil som Excel på norsk åpner riktig (semikolon og BOM for æøå). */
 export function lastNedCsv(filnavn, rader) {
+  lastNed(filnavn, new Blob([csvTekst(rader)], { type: "text/csv;charset=utf-8" }));
+}
+
+export function csvTekst(rader) {
   const celle = (v) => {
     const s = String(v ?? "");
     return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const innhold = "﻿" + rader.map((r) => r.map(celle).join(";")).join("\r\n");
-  lastNed(filnavn, new Blob([innhold], { type: "text/csv;charset=utf-8" }));
+  return "\uFEFF" + rader.map((r) => r.map(celle).join(";")).join("\r\n");
 }
 
 export function lastNed(filnavn, blob) {

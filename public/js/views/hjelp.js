@@ -107,6 +107,11 @@ const DELER = [
         ser oversikten og søknadene og kan legge ut møter. Vervet «Kasserer» er bare en tittel. Tilgang til regnskapet gis under Innstillinger.</p>`, ["verv"]],
       ["Årsrapport", `<p><a href="#/rapport">Årsrapport</a> samler resultatregnskap, saldo på kontoene, medlemmer og bilagsliste for året.
         Trykk «Skriv ut / lagre PDF» og velg «Lagre som PDF» for å sende den til revisor eller årsmøtet.</p>`],
+      ["Sikkerhetskopi", `<p>Under <a href="#/innstillinger">Innstillinger</a> trykker du «Last ned sikkerhetskopi». Du får én ZIP-fil med regnskapet,
+        medlemmene og søknadene (som filer du kan åpne i Excel), alle kvitteringer (navngitt etter bilagsnummer), og møter og referater.
+        Ta en kopi minst hvert kvartal og lagre den et sted klubben har tilgang til. Det kommer et varsel på Oversikt når det er over tre måneder siden sist.</p>
+        <p>Har noe forsvunnet, trykk «Gjenopprett fra sikkerhetskopi» og velg fila. Det som mangler, legges tilbake. Ingenting som finnes, blir endret eller slettet.
+        Referater som var signert, kommer tilbake som utkast og må signeres på nytt.</p>`],
       ["Ny kasserer", `<p>Legg den nye kassereren inn som medlem med e-post og gi vedkommende tilgang. Gjør personen til kasserer under
         Innstillinger, og fjern deg selv etterpå.</p>`],
       ["Trenger du hjelp?", `<p>Under Innstillinger kan du be om support. Da får administratoren full tilgang i 24 timer, og tilgangen stenges av seg selv.</p>`],
