@@ -54,11 +54,11 @@ export function innstillinger(main, S) {
     </section>
 
     <section class="kort">
-      <h2>Kasserere</h2>
+      <h2>Kasserere og administratorer</h2>
       <p class="hint">Kasserere ser hele regnskapet. Når det kommer ny kasserer, gjør vedkommende til kasserer her, og fjern deg selv etterpå.</p>
       <ul class="enkel-liste">${kasserere.map((b) => raw(html`
-        <li><span><strong>${b.navn || b.id}</strong><br><span class="hint">${b.id}</span></span>
-        ${b.id === meg ? raw(`<span class="hint">Deg</span>`) : raw(html`<button class="knapp sekundaer liten" data-rolle="${b.id}" data-til="medlem">Fjern som kasserer</button>`)}</li>`))}
+        <li><span><strong>${b.navn || b.id}</strong>${b.admin ? " (administrator)" : ""}<br><span class="hint">${b.id}</span></span>
+        ${b.id === meg ? raw(`<span class="hint">Deg</span>`) : raw(html`<button class="knapp sekundaer liten" data-rolle="${b.id}" data-til="medlem">${b.admin ? "Fjern som administrator" : "Fjern som kasserer"}</button>`)}</li>`))}
       </ul>
       ${andre.length ? raw(html`
         <label>Gjør et medlem med innlogging til kasserer
@@ -109,7 +109,7 @@ export function innstillinger(main, S) {
 
   main.querySelectorAll("[data-rolle]").forEach((b) => b.addEventListener("click", async () => {
     if (!(await bekreft(`Fjerne ${b.dataset.rolle} som kasserer? Personen beholder innlogging som vanlig medlem.`, { ja: "Fjern" }))) return;
-    await medKnapp(b, () => lagreBruker(b.dataset.rolle, { rolle: "medlem" }));
+    await medKnapp(b, () => lagreBruker(b.dataset.rolle, { rolle: "medlem", admin: false }));
   }));
   main.querySelector("#gjorKasserer")?.addEventListener("click", async (e) => {
     const epost = main.querySelector("#nyKasserer").value;

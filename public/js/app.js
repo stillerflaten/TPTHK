@@ -128,7 +128,7 @@ function venter() {
 }
 
 function tegnMeny(aktiv) {
-  document.getElementById("rolle").textContent = S.profil ? (erKasserer() ? "kasserer" : "medlem") : "";
+  document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? "admin" : erKasserer() ? "kasserer" : "medlem") : "";
   if (!S.bruker || !S.profil) {
     meny.innerHTML = "";
     topp.innerHTML = S.bruker ? html`<button class="lenkeknapp" id="loggut">Logg ut</button>` : "";
