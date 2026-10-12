@@ -159,6 +159,17 @@ body.har-meny .innhold { padding-bottom: calc(var(--bunnmeny) + 40px + env(safe-
   body.har-meny .innhold > * { max-width: 1040px; }
 }
 
+/* «Levert av» nederst på alle sider */
+.levert { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 8px 16px 28px; font-size: .74rem; color: var(--dempet); }
+.levert img { border-radius: 4px; }
+body.ute .levert { color: #8a8676; }
+body.har-meny .innhold { padding-bottom: 16px; }
+body.har-meny .levert { padding-bottom: calc(var(--bunnmeny) + 20px + env(safe-area-inset-bottom)); }
+@media (min-width: 900px) {
+  body.har-meny .innhold { padding-bottom: 32px; }
+  body.har-meny .levert { margin-left: var(--sidemeny); padding-bottom: 28px; }
+}
+
 /* ---------- Byggeklosser ---------- */
 
 .sidetopp { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; margin-bottom: 22px; }
@@ -461,12 +472,13 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 .bilagsliste { font-size: .84rem; }
 .signaturer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 72px; font-size: .84rem; color: var(--dempet); }
 .signaturer .linje { display: block; border-bottom: 1px solid var(--tekst); height: 42px; margin-bottom: 6px; }
+.rapport-levert { margin-top: 40px; font-size: .72rem; color: var(--dempet); text-align: center; }
 @media (max-width: 600px) { .rapport { padding: 20px; } .signaturer { grid-template-columns: 1fr; } }
 
 @media print {
   @page { margin: 18mm; }
   body, body.har-meny { background: #fff; }
-  .topplinje, .meny, .ikke-utskrift, .toast, .topp-hoyre { display: none !important; }
+  .topplinje, .meny, .ikke-utskrift, .toast, .topp-hoyre, .levert { display: none !important; }
   body.har-meny .innhold { margin: 0; padding: 0; }
   .rapport { box-shadow: none; border: 0; padding: 0; }
   .ny-side { break-before: page; }

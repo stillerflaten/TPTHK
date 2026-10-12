@@ -15,13 +15,13 @@ function hentJsPdf() {
   return bibliotek;
 }
 
-/** Tegner logoen (SVG) til et bilde som kan legges i PDF-en. */
-let logo = null;
-function hentLogo() {
-  logo ??= new Promise((ok) => {
+/** Tegner et bilde (f.eks. logoen i SVG) om til JPEG som kan legges i PDF-en. */
+const bilder = {};
+function hentBilde(src, bredde, hoyde) {
+  bilder[src] ??= new Promise((ok) => {
     const img = new Image();
     img.onload = () => {
-      const c = Object.assign(document.createElement("canvas"), { width: 480, height: 478 });
+      const c = Object.assign(document.createElement("canvas"), { width: bredde, height: hoyde });
       const g = c.getContext("2d");
       g.fillStyle = "#fff"; // JPEG har ikke gjennomsiktighet, og hvit bakgrunn gir en liten fil.
       g.fillRect(0, 0, c.width, c.height);
@@ -29,9 +29,9 @@ function hentLogo() {
       ok(c.toDataURL("image/jpeg", 0.9));
     };
     img.onerror = () => ok(null); // Uten logo heller enn ingen PDF.
-    img.src = "icons/logo.svg";
+    img.src = src;
   });
-  return logo;
+  return bilder[src];
 }
 
 // Standardskriften i PDF støtter æ, ø, å og vanlige tegn, men ikke emoji o.l. De byttes ut så teksten ikke blir uleselig.
@@ -46,7 +46,9 @@ const rens = (t) => String(t ?? "")
  * @returns { blob, filnavn }
  */
 export async function lagInnkallingPdf(m, valg) {
-  const [JsPDF, logoBilde] = await Promise.all([hentJsPdf(), hentLogo()]);
+  const [JsPDF, logoBilde, leverandor] = await Promise.all([
+    hentJsPdf(), hentBilde("icons/logo.svg", 480, 478), hentBilde("icons/tillerflaten-design.png", 96, 96),
+  ]);
   const doc = new JsPDF({ unit: "mm", format: "a4" });
   const B = 210, H = 297, marg = 22, bredde = B - marg * 2;
   const type = valg.typeTekst.toLowerCase();
@@ -109,6 +111,10 @@ export async function lagInnkallingPdf(m, valg) {
     doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(120);
     if (valg.lenke) doc.textWithLink("Innkallingen ligger også på nettsiden, der du logger inn.", marg, H - 12, { url: valg.lenke });
     doc.text(`Side ${i} av ${sider}`, B - marg, H - 12, { align: "right" });
+    const levert = "Levert av Tillerflaten Design";
+    const x = (B - doc.getTextWidth(levert) - (leverandor ? 5 : 0)) / 2;
+    if (leverandor) doc.addImage(leverandor, "JPEG", x, H - 8.6, 3.6, 3.6);
+    doc.text(levert, x + (leverandor ? 5 : 0), H - 5.8);
   }
 
   const filnavn = `Innkalling ${type} ${m.dato}.pdf`;
