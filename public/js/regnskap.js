@@ -114,10 +114,11 @@ export function sorterPoster(poster) {
   return [...poster].sort((a, b) => b.dato.localeCompare(a.dato) || (b.bilagsnr || 0) - (a.bilagsnr || 0));
 }
 
-/** Alle år det finnes poster for, pluss inneværende år, nyeste først. */
-export function tilgjengeligeAar(poster) {
+/** Alle år det finnes poster for, pluss inneværende år og eventuelle ekstra år (f.eks. med budsjett), nyeste først. */
+export function tilgjengeligeAar(poster, ekstra = []) {
   const aar = new Set(poster.map(aarFor).filter(Boolean));
   aar.add(new Date().getFullYear());
+  for (const a of ekstra) if (Number.isInteger(a) && a > 1900) aar.add(a);
   return [...aar].sort((a, b) => b - a);
 }
 
@@ -125,4 +126,37 @@ export function kontingentStatus(medlemmer, aar) {
   const aktive = medlemmer.filter((m) => m.aktiv !== false);
   const betalt = aktive.filter((m) => m.kontingent?.[aar]?.betalt);
   return { antall: aktive.length, betalt: betalt.length, mangler: aktive.length - betalt.length };
+}
+
+// ---------- Budsjett ----------
+// Lagres i innstillinger/klubb som budsjett: { "2026": { inntekt: [{ kategori, belop }], utgift: [...] } }.
+// Lister (ikke kart) fordi de byttes ut i sin helhet når de lagres, så fjernede kategorier forsvinner.
+
+/** Budsjettet for et år som kart per kategori, med summer. «finnes» er false hvis det ikke er lagt inn noe. */
+export function budsjettFor(innst, aar) {
+  const b = innst.budsjett?.[aar] || {};
+  const kart = (type) => new Map((b[type] || []).filter((x) => x.belop).map((x) => [x.kategori, x.belop]));
+  const inntekt = kart("inntekt");
+  const utgift = kart("utgift");
+  const sum = (m) => [...m.values()].reduce((s, v) => s + v, 0);
+  const sumInntekter = sum(inntekt);
+  const sumUtgifter = sum(utgift);
+  return {
+    aar, inntekt, utgift, sumInntekter, sumUtgifter, resultat: sumInntekter - sumUtgifter,
+    finnes: inntekt.size + utgift.size > 0, endret: b.endret || null, endretAv: b.endretAv || "",
+  };
+}
+
+/** Alle kategorinavn som har tall i minst én av kildene, i samme rekkefølge som i innstillingene. */
+export function kategorierFra(innst, type, ...kilder) {
+  const navn = new Set();
+  for (const k of kilder) for (const kat of k.keys()) navn.add(kat);
+  const rekkefolge = innst.kategorier[type];
+  return [...navn].sort((a, b) => indeks(rekkefolge, a) - indeks(rekkefolge, b) || a.localeCompare(b, "nb"));
+}
+
+/** Avvik mellom regnskap og budsjett, og om avviket er bra for klubben (mer inntekt eller mindre utgift). */
+export function avvik(type, faktisk, budsjett) {
+  const diff = faktisk - budsjett;
+  return { diff, bra: type === "utgift" ? diff <= 0 : diff >= 0 };
 }

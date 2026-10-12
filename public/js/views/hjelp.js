@@ -50,8 +50,8 @@ const DELER = [
   {
     id: "styret", tittel: "For styret", gjelder: (S) => erStyret(S),
     emner: [
-      ["Hva styret kan se", `<p>Alle som har et styreverv, ser <strong>Oversikt</strong> med nøkkeltallene og alle <strong>Søknader</strong> som kommer inn.
-        Styret kan lese, men ikke endre regnskapet eller behandle søknader. Det gjør kassereren.</p>`, ["oversikt"]],
+      ["Hva styret kan se", `<p>Alle som har et styreverv, ser <strong>Oversikt</strong> med nøkkeltallene, <strong>Årsrapport</strong> med budsjett og avvik,
+        og alle <strong>Søknader</strong> som kommer inn. Styret kan lese, men ikke endre regnskapet, budsjettet eller behandle søknader. Det gjør kassereren.</p>`, ["oversikt"]],
       ["Legg ut en innkalling", `
         <ol>
           <li>Gå til «Møter» og trykk «+ Ny innkalling».</li>
@@ -82,14 +82,14 @@ const DELER = [
     id: "revisor", tittel: "For revisor", gjelder: (S) => erRevisor(S) && !erKasserer(S),
     emner: [
       ["Hva revisor kan se", `<p>Som revisor kan du lese hele regnskapet, men ikke endre noe. Du ser <strong>Oversikt</strong> med saldo og årets tall,
-        alle <strong>Poster</strong> med bilagsnummer og kvitteringer, og <strong>Årsrapport</strong>. Søknadene om refusjon og medlemmenes kontonumre ser du ikke.
+        alle <strong>Poster</strong> med bilagsnummer og kvitteringer, og <strong>Årsrapport</strong> med budsjett og avvik. Søknadene om refusjon og medlemmenes kontonumre ser du ikke.
         Har kassereren satt en sluttdato, stenges tilgangen av seg selv etter den dagen.</p>`, ["oversikt"]],
       ["Første gang (revisor utenfor klubben)", `<p>Kassereren legger inn e-postadressen din. Gå til nettsiden, trykk «Ny bruker? Opprett konto»
         og bruk den samme e-postadressen. Bekreft adressen med lenken du får på e-post, og logg inn. Da kommer du rett inn i regnskapet.</p>`],
       ["Gå gjennom bilagene", `<p>Velg år øverst. Under «Poster» kan du søke og filtrere på type, kategori og konto. Trykk på en post for å se bilaget,
         hvem som førte det, og kvitteringene. Trykk på «Kvittering» for å åpne bildet eller PDF-en.</p>`],
       ["Last ned til Excel eller PDF", `<p>«Excel» under Poster laster ned alle postene for året som en fil du kan åpne i Excel.
-        Under «Årsrapport» kan du huke av for bilagsliste og trykke «Skriv ut / lagre PDF».</p>`],
+        Under «Årsrapport» kan du huke av for bilagsliste og trykke «Skriv ut / lagre PDF», eller trykke «Excel» for resultatregnskapet med budsjett og avvik.</p>`],
     ],
   },
   {
@@ -129,7 +129,18 @@ const DELER = [
       ["Styreverv", `<p>Under «Møter» og «Styret» trykker du «Endre verv» for å velge hvem som har hvilket verv. Den som har et verv,
         ser oversikten og søknadene og kan legge ut møter. Vervet «Kasserer» er bare en tittel. Tilgang til regnskapet gis under Innstillinger.</p>`, ["verv"]],
       ["Årsrapport", `<p><a href="#/rapport">Årsrapport</a> samler resultatregnskap, saldo på kontoene, medlemmer og bilagsliste for året.
-        Trykk «Skriv ut / lagre PDF» og velg «Lagre som PDF» for å sende den til revisor eller årsmøtet.</p>`],
+        Er det lagt inn budsjett, vises regnskapet, budsjettet og avviket ved siden av hverandre, og budsjettet for neste år hvis det finnes.
+        Trykk «Skriv ut / lagre PDF» og velg «Lagre som PDF» for å sende den til revisor eller årsmøtet. «Excel» laster ned resultatregnskapet som en fil du kan åpne i Excel.</p>`],
+      ["Budsjett", `
+        <ol>
+          <li>Gå til <a href="#/rapport">Årsrapport</a> og trykk «Budsjett». Velg år øverst. Skal du lage budsjett for neste år (f.eks. til årsmøtet), trykk «Lag budsjett for …».</li>
+          <li>Skriv inn beløp per kategori for inntekter og utgifter. Summene og budsjettert resultat regnes ut mens du skriver.</li>
+          <li>Vil du ta utgangspunkt i fjoråret, trykk «Fyll inn fra regnskapet» eller «Kopier budsjettet» og juster tallene.</li>
+          <li>Trykk «Lagre budsjett».</li>
+        </ol>
+        <p>Årsrapporten viser da budsjett og avvik per kategori. Avvik er regnskap minus budsjett: grønt er bedre enn budsjettert (mer inntekt eller mindre utgift), rødt er dårligere.
+        Oversikten viser budsjettet under inntekter, utgifter og resultat. Styret og revisor ser budsjettet, men bare kassereren kan endre det.
+        Kategoriene er de samme som under Innstillinger.</p>`],
       ["Gi revisor tilgang", `<p>Gå til <a href="#/innstillinger">Innstillinger</a> og finn «Revisor». Er revisoren medlem med innlogging, velger du personen i lista.
         Er revisoren ikke medlem, skriver du navn og e-post under «Revisor utenfor klubben». Revisoren lager så konto med den e-postadressen og kommer rett inn.
         Sett gjerne en sluttdato. Revisor kan lese regnskapet med kvitteringer og årsrapporten, men ikke endre noe
