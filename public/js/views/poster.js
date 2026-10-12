@@ -1,23 +1,41 @@
-// Liste over inntekter og utgifter, og skjema for å føre en ny post.
+// Liste over inntekter, utgifter og overføringer, og skjema for å føre en ny post.
 
 import { html, raw, kr, tall, datoTekst, iDag, tolkBelop, belopTilInput, lastNedCsv } from "../util.js";
-import { aarFor, sorterPoster, nesteBilagsnr } from "../regnskap.js";
+import { aarFor, sorterPoster, bilagsnrForNy, endring, kontoFor, kontonavn } from "../regnskap.js";
 import { lagrePost, slettPost, slettKvittering } from "../firebase.js";
 import { melding, medKnapp, bekreft, kvitteringsvelger } from "../ui.js";
 import { gaaTil } from "../app.js";
 
 // Filteret huskes mens appen er åpen.
-const filter = { type: "", kategori: "", sok: "" };
+const filter = { type: "", kategori: "", konto: "", sok: "" };
+
+const typeTekst = { inntekt: "Inntekt", utgift: "Utgift", overforing: "Overføring" };
+
+/** Kort tekst om hvilken konto posten gjelder. */
+export function kontotekst(p, innst) {
+  if (p.type === "overforing") return `${kontonavn(p.fraKonto, innst)} → ${kontonavn(p.tilKonto, innst)}`;
+  return kontonavn(kontoFor(p, innst), innst);
+}
+
+/** Beløp med fortegn og farge. Med konto vises endringen for den kontoen. */
+export function belopHtml(p, innst, konto) {
+  if (p.type === "overforing" && !konto) return html`<span class="post-belop noytral">⇄ ${kr(p.belop)}</span>`;
+  const e = endring(p, innst, konto);
+  return html`<span class="post-belop ${e < 0 ? "minus" : "pluss"}">${e < 0 ? "−" : "+"}${kr(Math.abs(e))}</span>`;
+}
 
 export function liste(main, S) {
+  const flereKontoer = S.innst.kontoer.length > 1;
+  if (!flereKontoer) filter.konto = "";
   const alleIAar = sorterPoster(S.poster.filter((p) => aarFor(p) === S.aar));
   const kategorier = [...new Set(alleIAar.map((p) => p.kategori).filter(Boolean))].sort((a, b) => a.localeCompare(b, "nb"));
   const sok = filter.sok.toLowerCase();
   const synlige = alleIAar.filter((p) =>
     (!filter.type || p.type === filter.type)
     && (!filter.kategori || p.kategori === filter.kategori)
+    && (!filter.konto || endring(p, S.innst, filter.konto) !== 0)
     && (!sok || `${p.beskrivelse} ${p.kategori} ${p.bilagsnr} ${tall(p.belop)}`.toLowerCase().includes(sok)));
-  const sum = synlige.reduce((s, p) => s + (p.type === "utgift" ? -p.belop : p.belop), 0);
+  const sum = synlige.reduce((s, p) => s + endring(p, S.innst, filter.konto || undefined), 0);
 
   main.innerHTML = html`
     <div class="sidetopp">
@@ -28,30 +46,33 @@ export function liste(main, S) {
       </div>
     </div>
 
-    <div class="filterlinje">
+    <div class="filterlinje ${flereKontoer ? "fire" : ""}">
       <input type="search" id="sok" placeholder="Søk i beskrivelse, beløp, bilagsnr …" value="${filter.sok}">
       <select id="type">
         <option value="">Alle typer</option>
-        <option value="inntekt" ${filter.type === "inntekt" ? "selected" : ""}>Inntekter</option>
-        <option value="utgift" ${filter.type === "utgift" ? "selected" : ""}>Utgifter</option>
+        ${Object.entries(typeTekst).map(([k, t]) => raw(html`<option value="${k}" ${filter.type === k ? "selected" : ""}>${t}er</option>`))}
       </select>
       <select id="kategori">
         <option value="">Alle kategorier</option>
         ${kategorier.map((k) => raw(html`<option ${k === filter.kategori ? "selected" : ""}>${k}</option>`))}
       </select>
+      ${flereKontoer ? raw(html`<select id="konto">
+        <option value="">Alle kontoer</option>
+        ${S.innst.kontoer.map((k) => raw(html`<option value="${k.id}" ${k.id === filter.konto ? "selected" : ""}>${k.navn}</option>`))}
+      </select>`) : ""}
     </div>
 
     ${synlige.length ? raw(html`
       <ul class="postliste">
         ${synlige.map((p) => raw(html`
           <li><a href="#/post/${p.id}">
-            <span class="post-bilag">#${p.bilagsnr || "–"}</span>
             <span class="post-dato">${datoTekst(p.dato)}</span>
+            <span class="post-bilag">#${p.bilagsnr}</span>
             <span class="post-tekst">
-              <span>${p.beskrivelse || p.kategori}</span>
-              <span class="post-kategori">${p.kategori}${p.kvitteringIds?.length ? " · 📎" : ""}${p.soknadId ? " · fra søknad" : ""}</span>
+              <span>${p.beskrivelse || p.kategori || typeTekst[p.type]}</span>
+              <span class="post-kategori">${[p.kategori, flereKontoer || p.type === "overforing" ? kontotekst(p, S.innst) : ""].filter(Boolean).join(" · ")}${p.kvitteringIds?.length ? " · 📎" : ""}${p.soknadId ? " · fra søknad" : ""}</span>
             </span>
-            <span class="post-belop ${p.type === "utgift" ? "minus" : "pluss"}">${p.type === "utgift" ? "−" : "+"}${kr(p.belop)}</span>
+            ${raw(belopHtml(p, S.innst, filter.konto || undefined))}
           </a></li>`))}
       </ul>
       <p class="sumlinje">${synlige.length} poster · Netto ${kr(sum)}</p>`)
@@ -66,8 +87,9 @@ export function liste(main, S) {
     nytt.focus();
     nytt.setSelectionRange(pos, pos);
   });
-  main.querySelector("#type").addEventListener("change", (e) => { filter.type = e.target.value; liste(main, S); });
-  main.querySelector("#kategori").addEventListener("change", (e) => { filter.kategori = e.target.value; liste(main, S); });
+  for (const felt of ["type", "kategori", "konto"]) {
+    main.querySelector(`#${felt}`)?.addEventListener("change", (e) => { filter[felt] = e.target.value; liste(main, S); });
+  }
   main.querySelector("#eksport").addEventListener("click", () => eksporter(S, alleIAar));
 }
 liste.live = true;
@@ -75,15 +97,22 @@ liste.tittel = "Poster";
 liste.trenger = ["poster", "innst"];
 
 function eksporter(S, poster) {
-  const rader = [["Bilagsnr", "Dato", "Type", "Kategori", "Beskrivelse", "Inntekt", "Utgift", "Kvittering"]];
+  const rader = [["Dato", "Bilagsnr", "Type", "Konto", "Kategori", "Beskrivelse", "Inn", "Ut", "Kvittering"]];
   for (const p of [...poster].reverse()) {
     rader.push([
-      p.bilagsnr, datoTekst(p.dato), p.type === "utgift" ? "Utgift" : "Inntekt", p.kategori, p.beskrivelse,
+      datoTekst(p.dato), p.bilagsnr, typeTekst[p.type], kontotekst(p, S.innst), p.kategori || "", p.beskrivelse,
       p.type === "inntekt" ? tall(p.belop) : "", p.type === "utgift" ? tall(p.belop) : "",
       p.kvitteringIds?.length ? "Ja" : "",
     ]);
   }
   lastNedCsv(`${S.innst.kortnavn || "TPTHK"}-regnskap-${S.aar}.csv`, rader);
+}
+
+/** Nedtrekksliste med klubbens kontoer. */
+export function kontovalg(innst, navn, valgt, etikett = "Konto") {
+  return html`<label>${etikett}<select name="${navn}" required>
+    ${innst.kontoer.map((k) => raw(html`<option value="${k.id}" ${k.id === valgt ? "selected" : ""}>${k.navn}${k.kontonummer ? ` (${k.kontonummer})` : ""}</option>`))}
+  </select></label>`;
 }
 
 export function skjema(main, S, id) {
@@ -94,33 +123,40 @@ export function skjema(main, S, id) {
     return;
   }
   const laastType = Boolean(p?.soknadId || p?.kontingentAar);
+  const flereKontoer = S.innst.kontoer.length > 1;
   let type = p?.type || "utgift";
-  const dato = p?.dato || iDag();
+  const forsteKonto = S.innst.kontoer[0].id;
 
   main.innerHTML = html`
     <div class="sidetopp">
-      <h1>${ny ? "Ny post" : `Bilag #${p.bilagsnr || "–"}`}</h1>
+      <h1>${ny ? "Ny post" : `Bilag #${p.bilagsnr}`}</h1>
       <a class="lenkeknapp" href="#/poster">Tilbake</a>
     </div>
     ${p?.soknadId ? raw(`<div class="varsel info">Denne posten ble laget fra en refusjonssøknad. <a href="#/soknad/${p.soknadId}">Åpne søknaden</a></div>`) : ""}
     ${p?.kontingentAar ? raw(html`<div class="varsel info">Kontingent ${p.kontingentAar} fra medlemslisten. Slett posten her eller angre betalingen under Medlemmer.</div>`) : ""}
 
     <form id="skjema" class="skjema kort">
-      <div class="veksler" role="radiogroup" aria-label="Type">
+      <div class="veksler tre" role="radiogroup" aria-label="Type">
         <button type="button" data-type="utgift">Utgift</button>
         <button type="button" data-type="inntekt">Inntekt</button>
+        ${flereKontoer ? raw(`<button type="button" data-type="overforing">Overføring</button>`) : ""}
       </div>
 
       <div class="to-kol">
-        <label>Dato<input type="date" name="dato" value="${dato}" required></label>
+        <label>Dato<input type="date" name="dato" value="${p?.dato || iDag()}" required></label>
         <label>Beløp (kr)<input name="belop" inputmode="decimal" placeholder="0,00" value="${belopTilInput(p?.belop)}" required autocomplete="off"></label>
       </div>
-      <label>Kategori
-        <select name="kategori" id="kategori" required></select>
+      <p class="hint" id="bilagshint"></p>
+
+      <div data-vis="vanlig" ${flereKontoer ? "" : "hidden"}>${raw(kontovalg(S.innst, "konto", p ? kontoFor(p, S.innst) : forsteKonto))}</div>
+      <div data-vis="overforing" class="to-kol">
+        ${raw(kontovalg(S.innst, "fraKonto", p?.fraKonto || forsteKonto, "Fra konto"))}
+        ${raw(kontovalg(S.innst, "tilKonto", p?.tilKonto || S.innst.kontoer[1]?.id, "Til konto"))}
+      </div>
+      <label data-vis="vanlig">Kategori
+        <select name="kategori" id="kategori"></select>
       </label>
       <label>Beskrivelse<input name="beskrivelse" value="${p?.beskrivelse || ""}" placeholder="F.eks. Leie av hall til samling" maxlength="200"></label>
-      <label>Bilagsnummer<input name="bilagsnr" type="number" min="1" value="${p?.bilagsnr || ""}" required></label>
-      <p class="hint" id="bilagshint"></p>
 
       <fieldset>
         <legend>Kvittering / bilag</legend>
@@ -136,7 +172,6 @@ export function skjema(main, S, id) {
 
   const skjemaEl = main.querySelector("#skjema");
   const katSelect = main.querySelector("#kategori");
-  const bilag = skjemaEl.elements.bilagsnr;
   const datoFelt = skjemaEl.elements.dato;
   const velger = kvitteringsvelger(main.querySelector("#kvitteringer"), { eksisterende: p?.kvitteringIds || [], kanFjerne: !p?.soknadId });
 
@@ -145,6 +180,13 @@ export function skjema(main, S, id) {
       b.classList.toggle("valgt", b.dataset.type === type);
       b.setAttribute("aria-checked", b.dataset.type === type);
     });
+    const overforing = type === "overforing";
+    skjemaEl.querySelectorAll("[data-vis=overforing]").forEach((el) => { el.hidden = !overforing; });
+    skjemaEl.querySelectorAll("[data-vis=vanlig]").forEach((el) => {
+      el.hidden = overforing || (el.querySelector("select[name=konto]") && !flereKontoer);
+    });
+    katSelect.required = !overforing;
+    if (overforing) return;
     const valg = [...S.innst.kategorier[type]];
     if (p?.kategori && p.type === type && !valg.includes(p.kategori)) valg.push(p.kategori);
     const forrige = katSelect.value || (p?.type === type ? p.kategori : "");
@@ -157,33 +199,37 @@ export function skjema(main, S, id) {
   }));
   tegnType();
 
-  // Foreslå neste bilagsnummer for året datoen hører til.
-  const foreslaaBilag = () => {
-    const aar = Number(datoFelt.value.slice(0, 4));
-    if (!aar) return;
-    const neste = nesteBilagsnr(S.poster.filter((x) => x.id !== p?.id), aar);
-    if (ny) bilag.value = neste;
-    main.querySelector("#bilagshint").textContent = `Neste ledige bilagsnummer i ${aar} er ${neste}.`;
+  // Bilagsnummeret følger datoen. Vis hva det blir.
+  const visBilag = () => {
+    if (!datoFelt.value) return;
+    const andre = S.poster.filter((x) => x.id !== p?.id);
+    const nr = bilagsnrForNy(andre, datoFelt.value);
+    const etter = andre.filter((x) => aarFor(x) === aarFor({ dato: datoFelt.value }) && x.dato > datoFelt.value).length;
+    main.querySelector("#bilagshint").textContent = ny || datoFelt.value !== p.dato
+      ? `Får bilagsnummer ${nr}.${etter ? ` Senere bilag i året flyttes ett nummer opp.` : ""}`
+      : "Bilagsnummeret settes automatisk etter dato.";
   };
-  datoFelt.addEventListener("change", foreslaaBilag);
-  foreslaaBilag();
+  datoFelt.addEventListener("change", visBilag);
+  visBilag();
 
   skjemaEl.addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(skjemaEl));
     const belop = tolkBelop(f.belop);
     if (!belop || belop <= 0) return melding("Skriv et gyldig beløp, f.eks. 1250 eller 1 250,50.", "feil");
-    const bilagsnr = Number(f.bilagsnr);
-    const duplikat = S.poster.find((x) => x.id !== p?.id && aarFor(x) === Number(f.dato.slice(0, 4)) && Number(x.bilagsnr) === bilagsnr);
-    if (duplikat && !(await bekreft(`Bilagsnummer ${bilagsnr} er allerede brukt i ${f.dato.slice(0, 4)}. Lagre likevel?`))) return;
-    if (!velger.antall() && type === "utgift"
-      && !(await bekreft("Utgiften har ingen kvittering. Lagre uten?", { ja: "Lagre uten" }))) return;
+    let data;
+    if (type === "overforing") {
+      if (f.fraKonto === f.tilKonto) return melding("Velg to forskjellige kontoer.", "feil");
+      data = { type, dato: f.dato, belop, fraKonto: f.fraKonto, tilKonto: f.tilKonto, kategori: "", konto: null };
+    } else {
+      if (!velger.antall() && type === "utgift"
+        && !(await bekreft("Utgiften har ingen kvittering. Lagre uten?", { ja: "Lagre uten" }))) return;
+      data = { type, dato: f.dato, belop, kategori: f.kategori, konto: f.konto || forsteKonto, fraKonto: null, tilKonto: null };
+    }
 
     await medKnapp(e.submitter, async () => {
       const kvitteringIds = await velger.lagreNye();
-      await lagrePost(ny ? null : p.id, {
-        type, dato: f.dato, belop, kategori: f.kategori, beskrivelse: f.beskrivelse.trim(), bilagsnr, kvitteringIds,
-      });
+      await lagrePost(ny ? null : p.id, { ...data, beskrivelse: f.beskrivelse.trim(), kvitteringIds });
       for (const k of velger.fjernet()) await slettKvittering(k).catch(() => {});
       melding(ny ? "Posten er lagret." : "Endringene er lagret.");
       gaaTil("poster");
@@ -193,7 +239,7 @@ export function skjema(main, S, id) {
   main.querySelector("#slett")?.addEventListener("click", async (e) => {
     const tekst = p.soknadId
       ? "Slette posten? Søknaden går tilbake til «godkjent» og kan utbetales på nytt."
-      : "Slette posten og kvitteringene for godt?";
+      : "Slette posten og kvitteringene for godt? Senere bilag i året flyttes ett nummer ned.";
     if (!(await bekreft(tekst, { ja: "Slett", farlig: true }))) return;
     await medKnapp(e.currentTarget, async () => {
       await slettPost(p);

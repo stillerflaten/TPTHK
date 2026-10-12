@@ -2,6 +2,7 @@
 
 import { html, raw, kr, datoTekst } from "../util.js";
 import { aarsregnskap, sorterPoster, kontingentStatus } from "../regnskap.js";
+import { kontotekst } from "./poster.js";
 
 let medBilagsliste = false;
 
@@ -50,12 +51,15 @@ export function rapport(main, S) {
 
       <h2>Bank og kontanter</h2>
       <table class="regnskap">
+        <thead><tr><th></th><th class="tall">1.1.${S.aar}</th><th class="tall">31.12.${S.aar}</th></tr></thead>
         <tbody>
-          <tr><td>Inngående saldo 1.1.${S.aar}</td><td class="tall">${kr(r.inngaende)}</td></tr>
-          <tr><td>Årsresultat</td><td class="tall">${kr(r.resultat)}</td></tr>
-          <tr class="totalt"><td>Utgående saldo 31.12.${S.aar}</td><td class="tall">${kr(r.utgaende)}</td></tr>
+          ${r.kontoer.map((k) => raw(html`
+            <tr><td>${k.navn}${k.kontonummer ? raw(html` <span class="dempet">(${k.kontonummer})</span>`) : ""}</td>
+            <td class="tall">${kr(k.inngaende)}</td><td class="tall">${kr(k.utgaende)}</td></tr>`))}
+          <tr class="totalt"><td>Sum</td><td class="tall">${kr(r.inngaende)}</td><td class="tall">${kr(r.utgaende)}</td></tr>
         </tbody>
       </table>
+      <p class="dempet liten">Endring i året: ${kr(r.utgaende - r.inngaende)} (= årsresultat ${kr(r.resultat)}).</p>
 
       <h2>Medlemmer</h2>
       <p>${k.antall} aktive medlemmer, hvorav ${k.betalt} har betalt kontingent for ${S.aar}.</p>
@@ -63,9 +67,10 @@ export function rapport(main, S) {
       ${medBilagsliste ? raw(html`
         <h2 class="ny-side">Bilagsliste ${S.aar}</h2>
         <table class="regnskap bilagsliste">
-          <thead><tr><th>Bilag</th><th>Dato</th><th>Tekst</th><th>Kategori</th><th class="tall">Beløp</th></tr></thead>
+          <thead><tr><th>Dato</th><th>Bilag</th><th>Tekst</th><th>Kategori</th>${r.kontoer.length > 1 ? raw("<th>Konto</th>") : ""}<th class="tall">Beløp</th></tr></thead>
           <tbody>${[...sorterPoster(r.poster)].reverse().map((p) => raw(html`
-            <tr><td>${p.bilagsnr}</td><td>${datoTekst(p.dato)}</td><td>${p.beskrivelse}</td><td>${p.kategori}</td>
+            <tr><td>${datoTekst(p.dato)}</td><td>${p.bilagsnr}</td><td>${p.beskrivelse}</td><td>${p.type === "overforing" ? "Overføring" : p.kategori}</td>
+            ${r.kontoer.length > 1 ? raw(html`<td>${kontotekst(p, S.innst)}</td>`) : ""}
             <td class="tall">${p.type === "utgift" ? "−" : ""}${kr(p.belop)}</td></tr>`))}</tbody>
         </table>`) : ""}
 

@@ -31,18 +31,23 @@ export function innstillinger(main, S) {
       <h2>Kontingent</h2>
       <div class="to-kol">
         <label>Kontingent per år (kr)<input name="kontingentBelop" inputmode="decimal" value="${belopTilInput(info.kontingentBelop || null)}"></label>
-        <label>Klubbens kontonummer<input name="kontonummer" value="${info.kontonummer || ""}" inputmode="numeric"></label>
+        <label>Kontonummer for kontingent<input name="kontonummer" value="${info.kontonummer || ""}" inputmode="numeric"></label>
       </div>
       <label>Betalingsinformasjon til medlemmene (vises på «Min side»)
         <textarea name="betalingsinfo" rows="2" placeholder="F.eks. Betal til konto over eller Vipps #12345. Merk betalingen med navnet ditt.">${info.betalingsinfo || ""}</textarea>
       </label>
-      <h2>Startsaldo</h2>
-      <p class="hint">Saldoen på klubbens konto(er) den dagen dere begynte å bruke denne nettsiden. Poster før denne datoen telles ikke med i saldoen.</p>
-      <div class="to-kol">
-        <label>Dato<input type="date" name="startDato" value="${i.startDato}" required></label>
-        <label>Saldo (kr)<input name="startSaldo" inputmode="decimal" value="${belopTilInput(i.startSaldo)}"></label>
-      </div>
       <div class="knapper"><button class="knapp" type="submit">Lagre</button></div>
+    </form>
+
+    <form id="kontoer" class="skjema kort">
+      <h2>Kontoer</h2>
+      <p class="hint">Bankkontoer, Vipps, kontantkasse osv. Startsaldo er det som sto på kontoen den dagen dere begynte å bruke nettsiden. Poster før denne datoen telles ikke med.</p>
+      <label>Startdato<input type="date" name="startDato" value="${i.startDato}" required></label>
+      <div id="kontorader"></div>
+      <div class="knapper">
+        <button type="button" class="knapp sekundaer" id="nyKonto">+ Legg til konto</button>
+        <button type="submit" class="knapp">Lagre kontoer</button>
+      </div>
     </form>
 
     <section class="kort">
@@ -73,12 +78,11 @@ export function innstillinger(main, S) {
   klubb.addEventListener("submit", async (e) => {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(klubb));
-    const startSaldo = v.startSaldo ? tolkBelop(v.startSaldo) : 0;
     const kontingentBelop = v.kontingentBelop ? tolkBelop(v.kontingentBelop) : 0;
-    if (startSaldo == null || kontingentBelop == null) return melding("Sjekk beløpene, de må være tall.", "feil");
+    if (kontingentBelop == null) return melding("Sjekk beløpene, de må være tall.", "feil");
     await medKnapp(e.submitter, async () => {
       await lagreInnstillinger({
-        klubbnavn: v.klubbnavn.trim(), kortnavn: v.kortnavn.trim(), orgnr: v.orgnr.trim(), startDato: v.startDato, startSaldo,
+        klubbnavn: v.klubbnavn.trim(), kortnavn: v.kortnavn.trim(), orgnr: v.orgnr.trim(),
       });
       await lagreMedlemsinfo({
         klubbnavn: v.klubbnavn.trim(), kontonummer: v.kontonummer.trim(), kontingentBelop, betalingsinfo: v.betalingsinfo.trim(),
@@ -86,6 +90,8 @@ export function innstillinger(main, S) {
       melding("Innstillingene er lagret.");
     });
   });
+
+  kobleKontoer(main, S);
 
   main.querySelectorAll(".kategorier").forEach((boks) => {
     const type = boks.dataset.type;
@@ -120,3 +126,60 @@ export function innstillinger(main, S) {
 innstillinger.live = true;
 innstillinger.tittel = "Innstillinger";
 innstillinger.trenger = ["innst", "info", "brukere"];
+
+/** Redigerbar liste over kontoer. Endringer lagres først når man trykker «Lagre kontoer». */
+function kobleKontoer(main, S) {
+  const skjema = main.querySelector("#kontoer");
+  const rader = skjema.querySelector("#kontorader");
+  const brukt = (id) => S.poster.some((p) => p.konto === id || p.fraKonto === id || p.tilKonto === id
+    || (!p.konto && p.type !== "overforing" && id === S.innst.kontoer[0].id));
+  let kontoer = S.innst.kontoer.map((k) => ({ ...k }));
+
+  const les = () => {
+    rader.querySelectorAll("[data-id]").forEach((r) => {
+      const k = kontoer.find((x) => x.id === r.dataset.id);
+      k.navn = r.querySelector("[name=navn]").value;
+      k.kontonummer = r.querySelector("[name=kontonummer]").value;
+      k.saldoTekst = r.querySelector("[name=startSaldo]").value;
+    });
+  };
+  const tegn = () => {
+    rader.innerHTML = kontoer.map((k) => html`
+      <div class="kontorad" data-id="${k.id}">
+        <label>Navn<input name="navn" value="${k.navn}" placeholder="F.eks. Brukskonto" required></label>
+        <label>Kontonummer<input name="kontonummer" value="${k.kontonummer || ""}" inputmode="numeric" placeholder="Valgfritt"></label>
+        <label>Startsaldo (kr)<input name="startSaldo" inputmode="decimal" value="${k.saldoTekst ?? belopTilInput(k.startSaldo || 0)}"></label>
+        <button type="button" class="ikonknapp" data-fjern-konto="${k.id}" aria-label="Fjern ${k.navn}" ${kontoer.length < 2 ? "hidden" : ""}>✕</button>
+      </div>`).join("");
+    rader.querySelectorAll("[data-fjern-konto]").forEach((b) => b.addEventListener("click", () => {
+      const id = b.dataset.fjernKonto;
+      if (brukt(id)) return melding("Kontoen har poster og kan ikke fjernes. Gi den heller et nytt navn.", "feil");
+      les();
+      kontoer = kontoer.filter((k) => k.id !== id);
+      tegn();
+    }));
+  };
+  tegn();
+
+  skjema.querySelector("#nyKonto").addEventListener("click", () => {
+    les();
+    kontoer.push({ id: Math.random().toString(36).slice(2, 10), navn: "", kontonummer: "", startSaldo: 0 });
+    tegn();
+    rader.querySelector(".kontorad:last-child input")?.focus();
+  });
+
+  skjema.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    les();
+    const ferdige = [];
+    for (const k of kontoer) {
+      const startSaldo = k.saldoTekst ? tolkBelop(k.saldoTekst) : 0;
+      if (startSaldo == null) return melding(`Sjekk startsaldoen for «${k.navn}».`, "feil");
+      ferdige.push({ id: k.id, navn: k.navn.trim(), kontonummer: k.kontonummer.trim(), startSaldo });
+    }
+    await medKnapp(e.submitter, async () => {
+      await lagreInnstillinger({ kontoer: ferdige, startDato: skjema.elements.startDato.value });
+      melding("Kontoene er lagret.");
+    });
+  });
+}

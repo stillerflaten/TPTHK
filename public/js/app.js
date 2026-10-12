@@ -4,7 +4,7 @@ import {
   klar, auth, konto, lyttProfil, lyttSamling, lyttDokument, lyttMineSoknader, lyttMinForesporsel, normalEpost,
 } from "./firebase.js";
 import { html, raw, esc, aarNaa } from "./util.js";
-import { medStandard, tilgjengeligeAar } from "./regnskap.js";
+import { medStandard, tilgjengeligeAar, nummererBilag } from "./regnskap.js";
 import * as innlogging from "./views/innlogging.js";
 import * as oversikt from "./views/oversikt.js";
 import * as poster from "./views/poster.js";
@@ -208,7 +208,7 @@ function startRolleLyttere() {
   }
 
   if (r === "kasserer") {
-    stoppLyttere.push(lyttSamling("poster", sett("poster"), visFeil));
+    stoppLyttere.push(lyttSamling("poster", (p) => sett("poster")(nummererBilag(p)), visFeil));
     stoppLyttere.push(lyttSamling("medlemmer", sett("medlemmer"), visFeil));
     stoppLyttere.push(lyttSamling("soknader", sett("soknader"), visFeil));
     stoppLyttere.push(lyttSamling("brukere", sett("brukere"), visFeil));

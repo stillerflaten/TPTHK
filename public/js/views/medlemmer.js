@@ -1,7 +1,7 @@
 // Medlemsliste med kontingent, tilgang og forespørsler fra nye brukere.
 
 import { html, raw, kr, iDag, tolkBelop, belopTilInput, datoTekst, lastNedCsv } from "../util.js";
-import { nesteBilagsnr } from "../regnskap.js";
+import { kontovalg } from "./poster.js";
 import {
   lagreMedlem, slettMedlem, registrerKontingent, angreKontingent, godkjennForesporsel, slettForesporsel,
   lagreBruker, slettBruker, normalEpost,
@@ -110,7 +110,7 @@ function registrer(S, m, aar) {
         <label>Beløp (kr)<input name="belop" inputmode="decimal" value="${belopTilInput(standard || null)}" required></label>
       </div>
       <label class="avkryss"><input type="checkbox" name="foer" checked> Før som inntekt i regnskapet</label>
-      <label>Bilagsnummer<input type="number" name="bilagsnr" min="1" value="${nesteBilagsnr(S.poster, aar)}"></label>
+      ${S.innst.kontoer.length > 1 ? raw(`<div data-foer>${kontovalg(S.innst, "konto", S.innst.kontoer[0].id, "Innbetalt til konto")}</div>`) : ""}
       <p class="hint">Har dere fått ett samlet beløp for mange medlemmer (f.eks. fra Vipps), kan du fjerne haken og føre totalen som én post i stedet.</p>
       <div class="knapper">
         <button type="button" class="knapp sekundaer" data-lukk>Avbryt</button>
@@ -118,7 +118,7 @@ function registrer(S, m, aar) {
       </div>
     </form>`);
   const f = d.querySelector("#k");
-  f.elements.foer.addEventListener("change", () => { f.elements.bilagsnr.closest("label").hidden = !f.elements.foer.checked; });
+  f.elements.foer.addEventListener("change", () => { const k = f.querySelector("[data-foer]"); if (k) k.hidden = !f.elements.foer.checked; });
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(f));
@@ -129,7 +129,7 @@ function registrer(S, m, aar) {
         dato: v.dato, belop,
         post: v.foer ? {
           type: "inntekt", dato: v.dato, belop, kategori: S.innst.kategorier.inntekt.includes("Kontingent") ? "Kontingent" : S.innst.kategorier.inntekt[0],
-          beskrivelse: `Kontingent ${aar}: ${m.navn}`, bilagsnr: Number(v.bilagsnr) || nesteBilagsnr(S.poster, Number(v.dato.slice(0, 4))), kvitteringIds: [],
+          beskrivelse: `Kontingent ${aar}: ${m.navn}`, konto: v.konto || S.innst.kontoer[0].id, kvitteringIds: [],
         } : null,
       });
       d.close();

@@ -309,3 +309,17 @@ dl.info dd { margin: 0; }
   .ny-side { break-before: page; }
   .regnskap tr { break-inside: avoid; }
 }
+
+/* ---------- Flere kontoer ---------- */
+.veksler.tre { grid-template-columns: repeat(3, 1fr); }
+.veksler button.valgt[data-type=overforing] { background: var(--kort); color: var(--info); box-shadow: var(--skygge); }
+.noytral { color: var(--info); }
+@media (min-width: 601px) { .filterlinje.fire { grid-template-columns: 1fr auto auto auto; } }
+@media (max-width: 600px) { .filterlinje.fire select:last-child { grid-column: 1 / -1; } }
+.kontosaldo { display: flex; flex-wrap: wrap; gap: 8px 24px; background: var(--kort); border-radius: var(--radius); box-shadow: var(--skygge); padding: 12px 16px; margin: -4px 0 16px; }
+.kontosaldo div { display: flex; flex-direction: column; font-variant-numeric: tabular-nums; }
+.kontorad { display: grid; grid-template-columns: 1.4fr 1.2fr 1fr auto; gap: 0 10px; align-items: end; border-top: 1px solid var(--linje); padding-top: 12px; }
+.kontorad .ikonknapp { margin-bottom: 20px; }
+@media (max-width: 600px) { .kontorad { grid-template-columns: 1fr 1fr; } .kontorad label:first-child { grid-column: 1 / -1; } }
+.dempet { color: var(--dempet); }
+.liten { font-size: .85rem; }

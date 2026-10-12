@@ -1,7 +1,7 @@
 // Søknader om å få dekket utlegg: medlemmene sender, kassereren behandler og utbetaler.
 
 import { html, raw, kr, datoTekst, iDag, tolkBelop, belopTilInput } from "../util.js";
-import { nesteBilagsnr } from "../regnskap.js";
+import { kontovalg } from "./poster.js";
 import { sendSoknad, trekkSoknad, behandleSoknad, utbetalSoknad, oppdaterMinProfil } from "../firebase.js";
 import { melding, medKnapp, bekreft, kvitteringslenker, kobleKvitteringslenker, kvitteringsvelger } from "../ui.js";
 import { gaaTil } from "../app.js";
@@ -82,7 +82,6 @@ export function kassererDetalj(main, S, id) {
     return;
   }
   const kanUtbetales = s.status === "sendt" || s.status === "godkjent";
-  const aar = Number(iDag().slice(0, 4));
   main.innerHTML = html`
     <div class="sidetopp"><h1>Søknad fra ${s.navn}</h1><a class="lenkeknapp" href="#/soknader">Tilbake</a></div>
     <section class="kort">${raw(soknadsinfo(s))}</section>
@@ -118,7 +117,7 @@ export function kassererDetalj(main, S, id) {
             </select>
           </label>
           <label>Beskrivelse<input name="beskrivelse" value="${`Refusjon ${s.navn}: ${s.formaal}`.slice(0, 200)}" maxlength="200"></label>
-          <label>Bilagsnummer<input name="bilagsnr" type="number" min="1" value="${nesteBilagsnr(S.poster, aar)}" required></label>
+          ${S.innst.kontoer.length > 1 ? raw(kontovalg(S.innst, "konto", S.innst.kontoer[0].id, "Betalt fra konto")) : ""}
           <div class="knapper"><button class="knapp" type="submit">Marker som utbetalt</button></div>
         </form>
       </section>`) : ""}`;
@@ -146,10 +145,6 @@ export function kassererDetalj(main, S, id) {
 
   const utbetal = main.querySelector("#utbetal");
   if (utbetal) {
-    utbetal.elements.dato.addEventListener("change", () => {
-      const a = Number(utbetal.elements.dato.value.slice(0, 4));
-      if (a) utbetal.elements.bilagsnr.value = nesteBilagsnr(S.poster, a);
-    });
     utbetal.addEventListener("submit", async (e) => {
       e.preventDefault();
       const f = Object.fromEntries(new FormData(utbetal));
@@ -160,7 +155,7 @@ export function kassererDetalj(main, S, id) {
         if (kom !== (s.kommentar || "")) await behandleSoknad(s.id, { status: s.status, kommentar: kom });
         await utbetalSoknad(s, {
           type: "utgift", dato: f.dato, belop, kategori: f.kategori,
-          beskrivelse: f.beskrivelse.trim(), bilagsnr: Number(f.bilagsnr),
+          beskrivelse: f.beskrivelse.trim(), konto: f.konto || S.innst.kontoer[0].id,
         });
         melding("Utbetalingen er ført i regnskapet.");
         gaaTil("soknader");

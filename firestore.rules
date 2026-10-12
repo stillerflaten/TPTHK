@@ -56,7 +56,7 @@ service cloud.firestore {
     match /poster/{id} {
       allow read, delete: if erKasserer();
       allow create, update: if erKasserer()
-        && request.resource.data.type in ['inntekt', 'utgift']
+        && request.resource.data.type in ['inntekt', 'utgift', 'overforing']
         && gyldigBelop(request.resource.data.belop)
         && request.resource.data.dato is string;
     }

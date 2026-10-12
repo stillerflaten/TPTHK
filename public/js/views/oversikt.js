@@ -2,6 +2,7 @@
 
 import { html, raw, kr, datoTekst } from "../util.js";
 import { saldoNaa, aarsregnskap, sorterPoster, kontingentStatus } from "../regnskap.js";
+import { belopHtml } from "./poster.js";
 
 export function oversikt(main, S) {
   const r = aarsregnskap(S.poster, S.innst, S.aar);
@@ -34,6 +35,11 @@ export function oversikt(main, S) {
       <div class="tallkort"><span class="etikett">Resultat ${S.aar}</span><span class="verdi ${r.resultat < 0 ? "minus" : "pluss"}">${kr(r.resultat)}</span></div>
     </div>
 
+    ${S.innst.kontoer.length > 1 ? raw(html`
+      <div class="kontosaldo">${S.innst.kontoer.map((konto) => raw(html`
+        <div><span class="etikett">${konto.navn}</span><strong>${kr(saldoNaa(S.poster, S.innst, konto.id))}</strong></div>`))}
+      </div>`) : ""}
+
     <div class="rutenett">
       <section class="kort">
         <h2>Inntekter per kategori</h2>
@@ -53,8 +59,8 @@ export function oversikt(main, S) {
         ${siste.length ? raw(`<ul class="postliste kompakt">${siste.map((p) => html`
           <li><a href="#/post/${p.id}">
             <span class="post-dato">${datoTekst(p.dato)}</span>
-            <span class="post-tekst">${p.beskrivelse || p.kategori}</span>
-            <span class="post-belop ${p.type === "utgift" ? "minus" : "pluss"}">${p.type === "utgift" ? "−" : "+"}${kr(p.belop)}</span>
+            <span class="post-tekst">${p.beskrivelse || p.kategori || "Overføring"}</span>
+            ${raw(belopHtml(p, S.innst))}
           </a></li>`).join("")}</ul><a href="#/poster">Se alle poster</a>`)
           : raw(`<p class="hint">Ingen poster i ${S.aar} ennå.</p>`)}
       </section>
