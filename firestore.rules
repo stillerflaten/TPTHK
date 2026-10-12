@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Sikkerhetsregler for TPTHK kasserer.
-// Disse limes inn i Firebase-konsollen under Firestore Database → Regler (Rules) → Publiser.
+// Publiseres automatisk til Firebase av GitHub Actions når de flettes til main (se docs/regler-automatisk.md).
 //
 // Kort fortalt:
 //  • Bare innloggede med bekreftet e-post, som kassereren har gitt tilgang (en rad i «brukere»), kommer inn.
@@ -9,6 +9,10 @@ rules_version = '2';
 //  • Medlemmer ser bare sine egne søknader og kvitteringer, sitt eget medlemskort og betalingsinfo.
 //  • Alle med tilgang ser møteinnkallinger og referater. Styret (de som har et verv, og kasserere) legger dem ut.
 //  • Styret kan lese regnskapet, medlemslisten og søknadene, men ikke endre noe der.
+//  • Revisor (revisor: true i «brukere») kan lese regnskapet med kvitteringer, kontoene og medlemslisten,
+//    men ikke søknadene eller brukerne (der ligger kontonumre), og kan ikke endre noe. Tilgangen kan ha en
+//    sluttdato (revisorTil), som sjekkes mot serverens klokke. Bare kassereren kan gi og fjerne den.
+//    En revisor utenfor klubben har rolle «revisor» og ser bare regnskapet, ikke møter, styret eller annet.
 //  • Administratoren bestemmer hvilke styreverv som finnes. Administrator og kasserer bestemmer hvem som har dem.
 //  • Et referat signeres av de styret velger. Når alle har signert, er referatet låst for godt.
 //  • Administratoren (admin: true) er vanlig medlem, men får full tilgang i inntil 24 timer
@@ -26,11 +30,12 @@ service cloud.firestore {
     function profilSti() {
       return /databases/$(database)/documents/brukere/$(epost());
     }
-    function harTilgang() {
-      return innlogget() && exists(profilSti());
-    }
     function profil() {
       return get(profilSti()).data;
+    }
+    // Vanlig tilgang (medlem, styret, kasserer). En revisor utenfor klubben (rolle «revisor») har det ikke.
+    function harTilgang() {
+      return innlogget() && exists(profilSti()) && profil().get('rolle', '') != 'revisor';
     }
     // «Ekte» roller, uten support. Bare disse kan be om (og forlenge) support.
     function ekteKasserer() {
@@ -63,6 +68,15 @@ service cloud.firestore {
     function erStyret() {
       return ekteStyret() || supportAktiv();
     }
+    // Revisor: lesetilgang til regnskapet, eventuelt med sluttdato.
+    function erRevisor() {
+      return innlogget() && exists(profilSti()) && profil().get('revisor', false) == true
+        && (profil().get('revisorTil', null) == null || profil().get('revisorTil', null) > request.time);
+    }
+    // De som kan lese regnskapet: kasserer, styret og revisor.
+    function seRegnskap() {
+      return erStyret() || erRevisor();
+    }
     function gyldigBelop(b) {
       return b is int && b > 0 && b < 100000000;
     }
@@ -88,9 +102,9 @@ service cloud.firestore {
       allow list, delete: if erKasserer();
     }
 
-    // Regnskapet: bare kasserer.
+    // Regnskapet: kassereren fører, styret og revisor leser.
     match /poster/{id} {
-      allow read: if erStyret();
+      allow read: if seRegnskap();
       allow delete: if erKasserer();
       allow create, update: if erKasserer()
         && request.resource.data.type in ['inntekt', 'utgift', 'overforing']
@@ -99,13 +113,13 @@ service cloud.firestore {
     }
 
     match /medlemmer/{id} {
-      allow read: if erStyret();
+      allow read: if seRegnskap();
       allow write: if erKasserer();
       allow get: if harTilgang() && profil().get('medlemId', '') == id;
     }
 
     match /innstillinger/klubb {
-      allow read: if erStyret();
+      allow read: if seRegnskap();
       allow write: if erKasserer();
     }
     // Support: kasserer eller styret gir administratoren full tilgang i inntil 24 timer.
@@ -148,7 +162,7 @@ service cloud.firestore {
 
     // Kvitteringsbilder. «laast» settes når en søknad er utbetalt, så de ikke kan slettes av medlemmet.
     match /kvitteringer/{id} {
-      allow read: if erStyret() || (harTilgang() && resource.data.eier == epost());
+      allow read: if seRegnskap() || (harTilgang() && resource.data.eier == epost());
       // Kassereren kan i tillegg legge tilbake kvitteringer fra en sikkerhetskopi.
       allow create: if (harTilgang() && request.resource.data.eier == epost() || erKasserer())
         && request.resource.data.data is string

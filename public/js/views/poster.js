@@ -3,9 +3,10 @@
 import { html, raw, kr, tall, datoTekst, iDag, tolkBelop, belopTilInput, lastNedCsv } from "../util.js";
 import { aarFor, sorterPoster, bilagsnrForNy, endring, kontoFor, kontonavn } from "../regnskap.js";
 import { lagrePost, slettPost, slettKvittering } from "../firebase.js";
-import { melding, medKnapp, bekreft, kvitteringsvelger } from "../ui.js";
+import { melding, medKnapp, bekreft, kvitteringsvelger, kvitteringslenker, kobleKvitteringslenker } from "../ui.js";
 import { gaaTil } from "../app.js";
 import { ikon } from "../ikoner.js";
+import { erKasserer } from "../tilgang.js";
 
 // Filteret huskes mens appen er åpen.
 const filter = { type: "", kategori: "", konto: "", sok: "" };
@@ -43,7 +44,7 @@ export function liste(main, S) {
       <h1>Poster ${S.aar}</h1>
       <div class="knapperad">
         <button class="knapp sekundaer" id="eksport">${raw(ikon("lastned"))} Excel</button>
-        <a class="knapp" href="#/post/ny">+ Ny post</a>
+        ${erKasserer(S) ? raw(`<a class="knapp" href="#/post/ny">+ Ny post</a>`) : ""}
       </div>
     </div>
 
@@ -251,3 +252,36 @@ export function skjema(main, S, id) {
 }
 skjema.tittel = "Post";
 skjema.trenger = ["poster", "innst"];
+
+/** Én post, bare til å lese (for revisor). Viser bilaget med kvitteringer og hvem som har ført det. */
+export function visning(main, S, id) {
+  const p = S.poster.find((x) => x.id === id);
+  if (!p) {
+    main.innerHTML = `<div class="tom">Fant ikke posten. Den kan være slettet. <a href="#/poster">Tilbake</a></div>`;
+    return;
+  }
+  const ids = p.kvitteringIds || [];
+  main.innerHTML = html`
+    <div class="sidetopp">
+      <h1>Bilag #${p.bilagsnr}</h1>
+      <a class="lenkeknapp" href="#/poster">Tilbake</a>
+    </div>
+    <section class="kort">
+      <dl class="info">
+        <dt>Dato</dt><dd>${datoTekst(p.dato)}</dd>
+        <dt>Type</dt><dd>${typeTekst[p.type]}${p.soknadId ? " (refusjon etter søknad)" : ""}${p.kontingentAar ? ` (kontingent ${p.kontingentAar})` : ""}</dd>
+        <dt>Beløp</dt><dd><strong>${raw(belopHtml(p, S.innst))}</strong></dd>
+        <dt>Konto</dt><dd>${kontotekst(p, S.innst)}</dd>
+        ${p.type !== "overforing" ? raw(html`<dt>Kategori</dt><dd>${p.kategori || "–"}</dd>`) : ""}
+        <dt>Beskrivelse</dt><dd class="fritekst">${p.beskrivelse || "–"}</dd>
+        ${p.opprettetAv ? raw(html`<dt>Ført av</dt><dd>${p.opprettetAv}</dd>`) : ""}
+        ${p.endretAv && p.endretAv !== p.opprettetAv ? raw(html`<dt>Sist endret av</dt><dd>${p.endretAv}</dd>`) : ""}
+      </dl>
+      <h2>Kvittering / bilag</h2>
+      ${ids.length ? raw(html`<div class="brikker">${raw(kvitteringslenker(ids))}</div>`) : raw(`<p class="hint">Ingen kvittering lagt ved.</p>`)}
+    </section>`;
+  kobleKvitteringslenker(main);
+}
+visning.live = true;
+visning.tittel = "Bilag";
+visning.trenger = ["poster", "innst"];

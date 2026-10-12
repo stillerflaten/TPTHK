@@ -20,3 +20,16 @@ export const kanBeOmSupport = (S) => ekteStyret(S) && S.profil?.admin !== true;
 
 export const erKasserer = (S) => ekteKasserer(S) || supportAktiv(S);
 export const erStyret = (S) => ekteStyret(S) || supportAktiv(S);
+
+/** Når revisortilgangen går ut, i millisekunder. null = ingen utløpsdato. */
+export const revisorUtloper = (p) => p?.revisorTil?.toMillis?.() ?? null;
+
+/** Revisor: kan lese regnskapet med bilag og kvitteringer, men ikke endre noe. Tilgangen kan ha en sluttdato. */
+export const erRevisor = (S) => S.profil?.revisor === true
+  && (revisorUtloper(S.profil) == null || revisorUtloper(S.profil) > Date.now());
+
+/** Revisor som ikke er medlem av klubben. Ser bare regnskapet. */
+export const eksternRevisor = (S) => S.profil?.rolle === "revisor";
+
+/** Ser regnskapet (oversikt, årsrapport). */
+export const seRegnskap = (S) => erKasserer(S) || erStyret(S) || erRevisor(S);

@@ -4,11 +4,12 @@ import { html, raw, kr, datoTekst } from "../util.js";
 import { saldoNaa, aarsregnskap, sorterPoster, kontingentStatus } from "../regnskap.js";
 import { belopHtml } from "./poster.js";
 import { ikon } from "../ikoner.js";
-import { erKasserer } from "../tilgang.js";
+import { erKasserer, erRevisor } from "../tilgang.js";
 import { kopiVarsel } from "./sikkerhetskopi.js";
 
 export function oversikt(main, S) {
   const kasserer = erKasserer(S);
+  const sePoster = kasserer || erRevisor(S);
   const r = aarsregnskap(S.poster, S.innst, S.aar);
   const k = kontingentStatus(S.medlemmer, S.aar);
   const venter = S.soknader.filter((s) => s.status === "sendt" || s.status === "godkjent");
@@ -62,11 +63,11 @@ export function oversikt(main, S) {
 
         <h2>Siste poster</h2>
         ${siste.length ? raw(`<ul class="postliste kompakt">${siste.map((p) => html`
-          <li><a ${kasserer ? raw(`href="#/post/${p.id}"`) : ""}>
+          <li><a ${sePoster ? raw(`href="#/post/${p.id}"`) : ""}>
             <span class="post-dato">${datoTekst(p.dato)}</span>
             <span class="post-tekst">${p.beskrivelse || p.kategori || "Overføring"}</span>
             ${raw(belopHtml(p, S.innst))}
-          </a></li>`).join("")}</ul>${kasserer ? `<a href="#/poster">Se alle poster</a>` : ""}`)
+          </a></li>`).join("")}</ul>${sePoster ? `<a href="#/poster">Se alle poster</a>` : ""}`)
           : raw(`<p class="hint">Ingen poster i ${S.aar} ennå.</p>`)}
       </section>
     </div>`;

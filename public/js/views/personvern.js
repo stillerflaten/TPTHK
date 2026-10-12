@@ -41,6 +41,8 @@ export function personvern(main, S) {
       <ul>
         <li><strong>Kassereren</strong> ser alt.</li>
         <li><strong>Styret</strong> ser oversikten over regnskapet, søknader om refusjon og medlemslisten.</li>
+        <li><strong>Revisor</strong> ser regnskapet med kvitteringer og medlemslisten når klubben gir tilgang, men ikke søknadene eller kontonummeret ditt.
+          Revisor kan ikke endre noe, og tilgangen gis bare for revisjonen. Revisor trenger ikke være medlem av klubben.</li>
         <li><strong>Vanlige medlemmer</strong> ser bare sine egne søknader, møteinnkallinger, referater og hvem som sitter i styret.</li>
         <li><strong>Administratoren</strong> (Tillerflaten Digital) ser regnskapet bare når klubben ber om hjelp, og da i høyst 24 timer om gangen.</li>
       </ul>
