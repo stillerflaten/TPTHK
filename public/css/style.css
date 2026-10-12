@@ -560,3 +560,18 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 .foering { margin: 4px 0 0; max-width: 420px; }
 .foering td { padding: 5px 8px; }
 .foering tr.sum td { color: var(--dempet); font-weight: 400; }
+
+/* Import fra banken */
+.bankliste li { display: grid; grid-template-columns: auto 1fr auto auto; gap: 14px; align-items: center; padding: 12px 18px; }
+.bankliste li.bank-fort, .bankliste li.bank-hoppet, .bankliste li.bank-forStart { opacity: .7; }
+.bankliste li.bank-kanskje .post-kategori { color: #6b5100; }
+.bank-knapper { display: flex; gap: 6px; justify-content: flex-end; }
+#kolonner summary { cursor: pointer; margin-top: 4px; }
+#kolonner .to-kol { margin-top: 12px; }
+@media (max-width: 600px) {
+  .bankliste li { grid-template-columns: 1fr auto; grid-template-areas: "tekst belop" "dato knapper"; gap: 6px 12px; padding: 12px 16px; }
+  .bankliste .post-tekst { grid-area: tekst; }
+  .bankliste .post-belop { grid-area: belop; }
+  .bankliste .post-dato { grid-area: dato; font-size: .78rem; }
+  .bankliste .bank-knapper { grid-area: knapper; }
+}

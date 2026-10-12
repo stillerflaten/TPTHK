@@ -136,6 +136,17 @@ export async function slettPost(post) {
   await batch.commit();
 }
 
+// ---------- Import fra nettbanken ----------
+// En post husker hvilken transaksjon i kontoutskriften den kom fra i «bank»: { [kontoId]: transaksjons-id }.
+
+/** Kobler en post som alt er ført, til en transaksjon fra banken. */
+export const kobleTilBank = (postId, kontoId, transId) =>
+  updateDoc(doc(db, "poster", postId), { [`bank.${kontoId}`]: transId });
+
+/** Transaksjoner kassereren har valgt å hoppe over, huskes i innstillingene. */
+export const hoppOverBank = (transId, hopp) =>
+  setDoc(doc(db, "innstillinger", "klubb"), { bankHoppet: { [transId]: hopp ? true : deleteField() } }, { merge: true });
+
 // ---------- Kvitteringer ----------
 // Lagres som komprimerte bilder i egne dokumenter, så de bare lastes når noen åpner dem.
 

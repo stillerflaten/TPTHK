@@ -120,6 +120,17 @@ const DELER = [
         <p>Vil du se hva klubben sitter igjen med etter et arrangement, f.eks. et seminar, lager du en kategori med samme navn under både inntekter og utgifter
         i <a href="#/innstillinger">Innstillinger</a> (f.eks. «Seminar 2026»). Før påmeldinger som inntekt og kostnader som utgift på den kategorien.
         Årsrapporten viser da inntekter, utgifter og hva dere sitter igjen med. Under Poster kan du også velge kategorien og se «Netto» nederst.</p>`, ["ny-post"]],
+      ["Importer kontoutskrift fra banken", `
+        <ol>
+          <li>I Nordea nettbank: åpne kontoen, velg perioden og last ned transaksjonene som CSV eller Excel.</li>
+          <li>Her: gå til <a href="#/poster">Poster</a> og trykk «Importer fra bank». Har klubben flere kontoer, velg hvilken konto utskriften er fra. Trykk «Velg fil fra nettbanken».</li>
+          <li>Under «Å føre» ser du transaksjonene som ikke er ført. Trykk «Før», velg kategori, rett beskrivelsen og legg ved kvittering. «Lagre og neste» går rett videre til neste.</li>
+          <li>Står det «Trolig ført for hånd», finnes det allerede en post med samme beløp og nesten samme dato. Trykk «Ja, samme» hvis det er den, eller «Før som ny».</li>
+          <li>Transaksjoner som ikke skal i regnskapet, kan du «Hoppe over». Det kan angres under «Ført eller hoppet over».</li>
+        </ol>
+        <p>Laster du opp samme utskrift på nytt (eller en som overlapper), kjenner nettsiden igjen det som alt er ført. Fila lagres ikke, den leses bare i nettleseren.
+        En overføring mellom to av klubbens kontoer føres én gang, som «Overføring». Når du importerer utskriften fra den andre kontoen, trykker du «Ja, samme» på den.
+        Finner nettsiden ikke kolonnene for dato og beløp, kan du velge dem selv under «Kolonner».</p>`],
       ["Behandle søknader om refusjon", `
         <ol>
           <li>Nye søknader vises med et tall ved «Søknader» i menyen. Åpne søknaden og se kvitteringene.</li>
