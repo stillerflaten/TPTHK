@@ -228,7 +228,7 @@ service cloud.firestore {
       allow create, update: if erStyret() && gyldigRegel(request.resource.data);
       allow delete: if erStyret();
     }
-    // PDF-ene i regelverket, delt i biter fordi et dokument kan være maks 1 MB.
+    // Filene i regelverket (PDF eller Word), delt i biter fordi et dokument kan være maks 1 MB.
     match /regelverkfiler/{id} {
       allow read: if harTilgang();
       allow create, update: if erStyret()

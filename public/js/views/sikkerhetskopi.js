@@ -5,7 +5,7 @@
 //  • *.csv           regnskap, medlemmer og søknader, til å åpne i Excel
 //  • kvitteringer/   alle kvitteringsbilder og PDF-er, navngitt etter bilagsnummer
 //  • moter/          innkallinger og referater som tekst, med hvem som har signert
-//  • regelverk/      vedtekter og andre regler som PDF
+//  • regelverk/      vedtekter og andre regler som PDF eller Word
 //
 // Gjenoppretting legger bare tilbake dokumenter som mangler. Ingenting som finnes, blir endret eller slettet, bortsett fra at
 // søknader og kontingent som hører til en post som legges tilbake, igjen merkes som utbetalt/betalt.
@@ -160,8 +160,8 @@ async function lagSikkerhetskopi(S, vis) {
   vis("Henter innstillinger …");
   data.innstillinger = (await Promise.all(INNSTILLINGER.map((id) => hentDokument("innstillinger", id)))).filter(Boolean);
 
-  // PDF-ene i regelverket ligger i biter. De settes sammen til hele filer, og JSON-fila peker på fila.
-  vis("Henter PDF-ene i regelverket …");
+  // Filene i regelverket ligger i biter. De settes sammen til hele filer, og JSON-fila peker på fila.
+  vis("Henter filene i regelverket …");
   const regelbiter = await hentSamling("regelverkfiler");
 
   vis("Pakker fila …");
@@ -205,7 +205,7 @@ async function lagSikkerhetskopi(S, vis) {
   return { blob: lagZip(filer), filnavn: `${kortnavn}-sikkerhetskopi-${iDag()}.zip` };
 }
 
-/** Setter sammen PDF-ene i regelverket. Hvert dokument får fil.__fil med stien i ZIP-fila. */
+/** Setter sammen filene (PDF eller Word) i regelverket. Hvert dokument får fil.__fil med stien i ZIP-fila. */
 function regelFiler(regelverk, biter) {
   const ut = [];
   const brukt = new Set();
@@ -216,8 +216,9 @@ function regelFiler(regelverk, biter) {
     let navn = `regelverk/${rens(r.tittel)}`;
     if (brukt.has(navn)) navn += `-${r.id}`;
     brukt.add(navn);
-    ut.push({ navn: `${navn}.pdf`, data: dataUrlTilBytes(`,${deler.map((d) => d.data).join("")}`) });
-    r.fil = { ...r.fil, __fil: `${navn}.pdf` };
+    navn += `.${String(r.fil.navn).match(/\.(docx?|pdf)$/i)?.[1].toLowerCase() || "pdf"}`;
+    ut.push({ navn, data: dataUrlTilBytes(`,${deler.map((d) => d.data).join("")}`) });
+    r.fil = { ...r.fil, __fil: navn };
   }
   return ut;
 }
@@ -359,7 +360,7 @@ function lesmeg(innst, laget, antall) {
     `  kvitteringer/    Kvitteringer (${antall.kvitteringer}). Mappene heter etter år, og filene etter bilagsnummeret i regnskap.csv.`,
     "                   Kvitteringer til søknader som ikke er utbetalt ennå, ligger i kvitteringer/soknader.",
     `  moter/           Innkallinger og referater (${antall.moter} møter) som tekst, med hvem som har signert.`,
-    `  regelverk/       Vedtekter og andre regler (${antall.regelverk} dokumenter). PDF-ene ligger her, lenker står i data/regelverk.json.`,
+    `  regelverk/       Vedtekter og andre regler (${antall.regelverk} dokumenter). Filene ligger her, lenker står i data/regelverk.json.`,
     "  data/            Alt i databasen, slik det er lagret. Brukes for å gjenopprette.",
     "",
     "Gjenopprette:",
@@ -538,7 +539,7 @@ function byggSkriving(plan, filer) {
   }
   for (const u of utkast.values()) legg("referatutkast", u);
 
-  // Regelverket: PDF-en deles i biter igjen og lagres før dokumentet som peker på den.
+  // Regelverket: fila deles i biter igjen og lagres før dokumentet som peker på den.
   for (const r of plan.regelverk) {
     const { fil, ...rest } = utenId(r);
     const bytes = fil?.__fil ? filer.get(fil.__fil) : null;

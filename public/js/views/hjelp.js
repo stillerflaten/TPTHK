@@ -43,7 +43,7 @@ const DELER = [
         <p>Signaturen er en bekreftelse fra deg som innlogget bruker, med tidspunkt og en kontrollsum av teksten. Den viser at teksten
         ikke er endret etter at den ble signert. Det er ikke BankID.</p>`, ["signer"]],
       ["Regelverk", `<p>Under <a href="#/regelverk">Regelverk</a> finner du klubbens vedtekter og andre regler, sortert i vedtekter og statutter,
-        retningslinjer, vedtak og annet. Trykk «Åpne» for å lese dokumentet. PDF-er åpnes i en ny fane, og lenker går til nettsiden der regelen ligger.</p>`],
+        retningslinjer, vedtak og annet. Trykk «Åpne» for å lese dokumentet. PDF-er åpnes i en ny fane, Word-dokumenter vises rett på siden (med knapp for å laste ned fila), og lenker går til nettsiden der regelen ligger.</p>`],
       ["Min side og kontingent", `<p>På <a href="#/minside">Min side</a> ser du navnet ditt, kontonummeret for refusjoner og om kontingenten
         for i år er registrert som betalt. Der står også hvordan du betaler kontingenten. Har du nettopp betalt, kan det ta litt tid før kassereren registrerer det.</p>`, ["minside"]],
       ["Personvern", `<p>I <a href="#/personvern">personvernerklæringen</a> står det hva som lagres om deg, hvem som ser det, og hvilke rettigheter du har.
@@ -81,7 +81,7 @@ const DELER = [
         <ol>
           <li>Gå til «Regelverk» og trykk «+ Legg til dokument».</li>
           <li>Velg kategori, skriv tittel og gjerne en kort beskrivelse og dato for når det gjelder fra.</li>
-          <li>Velg «PDF-fil» og last opp fila (maks 5 MB), eller «Lenke» hvis regelen ligger på en annen nettside.</li>
+          <li>Velg «Fil (PDF eller Word)» og last opp fila (maks 5 MB), eller «Lenke» hvis regelen ligger på en annen nettside. Word-filer bør være i .docx-format, som er vanlig i nyere Word. Gamle .doc-filer kan bare lastes ned, ikke vises på siden.</li>
           <li>Trykk «Legg til». Alle medlemmer kan lese dokumentet med en gang.</li>
         </ol>
         <p>Er vedtektene endret, trykker du «Endre» og «Bytt fil». Den gamle fila slettes når du lagrer. Alle i styret kan legge inn og endre.</p>`],
