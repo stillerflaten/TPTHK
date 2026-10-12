@@ -157,7 +157,8 @@ export const slettKvittering = (id) => deleteDoc(doc(db, "kvitteringer", id));
 
 export async function lagreMedlem(id, data) {
   if (id) {
-    await updateDoc(doc(db, "medlemmer", id), data);
+    // hund-feltet er tatt bort fra skjemaet; rydd det bort fra eldre medlemmer når de lagres.
+    await updateDoc(doc(db, "medlemmer", id), { ...data, hund: deleteField() });
     return id;
   }
   const ref = await addDoc(collection(db, "medlemmer"), { ...data, kontingent: {}, opprettet: serverTimestamp() });
