@@ -157,12 +157,15 @@ body.har-meny .innhold { padding-bottom: calc(var(--bunnmeny) + 40px + env(safe-
   }
   .meny-fot .ikon { color: var(--gull); width: 16px; height: 16px; }
 
-  body.har-meny .innhold { margin-left: var(--sidemeny); padding: 96px 40px 56px; max-width: none; }
+  body.har-meny .innhold { margin-left: var(--sidemeny); margin-right: 0; width: auto; padding: 96px 40px 56px; max-width: none; }
   body.har-meny .innhold > * { max-width: 1040px; }
 }
 
-/* «Levert av» nederst på alle sider */
-.levert { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 8px 16px 28px; font-size: .74rem; color: var(--dempet); }
+/* «Levert av» nederst på alle sider: innholdet fyller høyden, så bunnteksten havner
+   i bunnen av vinduet når siden er kort, og under innholdet når siden er lang. */
+body { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+.innhold { flex: 1 0 auto; width: 100%; }
+.levert { flex: none;  display: flex; gap: 8px; align-items: center; justify-content: center; padding: 8px 16px 28px; font-size: .74rem; color: var(--dempet); }
 .levert img { border-radius: 4px; }
 .levert a { color: inherit; }
 .personvern { max-width: 760px; }
@@ -512,6 +515,7 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
   @page { margin: 18mm; }
   body, body.har-meny { background: #fff; }
   .topplinje, .meny, .ikke-utskrift, .toast, .topp-hoyre, .levert { display: none !important; }
+  body { display: block; min-height: 0; }
   body.har-meny .innhold { margin: 0; padding: 0; }
   .rapport { box-shadow: none; border: 0; padding: 0; }
   .ny-side { break-before: page; }
