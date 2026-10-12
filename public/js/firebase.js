@@ -409,7 +409,7 @@ export async function lagreRegelfil(base64, filId = doc(collection(db, "regelver
   return { id: filId, deler: biter.length };
 }
 
-/** Henter en PDF fra regelverket og gir den tilbake som base64. */
+/** Henter en fil (PDF eller Word) fra regelverket og gir den tilbake som base64. */
 export async function hentRegelfil(fil) {
   const biter = await Promise.all(Array.from({ length: fil.deler }, (_, nr) => getDoc(doc(db, "regelverkfiler", `${fil.id}__${nr}`))));
   if (biter.some((b) => !b.exists())) throw new Error("Fant ikke hele fila. Prøv igjen, eller be styret laste den opp på nytt.");
@@ -424,13 +424,13 @@ async function slettRegelfil(fil) {
 }
 
 /**
- * Lagrer et dokument i regelverket. pdf = { navn, storrelse, base64 } når en ny fil er valgt.
- * Er det en lenke (eller en ny PDF), slettes den gamle fila etterpå.
+ * Lagrer et dokument i regelverket. fil = { navn, storrelse, base64 } når en ny fil (PDF eller Word) er valgt.
+ * Er det en lenke (eller en ny fil), slettes den gamle fila etterpå.
  */
-export async function lagreRegel(regel, data, pdf) {
+export async function lagreRegel(regel, data, nyFil) {
   const ref = regel ? doc(db, "regelverk", regel.id) : doc(collection(db, "regelverk"));
   let fil = regel?.fil || null;
-  if (pdf) fil = { ...(await lagreRegelfil(pdf.base64)), navn: pdf.navn, storrelse: pdf.storrelse };
+  if (nyFil) fil = { ...(await lagreRegelfil(nyFil.base64)), navn: nyFil.navn, storrelse: nyFil.storrelse };
   if (data.lenke) fil = null;
   await setDoc(ref, {
     ...data,

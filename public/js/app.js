@@ -92,7 +92,7 @@ const moteSider = {
   hjelp: { side: hjelp },
 };
 // Regelverket: i menyen for alle unntatt kassereren, som har så mange menypunkter fra før. Kassereren finner det under Møter.
-const regelSider = { regelverk: { side: regelverk.liste }, "regel-skjema": { side: regelverk.skjema } };
+const regelSider = { regelverk: { side: regelverk.liste }, regel: { side: regelverk.les }, "regel-skjema": { side: regelverk.skjema } };
 const regelMeny = { ...regelSider, regelverk: { meny: "Regelverk", ikon: "regelverk", side: regelverk.liste } };
 Object.assign(kassererSider, moteSider, regelSider);
 
@@ -259,7 +259,7 @@ function tegnMeny(aktiv) {
 
 // Undersider markerer menypunktet de hører til.
 const hører = (navn) => ({ post: "poster", bankimport: "poster", soknad: "soknader", medlem: "medlemmer", "ny-soknad": "mine", "min-soknad": "mine",
-  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter", budsjett: "rapport", avstemming: "rapport", "regel-skjema": "regelverk" })[navn];
+  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter", budsjett: "rapport", avstemming: "rapport", regel: "regelverk", "regel-skjema": "regelverk" })[navn];
 
 // ---------- Data ----------
 

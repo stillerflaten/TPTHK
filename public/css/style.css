@@ -386,6 +386,13 @@ legend { font-weight: 600; font-size: .84rem; padding: 0 6px; }
 .regel-gruppe { margin: 22px 0 10px; }
 .regelliste li { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 13px 18px; }
 .regel-ikon { color: var(--svak); display: grid; }
+.regel-tekst { line-height: 1.6; overflow-wrap: break-word; }
+.regel-tekst > :first-child { margin-top: 0; }
+.regel-tekst h1, .regel-tekst h2, .regel-tekst h3 { margin: 1.2em 0 .4em; font-size: 1.3rem; }
+.regel-tekst img { max-width: 100%; height: auto; }
+.regel-tekst table { border-collapse: collapse; display: block; overflow-x: auto; }
+.regel-tekst td, .regel-tekst th { border: 1px solid var(--linje); padding: 6px 10px; vertical-align: top; }
+.regel-tekst td > p, .regel-tekst th > p { margin: 0; }
 .regel-beskrivelse { font-size: .88rem; color: var(--tekst); overflow-wrap: anywhere; }
 .regelliste .knapperad { flex-wrap: nowrap; }
 @media (max-width: 520px) {
