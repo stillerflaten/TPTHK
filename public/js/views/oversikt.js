@@ -1,11 +1,13 @@
-// Forsiden for kassereren: saldo, årets tall og det som venter.
+// Forsiden for kassereren og styret: saldo, årets tall og det som venter. Styret ser, men endrer ikke.
 
 import { html, raw, kr, datoTekst } from "../util.js";
 import { saldoNaa, aarsregnskap, sorterPoster, kontingentStatus } from "../regnskap.js";
 import { belopHtml } from "./poster.js";
 import { ikon } from "../ikoner.js";
+import { erKasserer } from "../tilgang.js";
 
 export function oversikt(main, S) {
+  const kasserer = erKasserer(S);
   const r = aarsregnskap(S.poster, S.innst, S.aar);
   const k = kontingentStatus(S.medlemmer, S.aar);
   const venter = S.soknader.filter((s) => s.status === "sendt" || s.status === "godkjent");
@@ -21,7 +23,7 @@ export function oversikt(main, S) {
   main.innerHTML = html`
     <div class="sidetopp">
       <h1>Oversikt ${S.aar}</h1>
-      <a class="knapp" href="#/post/ny">+ Ny post</a>
+      ${kasserer ? raw(`<a class="knapp" href="#/post/ny">+ Ny post</a>`) : ""}
     </div>
 
     ${venter.length ? raw(html`
@@ -53,16 +55,16 @@ export function oversikt(main, S) {
         <h2>Kontingent ${S.aar}</h2>
         ${k.antall ? raw(html`
           <div class="fremdrift"><span style="width:${((k.betalt / k.antall) * 100).toFixed(0)}%"></span></div>
-          <p><strong>${k.betalt}</strong> av ${k.antall} aktive medlemmer har betalt. <a href="#/medlemmer">Se medlemmer</a></p>`)
-          : raw(`<p class="hint">Ingen medlemmer registrert ennå. <a href="#/medlemmer">Legg til medlemmer</a></p>`)}
+          <p><strong>${k.betalt}</strong> av ${k.antall} aktive medlemmer har betalt. ${kasserer ? raw(`<a href="#/medlemmer">Se medlemmer</a>`) : ""}</p>`)
+          : raw(`<p class="hint">Ingen medlemmer registrert ennå.${kasserer ? ` <a href="#/medlemmer">Legg til medlemmer</a>` : ""}</p>`)}
 
         <h2>Siste poster</h2>
         ${siste.length ? raw(`<ul class="postliste kompakt">${siste.map((p) => html`
-          <li><a href="#/post/${p.id}">
+          <li><a ${kasserer ? raw(`href="#/post/${p.id}"`) : ""}>
             <span class="post-dato">${datoTekst(p.dato)}</span>
             <span class="post-tekst">${p.beskrivelse || p.kategori || "Overføring"}</span>
             ${raw(belopHtml(p, S.innst))}
-          </a></li>`).join("")}</ul><a href="#/poster">Se alle poster</a>`)
+          </a></li>`).join("")}</ul>${kasserer ? `<a href="#/poster">Se alle poster</a>` : ""}`)
           : raw(`<p class="hint">Ingen poster i ${S.aar} ennå.</p>`)}
       </section>
     </div>`;

@@ -5,6 +5,7 @@ import { kontovalg } from "./poster.js";
 import { sendSoknad, trekkSoknad, behandleSoknad, utbetalSoknad, oppdaterMinProfil } from "../firebase.js";
 import { melding, medKnapp, bekreft, kvitteringslenker, kobleKvitteringslenker, kvitteringsvelger } from "../ui.js";
 import { gaaTil } from "../app.js";
+import { erKasserer } from "../tilgang.js";
 
 export const statusTekst = {
   sendt: "Til behandling",
@@ -63,7 +64,8 @@ export function kassererListe(main, S) {
   const vis = fane === "venter" ? venter : ferdig;
   main.innerHTML = html`
     <div class="sidetopp"><h1>Søknader om refusjon</h1></div>
-    <p class="hint">Medlemmene sender inn utlegg med kvittering fra sin egen side. Her godkjenner du, og fører dem i regnskapet når pengene er betalt ut.</p>
+    <p class="hint">${erKasserer(S) ? "Medlemmene sender inn utlegg med kvittering fra sin egen side. Her godkjenner du, og fører dem i regnskapet når pengene er betalt ut."
+      : "Søknadene medlemmene har sendt inn. Kassereren behandler og betaler dem ut. Som styremedlem kan du lese dem og se kvitteringene."}</p>
     <div class="faner">
       <button data-fane="venter" class="${fane === "venter" ? "valgt" : ""}">Venter (${venter.length})</button>
       <button data-fane="ferdig" class="${fane === "ferdig" ? "valgt" : ""}">Ferdige (${ferdig.length})</button>
@@ -81,14 +83,15 @@ export function kassererDetalj(main, S, id) {
     main.innerHTML = `<div class="tom">Fant ikke søknaden. <a href="#/soknader">Tilbake</a></div>`;
     return;
   }
-  const kanUtbetales = s.status === "sendt" || s.status === "godkjent";
+  const kasserer = erKasserer(S);
+  const kanUtbetales = kasserer && (s.status === "sendt" || s.status === "godkjent");
   main.innerHTML = html`
     <div class="sidetopp"><h1>Søknad fra ${s.navn}</h1><a class="lenkeknapp" href="#/soknader">Tilbake</a></div>
     <section class="kort">${raw(soknadsinfo(s))}</section>
 
-    ${s.status === "utbetalt" && s.postId ? raw(html`<p><a href="#/post/${s.postId}">Åpne posten i regnskapet</a></p>`) : ""}
+    ${kasserer && s.status === "utbetalt" && s.postId ? raw(html`<p><a href="#/post/${s.postId}">Åpne posten i regnskapet</a></p>`) : ""}
 
-    ${s.status !== "utbetalt" ? raw(html`
+    ${kasserer && s.status !== "utbetalt" ? raw(html`
       <section class="kort">
         <h2>Behandle</h2>
         <label>Kommentar til søkeren (valgfritt, men påkrevd ved avslag)

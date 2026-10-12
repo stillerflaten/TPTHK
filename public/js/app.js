@@ -90,9 +90,23 @@ const medlemSider = {
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
 
+// Styret ser regnskapet og søknadene, men kan ikke endre dem.
+const styreSider = {
+  oversikt: { meny: "Oversikt", ikon: "oversikt", side: oversikt.oversikt },
+  soknader: { meny: "Søknader", ikon: "soknader", side: soknader.kassererListe },
+  soknad: { side: soknader.kassererDetalj },
+  mine: { meny: "Mine søknader", ikon: "poster", side: soknader.mineListe },
+  "ny-soknad": { side: soknader.nySoknad },
+  "min-soknad": { side: soknader.minDetalj },
+  moter: { meny: "Møter", ikon: "moter", side: moter.liste },
+  ...moteSider,
+  minside: { meny: "Min side", ikon: "person", side: minside.minside },
+};
+
 const erKasserer = () => kasserer(S);
-const sider = () => (erKasserer() ? kassererSider : medlemSider);
-const startside = () => (erKasserer() ? "oversikt" : "mine");
+const seRegnskap = () => erKasserer() || erStyret(S);
+const sider = () => (erKasserer() ? kassererSider : erStyret(S) ? styreSider : medlemSider);
+const startside = () => (seRegnskap() ? "oversikt" : "mine");
 
 export function gaaTil(sti) {
   if (location.hash === `#/${sti}`) tegn();
@@ -177,7 +191,7 @@ function tegnMeny(aktiv) {
     </a>`;
   }).join("") + `<div class="meny-fot">${ikon("stjerne")}<span>Trøndelag Politis<br>Tjenestehundklubb · 1952</span></div>`;
 
-  const aarValg = erKasserer()
+  const aarValg = seRegnskap()
     ? html`<label class="aarvalg"><span class="skjult">Regnskapsår</span><select id="aar">${tilgjengeligeAar(S.poster).map((a) => raw(html`<option ${a === S.aar ? "selected" : ""}>${a}</option>`))}</select></label>`
     : "";
   topp.innerHTML = aarValg + utloggKnapp();
@@ -283,13 +297,19 @@ function startRolleLyttere() {
     S.lastet.add("personer");
   }
 
-  if (erKasserer()) {
+  if (seRegnskap()) {
     stoppLyttere.push(lyttSamling("poster", (p) => sett("poster")(nummererBilag(p)), visFeil));
     stoppLyttere.push(lyttSamling("medlemmer", sett("medlemmer"), visFeil));
     stoppLyttere.push(lyttSamling("soknader", sett("soknader"), visFeil));
+    stoppLyttere.push(lyttDokument("innstillinger", "klubb", (d) => { S.innst = medStandard(d); S.lastet.add("innst"); dataEndret(); }, visFeil));
+  }
+  if (erKasserer()) {
     stoppLyttere.push(lyttSamling("brukere", sett("brukere"), visFeil));
     stoppLyttere.push(lyttSamling("foresporsler", sett("foresporsler"), visFeil));
-    stoppLyttere.push(lyttDokument("innstillinger", "klubb", (d) => { S.innst = medStandard(d); S.lastet.add("innst"); dataEndret(); }, visFeil));
+  } else {
+    S.brukere = [];
+    S.foresporsler = [];
+    S.lastet.add("foresporsler");
   }
 }
 
