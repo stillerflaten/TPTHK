@@ -1,11 +1,12 @@
-// Innstillinger: klubbinfo, kontingent, startsaldo, kategorier, hvem som er kasserer, support og sikkerhetskopi.
+// Innstillinger: klubbinfo, kontingent, startsaldo, kategorier, hvem som er kasserer og revisor, support og sikkerhetskopi.
 
-import { html, raw, tolkBelop, belopTilInput } from "../util.js";
-import { lagreInnstillinger, lagreMedlemsinfo, lagreBruker, normalEpost } from "../firebase.js";
+import { html, raw, tolkBelop, belopTilInput, datoTekst, iDag } from "../util.js";
+import { lagreInnstillinger, lagreMedlemsinfo, lagreBruker, normalEpost, tidspunktFra } from "../firebase.js";
 import { melding, medKnapp, bekreft } from "../ui.js";
 import { ikon } from "../ikoner.js";
 import { supportKort, kobleSupport } from "./support.js";
 import { kopiKort, kobleKopi } from "./sikkerhetskopi.js";
+import { revisorUtloper } from "../tilgang.js";
 
 export function innstillinger(main, S) {
   const i = S.innst;
@@ -81,6 +82,8 @@ export function innstillinger(main, S) {
         </label>`) : raw(`<p class="hint">For å legge til en ny kasserer: legg personen inn som medlem med e-post og huk av for innlogging. Da dukker hen opp her.</p>`)}
     </section>
 
+    ${raw(revisorKort(S))}
+
     ${raw(kopiKort(S))}`;
 
   const klubb = main.querySelector("#klubb");
@@ -124,6 +127,7 @@ export function innstillinger(main, S) {
 
   kobleSupport(main, S);
   kobleKopi(main, S);
+  kobleRevisor(main, S);
   main.querySelector("#tilSupport")?.addEventListener("click", async (e) => {
     if (!(await bekreft("Bli vanlig medlem som administrator? Du mister tilgangen til regnskapet med en gang, og får den bare tilbake når kassereren eller styret ber om support.", { ja: "Bytt" }))) return;
     await medKnapp(e.currentTarget, () => lagreBruker(meg, { rolle: "medlem", admin: true }));
@@ -198,4 +202,63 @@ function kobleKontoer(main, S) {
       melding("Kontoene er lagret.");
     });
   });
+}
+
+// ---------- Revisor ----------
+
+/** Dato (ÅÅÅÅ-MM-DD) for et tidspunkt i millisekunder, i lokal tid. */
+const isoDato = (ms) => {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+function revisorKort(S) {
+  const revisorer = S.brukere.filter((b) => b.revisor === true).sort((a, b) => (a.navn || a.id).localeCompare(b.navn || b.id, "nb"));
+  const kandidater = S.brukere.filter((b) => b.revisor !== true && b.rolle !== "kasserer" && !b.admin)
+    .sort((a, b) => (a.navn || a.id).localeCompare(b.navn || b.id, "nb"));
+  const status = (b) => {
+    const til = revisorUtloper(b);
+    if (til == null) return "Tilgang uten sluttdato";
+    return til > Date.now() ? `Tilgang til og med ${datoTekst(isoDato(til))}` : `Tilgangen gikk ut ${datoTekst(isoDato(til))}`;
+  };
+  return html`
+    <section class="kort" id="revisor">
+      <h2>Revisor</h2>
+      <p class="hint">Revisor kan lese regnskapet: oversikten, alle poster med kvitteringer, kontoene, årsrapporten og Excel-eksport.
+        Revisor kan ikke endre noe, og ser ikke søknadene eller medlemmenes kontonumre. Sett gjerne en sluttdato, så stenges tilgangen av seg selv.</p>
+      ${revisorer.length ? raw(html`<ul class="enkel-liste">${revisorer.map((b) => raw(html`
+        <li><span><strong>${b.navn || b.id}</strong><br><span class="hint">${b.id} · ${status(b)}</span></span>
+        <button class="knapp sekundaer liten" data-fjern-revisor="${b.id}">Fjern</button></li>`))}
+      </ul>`) : ""}
+      ${kandidater.length ? raw(html`
+        <form id="nyRevisor" class="skjema">
+          <label>Gi et medlem med innlogging revisortilgang
+            <select name="epost">${kandidater.map((b) => raw(html`<option value="${b.id}">${b.navn || b.id} (${b.id})</option>`))}</select>
+          </label>
+          <label>Tilgang til og med (valgfritt)<input type="date" name="til" min="${iDag()}"></label>
+          <div class="knapper venstre"><button class="knapp sekundaer" type="submit">Gi revisortilgang</button></div>
+        </form>`) : raw(`<p class="hint">Revisor må ha innlogging først. Legg personen inn som medlem med e-post og gi tilgang, så dukker hen opp her.</p>`)}
+    </section>`;
+}
+
+function kobleRevisor(main, S) {
+  const skjema = main.querySelector("#nyRevisor");
+  skjema?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const { epost, til } = Object.fromEntries(new FormData(skjema));
+    // Tilgangen varer ut den valgte dagen.
+    const slutt = til ? new Date(`${til}T23:59:59`).getTime() : null;
+    if (slutt != null && slutt < Date.now()) return melding("Sluttdatoen har allerede vært.", "feil");
+    const tekst = slutt ? ` til og med ${datoTekst(til)}` : ". Husk å fjerne tilgangen når revisjonen er ferdig";
+    if (!(await bekreft(`Gi ${epost} lesetilgang til regnskapet${tekst}?`, { ja: "Gi tilgang" }))) return;
+    await medKnapp(e.submitter, async () => {
+      await lagreBruker(epost, { revisor: true, revisorTil: slutt ? tidspunktFra(slutt) : null });
+      melding("Revisoren har fått tilgang.");
+    });
+  });
+  main.querySelectorAll("[data-fjern-revisor]").forEach((b) => b.addEventListener("click", async () => {
+    const epost = b.dataset.fjernRevisor;
+    if (!(await bekreft(`Fjerne revisortilgangen til ${epost}? Personen beholder innlogging som vanlig medlem.`, { ja: "Fjern" }))) return;
+    await medKnapp(b, () => lagreBruker(epost, { revisor: false, revisorTil: null }));
+  }));
 }

@@ -22,7 +22,7 @@ export function personvern(main, S) {
       <h2>Hva vi lagrer</h2>
       <ul>
         <li><strong>Innlogging:</strong> e-postadresse og navn. Passordet ditt lagres kryptert hos Google og kan ikke leses av klubben.</li>
-        <li><strong>Medlemslisten:</strong> navn, e-post, telefon, navnet på hunden din og om du har betalt kontingent.</li>
+        <li><strong>Medlemslisten:</strong> navn, e-post, telefon og om du har betalt kontingent.</li>
         <li><strong>Søknader om refusjon:</strong> hva du har lagt ut for, beløp, dato, kontonummeret ditt og bilder av kvitteringene.</li>
         <li><strong>Regnskapet:</strong> poster som kan nevne deg, for eksempel kontingent eller refusjon til deg.</li>
         <li><strong>Møter:</strong> styreverv, og når du har signert et referat (navn, tidspunkt og en kontrollsum av teksten).</li>
@@ -41,6 +41,8 @@ export function personvern(main, S) {
       <ul>
         <li><strong>Kassereren</strong> ser alt.</li>
         <li><strong>Styret</strong> ser oversikten over regnskapet, søknader om refusjon og medlemslisten.</li>
+        <li><strong>Revisor</strong> ser regnskapet med kvitteringer og medlemslisten når klubben gir tilgang, men ikke søknadene eller kontonummeret ditt.
+          Revisor kan ikke endre noe, og tilgangen gis bare for revisjonen.</li>
         <li><strong>Vanlige medlemmer</strong> ser bare sine egne søknader, møteinnkallinger, referater og hvem som sitter i styret.</li>
         <li><strong>Administratoren</strong> (Tillerflaten Digital) ser regnskapet bare når klubben ber om hjelp, og da i høyst 24 timer om gangen.</li>
       </ul>

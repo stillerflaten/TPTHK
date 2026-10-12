@@ -19,7 +19,7 @@ import * as styret from "./views/styret.js";
 import { hjelp } from "./views/hjelp.js";
 import { personvern } from "./views/personvern.js";
 import { ikon } from "./ikoner.js";
-import { erKasserer as kasserer, erStyret, supportAktiv, harVerv, erAdmin } from "./tilgang.js";
+import { erKasserer as kasserer, erStyret, supportAktiv, harVerv, erAdmin, erRevisor, revisorUtloper, seRegnskap as kanSeRegnskap } from "./tilgang.js";
 import { supportStripe, oppdaterSupportKort } from "./views/support.js";
 
 const main = document.getElementById("innhold");
@@ -106,9 +106,25 @@ const styreSider = {
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
 
+// Revisor leser regnskapet med bilag, kvitteringer og årsrapport, men endrer ingenting.
+// Sitter revisoren også i styret, ser hen søknadene i tillegg.
+const revisorSider = (styre) => ({
+  oversikt: { meny: "Oversikt", ikon: "oversikt", side: oversikt.oversikt },
+  poster: { meny: "Poster", ikon: "poster", side: poster.liste },
+  post: { side: poster.visning },
+  rapport: { meny: "Årsrapport", ikon: "rapport", side: rapport.rapport },
+  ...(styre ? { soknader: styreSider.soknader, soknad: styreSider.soknad } : {}),
+  mine: { meny: "Mine søknader", ikon: "soknader", side: soknader.mineListe },
+  "ny-soknad": { side: soknader.nySoknad },
+  "min-soknad": { side: soknader.minDetalj },
+  moter: { meny: "Møter", ikon: "moter", side: moter.liste },
+  ...moteSider,
+  minside: { meny: "Min side", ikon: "person", side: minside.minside },
+});
+
 const erKasserer = () => kasserer(S);
-const seRegnskap = () => erKasserer() || erStyret(S);
-const sider = () => (erKasserer() ? kassererSider : erStyret(S) ? styreSider : medlemSider);
+const seRegnskap = () => kanSeRegnskap(S);
+const sider = () => (erKasserer() ? kassererSider : erRevisor(S) ? revisorSider(erStyret(S)) : erStyret(S) ? styreSider : medlemSider);
 const startside = () => (seRegnskap() ? "oversikt" : "mine");
 
 export function gaaTil(sti) {
@@ -181,7 +197,7 @@ const utloggKnapp = () =>
   html`<button class="utlogg" id="loggut" title="Logg ut ${S.bruker.email}">${raw(ikon("utlogg"))}<span>Logg ut</span></button>`;
 
 function tegnMeny(aktiv) {
-  document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? (supportAktiv(S) ? "support" : "admin") : erKasserer() ? "kasserer" : harVerv(S) ? "styret" : "medlem") : "";
+  document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? (supportAktiv(S) ? "support" : "admin") : erKasserer() ? "kasserer" : harVerv(S) ? "styret" : erRevisor(S) ? "revisor" : "medlem") : "";
   if (!S.bruker || !S.profil) {
     meny.innerHTML = "";
     topp.innerHTML = S.bruker ? utloggKnapp() : "";
@@ -269,17 +285,20 @@ let stoppProfil = () => {};
 let rolle;
 let supportTimer = null;
 function vurderRolle() {
-  const ny = S.profil ? `${S.profil.rolle}|${erKasserer()}|${erStyret(S)}` : undefined;
+  const ny = S.profil ? `${S.profil.rolle}|${erKasserer()}|${erStyret(S)}|${erRevisor(S)}` : undefined;
   if (ny !== rolle) {
     rolle = ny;
     gjeldendeSide = null; // tegn siden på nytt, menyen og sidene er annerledes nå
     startRolleLyttere();
   }
-  // Vekk appen når support går ut, så menyen og dataene forsvinner av seg selv.
+  // Vekk appen når support eller revisortilgangen går ut, så menyen og dataene forsvinner av seg selv.
   clearTimeout(supportTimer);
-  const utloper = S.support?.utloper;
-  if (utloper && !S.support.avsluttet && utloper > Date.now()) {
-    supportTimer = setTimeout(() => { vurderRolle(); dataEndret(); }, Math.min(utloper - Date.now() + 1000, 2 ** 31 - 1));
+  const utloper = [
+    S.support && !S.support.avsluttet ? S.support.utloper : null,
+    S.profil?.revisor === true ? revisorUtloper(S.profil) : null,
+  ].filter((t) => t && t > Date.now());
+  if (utloper.length) {
+    supportTimer = setTimeout(() => { vurderRolle(); dataEndret(); }, Math.min(Math.min(...utloper) - Date.now() + 1000, 2 ** 31 - 1));
   }
 }
 
@@ -311,7 +330,9 @@ function startRolleLyttere() {
   if (seRegnskap()) {
     stoppLyttere.push(lyttSamling("poster", (p) => sett("poster")(nummererBilag(p)), visFeil));
     stoppLyttere.push(lyttSamling("medlemmer", sett("medlemmer"), visFeil));
-    stoppLyttere.push(lyttSamling("soknader", sett("soknader"), visFeil));
+    // Revisor ser ikke søknadene (der står medlemmenes kontonumre), med mindre hen også sitter i styret.
+    if (erStyret(S)) stoppLyttere.push(lyttSamling("soknader", sett("soknader"), visFeil));
+    else { S.soknader = []; S.lastet.add("soknader"); }
     stoppLyttere.push(lyttDokument("innstillinger", "klubb", (d) => { S.innst = medStandard(d); S.lastet.add("innst"); dataEndret(); }, visFeil));
   }
   if (erKasserer()) {

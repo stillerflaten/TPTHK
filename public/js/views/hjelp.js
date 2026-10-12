@@ -1,8 +1,8 @@
-// Hjelp: brukermanualen. Viser delen for hver rolle den innloggede har (medlem, styret, kasserer, administrator).
+// Hjelp: brukermanualen. Viser delen for hver rolle den innloggede har (medlem, styret, revisor, kasserer, administrator).
 // Teksten ligger her i koden, så den følger med når nettsiden endres. Husk å oppdatere den når noe nytt kommer til.
 
 import { html, raw } from "../util.js";
-import { erKasserer, erStyret, erAdmin } from "../tilgang.js";
+import { erKasserer, erStyret, erAdmin, erRevisor } from "../tilgang.js";
 
 // Hver del: tittel, hvem den gjelder for, og emner (tittel, tekst i enkel HTML som vi skriver selv, og eventuelle skjermbilder).
 // Skjermbildene ligger i public/hjelp/ og er tatt med oppdiktede testdata.
@@ -79,6 +79,18 @@ const DELER = [
     ],
   },
   {
+    id: "revisor", tittel: "For revisor", gjelder: (S) => erRevisor(S) && !erKasserer(S),
+    emner: [
+      ["Hva revisor kan se", `<p>Som revisor kan du lese hele regnskapet, men ikke endre noe. Du ser <strong>Oversikt</strong> med saldo og årets tall,
+        alle <strong>Poster</strong> med bilagsnummer og kvitteringer, og <strong>Årsrapport</strong>. Søknadene om refusjon og medlemmenes kontonumre ser du ikke.
+        Har kassereren satt en sluttdato, stenges tilgangen av seg selv etter den dagen.</p>`, ["oversikt"]],
+      ["Gå gjennom bilagene", `<p>Velg år øverst. Under «Poster» kan du søke og filtrere på type, kategori og konto. Trykk på en post for å se bilaget,
+        hvem som førte det, og kvitteringene. Trykk på «Kvittering» for å åpne bildet eller PDF-en.</p>`],
+      ["Last ned til Excel eller PDF", `<p>«Excel» under Poster laster ned alle postene for året som en fil du kan åpne i Excel.
+        Under «Årsrapport» kan du huke av for bilagsliste og trykke «Skriv ut / lagre PDF».</p>`],
+    ],
+  },
+  {
     id: "kasserer", tittel: "For kassereren", gjelder: (S) => erKasserer(S),
     emner: [
       ["Kom i gang", `
@@ -107,6 +119,9 @@ const DELER = [
         ser oversikten og søknadene og kan legge ut møter. Vervet «Kasserer» er bare en tittel. Tilgang til regnskapet gis under Innstillinger.</p>`, ["verv"]],
       ["Årsrapport", `<p><a href="#/rapport">Årsrapport</a> samler resultatregnskap, saldo på kontoene, medlemmer og bilagsliste for året.
         Trykk «Skriv ut / lagre PDF» og velg «Lagre som PDF» for å sende den til revisor eller årsmøtet.</p>`],
+      ["Gi revisor tilgang", `<p>Revisor må først ha innlogging, som et vanlig medlem. Gå til <a href="#/innstillinger">Innstillinger</a>, velg personen under «Revisor»,
+        sett gjerne en sluttdato, og trykk «Gi revisortilgang». Revisor kan lese regnskapet med kvitteringer og årsrapporten, men ikke endre noe
+        eller se søknadene. Trykk «Fjern» når revisjonen er ferdig, hvis du ikke satte sluttdato.</p>`],
       ["Sikkerhetskopi", `<p>Under <a href="#/innstillinger">Innstillinger</a> trykker du «Last ned sikkerhetskopi». Du får én ZIP-fil med regnskapet,
         medlemmene og søknadene (som filer du kan åpne i Excel), alle kvitteringer (navngitt etter bilagsnummer), og møter og referater.
         Ta en kopi minst hvert kvartal og lagre den et sted klubben har tilgang til. Det kommer et varsel på Oversikt når det er over tre måneder siden sist.</p>
