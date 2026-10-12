@@ -44,7 +44,7 @@ export function liste(main, S) {
       <h1>Poster ${S.aar}</h1>
       <div class="knapperad">
         <button class="knapp sekundaer" id="eksport">${raw(ikon("lastned"))} Excel</button>
-        ${erKasserer(S) ? raw(`<a class="knapp" href="#/post/ny">+ Ny post</a>`) : ""}
+        ${erKasserer(S) ? raw(`<a class="knapp sekundaer" href="#/bankimport">Importer fra bank</a><a class="knapp" href="#/post/ny">+ Ny post</a>`) : ""}
       </div>
     </div>
 

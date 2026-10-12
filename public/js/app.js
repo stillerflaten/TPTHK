@@ -11,6 +11,7 @@ import * as oversikt from "./views/oversikt.js";
 import * as poster from "./views/poster.js";
 import * as rapport from "./views/rapport.js";
 import { budsjett } from "./views/budsjett.js";
+import { bankimport } from "./views/bankimport.js";
 import * as soknader from "./views/soknader.js";
 import * as medlemmer from "./views/medlemmer.js";
 import * as innstillinger from "./views/innstillinger.js";
@@ -64,6 +65,7 @@ const kassererSider = {
   oversikt: { meny: "Oversikt", ikon: "oversikt", side: oversikt.oversikt },
   poster: { meny: "Poster", ikon: "poster", side: poster.liste },
   post: { side: poster.skjema },
+  bankimport: { side: bankimport },
   soknader: { meny: "Søknader", ikon: "soknader", side: soknader.kassererListe },
   soknad: { side: soknader.kassererDetalj },
   medlemmer: { meny: "Medlemmer", ikon: "medlemmer", side: medlemmer.liste },
@@ -251,7 +253,7 @@ function tegnMeny(aktiv) {
 }
 
 // Undersider markerer menypunktet de hører til.
-const hører = (navn) => ({ post: "poster", soknad: "soknader", medlem: "medlemmer", "ny-soknad": "mine", "min-soknad": "mine",
+const hører = (navn) => ({ post: "poster", bankimport: "poster", soknad: "soknader", medlem: "medlemmer", "ny-soknad": "mine", "min-soknad": "mine",
   mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter", budsjett: "rapport", "regel-skjema": "regelverk" })[navn];
 
 // ---------- Data ----------
