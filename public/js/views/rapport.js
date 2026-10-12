@@ -80,7 +80,7 @@ export function rapport(main, S) {
         <div><span class="linje"></span>Kasserer</div>
         <div><span class="linje"></span>Revisor</div>
       </div>
-      <p class="rapport-levert">Levert av Tillerflaten Design</p>
+      <p class="rapport-levert">Levert av Tillerflaten Digital</p>
     </article>`;
 
   main.querySelector("#skriv").addEventListener("click", () => window.print());

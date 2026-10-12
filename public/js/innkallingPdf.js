@@ -47,7 +47,7 @@ const rens = (t) => String(t ?? "")
  */
 export async function lagInnkallingPdf(m, valg) {
   const [JsPDF, logoBilde, leverandor] = await Promise.all([
-    hentJsPdf(), hentBilde("icons/logo.svg", 480, 478), hentBilde("icons/tillerflaten-design.png", 96, 96),
+    hentJsPdf(), hentBilde("icons/logo.svg", 480, 478), hentBilde("icons/tillerflaten-digital.png", 96, 96),
   ]);
   const doc = new JsPDF({ unit: "mm", format: "a4" });
   const B = 210, H = 297, marg = 22, bredde = B - marg * 2;
@@ -111,7 +111,7 @@ export async function lagInnkallingPdf(m, valg) {
     doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(120);
     if (valg.lenke) doc.textWithLink("Innkallingen ligger også på nettsiden, der du logger inn.", marg, H - 12, { url: valg.lenke });
     doc.text(`Side ${i} av ${sider}`, B - marg, H - 12, { align: "right" });
-    const levert = "Levert av Tillerflaten Design";
+    const levert = "Levert av Tillerflaten Digital";
     const x = (B - doc.getTextWidth(levert) - (leverandor ? 5 : 0)) / 2;
     if (leverandor) doc.addImage(leverandor, "JPEG", x, H - 8.6, 3.6, 3.6);
     doc.text(levert, x + (leverandor ? 5 : 0), H - 5.8);
