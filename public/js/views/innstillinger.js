@@ -1,16 +1,17 @@
-// Innstillinger: klubbinfo, kontingent, startsaldo, kategorier og hvem som er kasserer.
+// Innstillinger: klubbinfo, kontingent, startsaldo, kategorier, hvem som er kasserer, og support.
 
 import { html, raw, tolkBelop, belopTilInput } from "../util.js";
 import { lagreInnstillinger, lagreMedlemsinfo, lagreBruker, normalEpost } from "../firebase.js";
 import { melding, medKnapp, bekreft } from "../ui.js";
 import { ikon } from "../ikoner.js";
+import { supportKort, kobleSupport } from "./support.js";
 
 export function innstillinger(main, S) {
   const i = S.innst;
   const info = S.info;
   const meg = normalEpost(S.bruker.email);
-  const kasserere = S.brukere.filter((b) => b.rolle === "kasserer");
-  const andre = S.brukere.filter((b) => b.rolle !== "kasserer").sort((a, b) => (a.navn || a.id).localeCompare(b.navn || b.id, "nb"));
+  const kasserere = S.brukere.filter((b) => b.rolle === "kasserer" || b.admin);
+  const andre = S.brukere.filter((b) => b.rolle !== "kasserer" && !b.admin).sort((a, b) => (a.navn || a.id).localeCompare(b.navn || b.id, "nb"));
 
   const kategoriliste = (type) => html`
     <div class="kategorier" data-type="${type}">
@@ -21,6 +22,8 @@ export function innstillinger(main, S) {
 
   main.innerHTML = html`
     <div class="sidetopp"><h1>Innstillinger</h1></div>
+
+    ${raw(supportKort(S))}
 
     <form id="klubb" class="skjema kort">
       <h2>Klubben</h2>
@@ -61,10 +64,12 @@ export function innstillinger(main, S) {
 
     <section class="kort">
       <h2>Kasserere og administratorer</h2>
-      <p class="hint">Kasserere ser hele regnskapet. Når det kommer ny kasserer, gjør vedkommende til kasserer her, og fjern deg selv etterpå.</p>
+      <p class="hint">Kasserere ser hele regnskapet. Når det kommer ny kasserer, gjør vedkommende til kasserer her, og fjern deg selv etterpå.
+        Administratoren drifter nettsiden og ser regnskapet bare når dere ber om support.</p>
       <ul class="enkel-liste">${kasserere.map((b) => raw(html`
-        <li><span><strong>${b.navn || b.id}</strong>${b.admin ? " (administrator)" : ""}<br><span class="hint">${b.id}</span></span>
-        ${b.id === meg ? raw(`<span class="hint">Deg</span>`) : raw(html`<button class="knapp sekundaer liten" data-rolle="${b.id}" data-til="medlem">${b.admin ? "Fjern som administrator" : "Fjern som kasserer"}</button>`)}</li>`))}
+        <li><span><strong>${b.navn || b.id}</strong>${b.admin ? (b.rolle === "kasserer" ? " (administrator med full tilgang)" : " (administrator, tilgang ved support)") : ""}<br><span class="hint">${b.id}</span></span>
+        ${b.id === meg && b.admin && b.rolle === "kasserer" ? raw(`<button class="knapp sekundaer liten" id="tilSupport">Bytt til tilgang bare ved support</button>`)
+          : b.id === meg ? raw(`<span class="hint">Deg</span>`) : raw(html`<button class="knapp sekundaer liten" data-rolle="${b.id}" data-til="medlem">${b.admin ? "Fjern som administrator" : "Fjern som kasserer"}</button>`)}</li>`))}
       </ul>
       ${andre.length ? raw(html`
         <label>Gjør et medlem med innlogging til kasserer
@@ -112,6 +117,12 @@ export function innstillinger(main, S) {
       if (liste.some((k) => k.toLowerCase() === navn.toLowerCase())) return melding("Den kategorien finnes allerede.", "feil");
       lagre([...liste, navn]);
     });
+  });
+
+  kobleSupport(main, S);
+  main.querySelector("#tilSupport")?.addEventListener("click", async (e) => {
+    if (!(await bekreft("Bli vanlig medlem som administrator? Du mister tilgangen til regnskapet med en gang, og får den bare tilbake når kassereren eller styret ber om support.", { ja: "Bytt" }))) return;
+    await medKnapp(e.currentTarget, () => lagreBruker(meg, { rolle: "medlem", admin: true }));
   });
 
   main.querySelectorAll("[data-rolle]").forEach((b) => b.addEventListener("click", async () => {

@@ -115,6 +115,14 @@ Medlemmer ser **aldri** regnskapet, andre medlemmer eller andres søknader. Det 
 3. Den nye kassereren fjerner deg som kasserer etterpå.
 4. Husk også å gi den nye kassereren eierskap i Firebase-konsollen (⚙️ → *Users and permissions*) og i GitHub-repoet.
 
+## Support fra administratoren
+
+Administratoren (den som drifter nettsiden, merket `admin: true`) er vanlig medlem og ser **ikke** regnskapet til vanlig.
+Trenger dere hjelp, trykker kassereren **Innstillinger → Be om support i 24 timer** (styremedlemmer finner samme knapp på **Min side**).
+Da får administratoren full tilgang i 24 timer. Alle ser en gul stripe så lenge supporten er på, og dere kan trykke **Avslutt support nå** når dere vil.
+
+Tidsgrensen sjekkes i databasereglene mot Firebase sin klokke, så den kan ikke jukses med på skjermen. Under support kan administratoren ikke endre sin egen rolle.
+
 ## Om kvitteringer og lagring
 
 Kvitteringsbilder krympes automatisk og lagres i databasen. Gratisplanen gir 1 GB, som rommer flere tusen kvitteringer. PDF-er må være under ca. 650 kB; større PDF-er kan man ta skjermbilde av i stedet.

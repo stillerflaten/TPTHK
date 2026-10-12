@@ -78,6 +78,32 @@ export const lagreBruker = (epost, data) => setDoc(doc(db, "brukere", normalEpos
 export const slettBruker = (epost) => deleteDoc(doc(db, "brukere", normalEpost(epost)));
 export const oppdaterMinProfil = (data) => updateDoc(doc(db, "brukere", meg()), data);
 
+// ---------- Support ----------
+// Kasserer eller styret kan gi administratoren full tilgang i 24 timer. Reglene sjekker tiden mot serverens klokke.
+
+export const SUPPORT_TIMER = 24;
+
+/** Lytter på supportstatus. «utloper» er millisekunder, regnet ut fra når supporten ble startet. */
+export const lyttSupport = (cb, feil) => onSnapshot(doc(db, "innstillinger", "support"), (d) => {
+  if (!d.exists()) return cb(null);
+  const data = d.data({ serverTimestamps: "estimate" });
+  const startet = data.startet?.toMillis?.() ?? null;
+  cb({
+    ...data,
+    startet,
+    utloper: startet == null ? null : startet + SUPPORT_TIMER * 3600 * 1000,
+    avsluttet: data.avsluttet?.toMillis?.() ?? null,
+  });
+}, feil);
+
+export const startSupport = (navn) => setDoc(doc(db, "innstillinger", "support"), {
+  startet: serverTimestamp(), startetAv: meg(), startetAvNavn: navn || "",
+});
+
+export const avsluttSupport = () => updateDoc(doc(db, "innstillinger", "support"), {
+  avsluttet: serverTimestamp(), avsluttetAv: meg(),
+});
+
 export const lyttMinForesporsel = (cb, feil) => lyttDokument("foresporsler", meg(), cb, feil);
 export const sendForesporsel = (navn) =>
   setDoc(doc(db, "foresporsler", meg()), { navn: navn.trim(), epost: meg(), tidspunkt: serverTimestamp() });

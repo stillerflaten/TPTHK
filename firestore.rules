@@ -9,6 +9,8 @@ rules_version = '2';
 //  • Medlemmer ser bare sine egne søknader og kvitteringer, sitt eget medlemskort og betalingsinfo.
 //  • Alle med tilgang ser møteinnkallinger og referater. Styret (styre: true, og kasserere) legger dem ut.
 //  • Et referat signeres av de styret velger. Når alle har signert, er referatet låst for godt.
+//  • Administratoren (admin: true) er vanlig medlem, men får full tilgang i inntil 24 timer
+//    når kasserer eller styret ber om support. Tidspunktet sjekkes her, mot serverens klokke.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -28,11 +30,28 @@ service cloud.firestore {
     function profil() {
       return get(profilSti()).data;
     }
-    function erKasserer() {
+    // «Ekte» roller, uten support. Bare disse kan be om (og forlenge) support.
+    function ekteKasserer() {
       return harTilgang() && profil().rolle == 'kasserer';
     }
-    function erStyret() {
+    function ekteStyret() {
       return harTilgang() && (profil().rolle == 'kasserer' || profil().get('styre', false) == true);
+    }
+    function supportSti() {
+      return /databases/$(database)/documents/innstillinger/support;
+    }
+    // Administratoren har full tilgang i 24 timer fra support ble startet, med mindre den er avsluttet.
+    function supportAktiv() {
+      return harTilgang() && profil().get('admin', false) == true
+        && exists(supportSti())
+        && get(supportSti()).data.startet + duration.value(24, 'h') > request.time
+        && !('avsluttet' in get(supportSti()).data);
+    }
+    function erKasserer() {
+      return ekteKasserer() || supportAktiv();
+    }
+    function erStyret() {
+      return ekteStyret() || supportAktiv();
     }
     function gyldigBelop(b) {
       return b is int && b > 0 && b < 100000000;
@@ -41,8 +60,10 @@ service cloud.firestore {
     // Hvem som har tilgang, og med hvilken rolle. Dokument-ID er e-postadressen med små bokstaver.
     match /brukere/{e} {
       allow get: if innlogget() && (e == epost() || erKasserer());
-      allow list, create, delete: if erKasserer();
-      allow update: if erKasserer()
+      // Under support kan administratoren ikke endre sin egen rolle (og dermed ikke gi seg selv varig tilgang).
+      allow list: if erKasserer();
+      allow create, delete: if ekteKasserer() || (supportAktiv() && e != epost());
+      allow update: if ekteKasserer() || (supportAktiv() && e != epost())
         || (harTilgang() && e == epost()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['navn', 'kontonummer']));
     }
@@ -74,6 +95,25 @@ service cloud.firestore {
     match /innstillinger/klubb {
       allow read, write: if erKasserer();
     }
+    // Support: kasserer eller styret gir administratoren full tilgang i inntil 24 timer.
+    // Administratoren selv kan lese den og avslutte den tidlig, men ikke starte eller forlenge den.
+    match /innstillinger/support {
+      allow read: if harTilgang();
+      // Starte: tiden settes av serveren, så ingen kan gi lengre tilgang enn 24 timer.
+      allow create, update: if
+        (ekteStyret() && profil().get('admin', false) != true
+          && request.resource.data.keys().hasOnly(['startet', 'startetAv', 'startetAvNavn'])
+          && request.resource.data.startet == request.time
+          && request.resource.data.startetAv == epost()
+          && request.resource.data.get('startetAvNavn', '') is string)
+        // Avslutte tidlig.
+        || ((ekteStyret() || supportAktiv())
+          && resource != null && !('avsluttet' in resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avsluttet', 'avsluttetAv'])
+          && request.resource.data.avsluttet == request.time
+          && request.resource.data.avsluttetAv == epost());
+    }
+
     match /innstillinger/medlemsinfo {
       allow read: if harTilgang();
       allow write: if erKasserer();

@@ -60,7 +60,7 @@ export function liste(main, S) {
         <li class="${m.aktiv === false ? "utmeldt" : ""}">
           <a href="#/medlem/${m.id}" class="medlem-info">
             <strong>${m.navn}</strong>
-            <span class="hint">${[m.hund && `Hund: ${m.hund}`, m.epost].filter(Boolean).join(" · ")}${t ? ` · ${t.rolle === "kasserer" ? (t.admin ? "administrator" : "kasserer") : t.styre ? "styret" : "har innlogging"}` : ""}${m.aktiv === false ? " · utmeldt" : ""}</span>
+            <span class="hint">${[m.hund && `Hund: ${m.hund}`, m.epost].filter(Boolean).join(" · ")}${t ? ` · ${t.admin ? "administrator" : t.rolle === "kasserer" ? "kasserer" : t.styre ? "styret" : "har innlogging"}` : ""}${m.aktiv === false ? " · utmeldt" : ""}</span>
           </a>
           <button class="kontingent ${betalt ? "betalt" : ""}" data-kontingent="${m.id}" title="Kontingent ${aar}">
             ${betalt ? `✓ Betalt ${aar}` : `Ikke betalt ${aar}`}
