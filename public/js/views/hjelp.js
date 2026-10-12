@@ -96,7 +96,7 @@ const DELER = [
           <li>Når du har overført pengene i nettbanken, fyll inn dato, beløp og kategori under «Betalt ut? Før det i regnskapet» og trykk «Marker som utbetalt».
             Da blir det en utgift i regnskapet med kvitteringene vedlagt.</li>
         </ol>`, ["behandle-soknad"]],
-      ["Medlemmer og kontingent", `<p>Under <a href="#/medlemmer">Medlemmer</a> legger du inn medlemmene med navn, e-post og hund.
+      ["Medlemmer og kontingent", `<p>Under <a href="#/medlemmer">Medlemmer</a> legger du inn medlemmene med navn, e-post og telefon.
         Trykk på et medlem for å registrere betalt kontingent. Da føres den også i regnskapet. Har dere fått ett samlet beløp (f.eks. fra Vipps),
         kan du fjerne haken og føre totalen som én post selv. «Excel» laster ned medlemslisten.</p>`, ["medlemmer"]],
       ["Gi nye brukere tilgang", `<p>Når noen ber om tilgang, vises de øverst under Medlemmer. Trykk «Gi tilgang» eller «Avvis».

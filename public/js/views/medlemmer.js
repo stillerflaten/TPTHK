@@ -21,7 +21,7 @@ export function liste(main, S) {
   const synlige = sortert.filter((m) =>
     (filter.vis === "alle" || (filter.vis === "aktive" && m.aktiv !== false)
       || (filter.vis === "ubetalt" && m.aktiv !== false && !m.kontingent?.[aar]?.betalt))
-    && (!sok || `${m.navn} ${m.epost} ${m.hund} ${m.telefon}`.toLowerCase().includes(sok)));
+    && (!sok || `${m.navn} ${m.epost} ${m.telefon}`.toLowerCase().includes(sok)));
 
   main.innerHTML = html`
     <div class="sidetopp">
@@ -46,7 +46,7 @@ export function liste(main, S) {
       </section>`) : ""}
 
     <div class="filterlinje">
-      <input type="search" id="sok" placeholder="Søk etter navn, hund, e-post …" value="${filter.sok}">
+      <input type="search" id="sok" placeholder="Søk etter navn, e-post, telefon …" value="${filter.sok}">
       <select id="vis">
         <option value="aktive" ${filter.vis === "aktive" ? "selected" : ""}>Aktive medlemmer</option>
         <option value="ubetalt" ${filter.vis === "ubetalt" ? "selected" : ""}>Ikke betalt ${aar}</option>
@@ -61,7 +61,7 @@ export function liste(main, S) {
         <li class="${m.aktiv === false ? "utmeldt" : ""}">
           <a href="#/medlem/${m.id}" class="medlem-info">
             <strong>${m.navn}</strong>
-            <span class="hint">${[m.hund && `Hund: ${m.hund}`, m.epost].filter(Boolean).join(" · ")}${t ? ` · ${[t.admin ? "administrator" : t.rolle === "kasserer" ? "kasserer" : "", ...vervFor(S, t.id).map((v) => v.toLowerCase())].filter(Boolean).join(", ") || "har innlogging"}` : ""}${m.aktiv === false ? " · utmeldt" : ""}</span>
+            <span class="hint">${[m.epost, t && ([t.admin ? "administrator" : t.rolle === "kasserer" ? "kasserer" : "", ...vervFor(S, t.id).map((v) => v.toLowerCase())].filter(Boolean).join(", ") || "har innlogging"), m.aktiv === false && "utmeldt"].filter(Boolean).join(" · ")}</span>
           </a>
           <button class="kontingent ${betalt ? "betalt" : ""}" data-kontingent="${m.id}" title="Kontingent ${aar}">
             ${betalt ? `✓ Betalt ${aar}` : `Ikke betalt ${aar}`}
@@ -150,10 +150,10 @@ async function angre(m, aar) {
 
 function eksporter(S, medlemmer) {
   const aar = S.aar;
-  const rader = [["Navn", "E-post", "Telefon", "Hund", "Aktiv", `Kontingent ${aar}`, "Betalt dato", "Beløp", "Merknad"]];
+  const rader = [["Navn", "E-post", "Telefon", "Aktiv", `Kontingent ${aar}`, "Betalt dato", "Beløp", "Merknad"]];
   for (const m of medlemmer) {
     const k = m.kontingent?.[aar];
-    rader.push([m.navn, m.epost, m.telefon, m.hund, m.aktiv === false ? "Nei" : "Ja",
+    rader.push([m.navn, m.epost, m.telefon, m.aktiv === false ? "Nei" : "Ja",
       k?.betalt ? "Betalt" : "Ikke betalt", k ? datoTekst(k.dato) : "", k ? (k.belop / 100).toFixed(2).replace(".", ",") : "", m.merknad]);
   }
   lastNedCsv(`${S.innst.kortnavn || "TPTHK"}-medlemmer-${aar}.csv`, rader);
@@ -179,7 +179,6 @@ export function skjema(main, S, id) {
         <label>E-post<input name="epost" type="email" value="${m.epost || ""}" autocomplete="off"></label>
         <label>Telefon<input name="telefon" type="tel" value="${m.telefon || ""}" autocomplete="off"></label>
       </div>
-      <label>Hund(er)<input name="hund" value="${m.hund || ""}" placeholder="F.eks. Quatro (malinois)"></label>
       <label>Merknad<textarea name="merknad" rows="2">${m.merknad || ""}</textarea></label>
       <label class="avkryss"><input type="checkbox" name="aktiv" ${m.aktiv !== false ? "checked" : ""}> Aktivt medlem</label>
       <label class="avkryss"><input type="checkbox" name="tilgang" ${tilgang ? "checked" : ""} ${erMeg ? "disabled" : ""}>
@@ -210,7 +209,7 @@ export function skjema(main, S, id) {
     }
     await medKnapp(e.submitter, async () => {
       const medlemId = await lagreMedlem(ny ? null : m.id, {
-        navn: v.navn.trim(), epost, telefon: v.telefon.trim(), hund: v.hund.trim(), merknad: v.merknad.trim(), aktiv: Boolean(v.aktiv),
+        navn: v.navn.trim(), epost, telefon: v.telefon.trim(), merknad: v.merknad.trim(), aktiv: Boolean(v.aktiv),
       });
       // Flytt eller fjern tilgang når e-posten endres eller haken fjernes.
       if (tilgang && tilgang.rolle !== "kasserer" && (gammelEpost !== epost || !vilHaTilgang)) await slettBruker(gammelEpost);

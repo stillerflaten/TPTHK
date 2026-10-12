@@ -39,7 +39,7 @@ Nettside (PWA) for kassereren i Trøndelag Politis Tjenestehundklubb. Kan legges
 | `foresporsler/{epost}` | Nye brukere som ber om tilgang |
 | `poster` | `type` (inntekt/utgift), `dato` (ÅÅÅÅ-MM-DD), `belop` (øre), `kategori`, `beskrivelse`, `bilagsnr`, `kvitteringIds` |
 | `kvitteringer` | Komprimert bilde/PDF som data-URL, `eier` |
-| `medlemmer` | `navn`, `epost`, `telefon`, `hund`, `aktiv`, `kontingent.{år}` |
+| `medlemmer` | `navn`, `epost`, `telefon`, `aktiv`, `kontingent.{år}` |
 | `soknader` | Refusjonssøknader: `epost`, `navn`, `formaal`, `dato`, `belop`, `kontonummer`, `status`, `kvitteringIds` |
 | `innstillinger/klubb` | Klubbinfo, startsaldo, kategorier (bare kasserer) |
 | `innstillinger/medlemsinfo` | Kontingent og betalingsinfo (synlig for medlemmer) |

@@ -202,7 +202,7 @@ export async function godkjennForesporsel(f, eksisterendeMedlemId) {
   if (!medlemId) {
     const ref = doc(collection(db, "medlemmer"));
     medlemId = ref.id;
-    batch.set(ref, { navn: f.navn, epost: f.epost, telefon: "", hund: "", merknad: "", aktiv: true, kontingent: {}, opprettet: serverTimestamp() });
+    batch.set(ref, { navn: f.navn, epost: f.epost, telefon: "", merknad: "", aktiv: true, kontingent: {}, opprettet: serverTimestamp() });
   }
   batch.set(doc(db, "brukere", f.epost), { rolle: "medlem", navn: f.navn, medlemId }, { merge: true });
   batch.delete(doc(db, "foresporsler", f.epost));
