@@ -205,3 +205,13 @@ export function avstemming(poster, innst, aar) {
     finnes: utfylt.length > 0,
   };
 }
+
+/**
+ * Kategorier med både inntekter og utgifter i året (f.eks. et seminar), med hva klubben sitter igjen med.
+ * Bygger på at kategorien finnes med samme navn både under inntekter og utgifter.
+ */
+export function nettoPerKategori(r) {
+  const inn = new Map(r.inntekter);
+  return r.utgifter.filter(([kat]) => inn.has(kat))
+    .map(([kategori, ut]) => ({ kategori, inn: inn.get(kategori), ut, netto: inn.get(kategori) - ut }));
+}

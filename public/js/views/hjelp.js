@@ -116,7 +116,10 @@ const DELER = [
         beløp, kategori og beskrivelse. Hver post får et bilagsnummer. Velg år øverst for å se et annet regnskapsår.
         Under beløpet ser du hvordan posten blir ført: en utgift gir minus på bankkontoen og pluss på kategorien (f.eks. «Premier og gaver»),
         en inntekt gir pluss på bankkontoen og minus på kategorien. Du fører bare beløpet én gang, så tar nettsiden seg av begge linjene.
-        «Excel» laster ned postene som en fil du kan åpne i Excel.</p>`, ["ny-post"]],
+        «Excel» laster ned postene som en fil du kan åpne i Excel.</p>
+        <p>Vil du se hva klubben sitter igjen med etter et arrangement, f.eks. et seminar, lager du en kategori med samme navn under både inntekter og utgifter
+        i <a href="#/innstillinger">Innstillinger</a> (f.eks. «Seminar 2026»). Før påmeldinger som inntekt og kostnader som utgift på den kategorien.
+        Årsrapporten viser da inntekter, utgifter og hva dere sitter igjen med. Under Poster kan du også velge kategorien og se «Netto» nederst.</p>`, ["ny-post"]],
       ["Behandle søknader om refusjon", `
         <ol>
           <li>Nye søknader vises med et tall ved «Søknader» i menyen. Åpne søknaden og se kvitteringene.</li>

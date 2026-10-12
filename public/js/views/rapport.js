@@ -1,7 +1,7 @@
 // Årsregnskap til årsmøtet, laget for utskrift (eller «Lagre som PDF»).
 
 import { html, raw, kr, tall, datoTekst, lastNedCsv } from "../util.js";
-import { aarsregnskap, sorterPoster, kontingentStatus, budsjettFor, kategorierFra, avvik, avstemming } from "../regnskap.js";
+import { aarsregnskap, sorterPoster, kontingentStatus, budsjettFor, kategorierFra, avvik, avstemming, nettoPerKategori } from "../regnskap.js";
 import { avstemtTekst } from "./avstemming.js";
 import { erKasserer } from "../tilgang.js";
 import { kontotekst } from "./poster.js";
@@ -17,6 +17,7 @@ export function rapport(main, S) {
   const harBudsjett = kolonner.some((c) => c.id === "budsjett");
   const kasserer = erKasserer(S);
   const avst = avstemming(S.poster, S.innst, S.aar);
+  const netto = nettoPerKategori(r);
   const bankKonto = new Map(avst.kontoer.map((k) => [k.id, k]));
 
   const celle = (c, v, bra) => raw(html`<td class="tall${c.dempet ? " dempet" : ""}${bra == null ? "" : bra ? " pluss" : " minus"}">${c.id === "avvik" ? fortegn(v) : kr(v)}</td>`);
@@ -65,6 +66,15 @@ export function rapport(main, S) {
       </table>
       </div>
       ${harBudsjett ? raw(html`<p class="dempet liten">Avvik er regnskap minus budsjett. Grønt er bedre enn budsjettert (mer inntekt eller mindre utgift), rødt er dårligere.</p>`) : ""}
+
+      ${netto.length ? raw(html`
+        <h2>Arrangementer og kategorier med både inn og ut</h2>
+        <table class="regnskap">
+          <thead><tr><th></th><th class="tall">Inntekter</th><th class="tall">Utgifter</th><th class="tall">Sitter igjen med</th></tr></thead>
+          <tbody>${netto.map((n) => raw(html`
+            <tr><td>${n.kategori}</td><td class="tall">${kr(n.inn)}</td><td class="tall">${kr(n.ut)}</td>
+            <td class="tall ${n.netto < 0 ? "minus" : "pluss"}">${fortegn(n.netto)}</td></tr>`))}</tbody>
+        </table>`) : ""}
 
       <h2>Bank og kontanter</h2>
       <table class="regnskap">
