@@ -4,6 +4,7 @@ import { html, raw, kr, aarNaa, datoTekst } from "../util.js";
 import { konto, oppdaterMinProfil } from "../firebase.js";
 import { melding, medKnapp } from "../ui.js";
 import { gyldigKontonummer } from "./soknader.js";
+import { supportKort, kobleSupport } from "./support.js";
 
 export function minside(main, S) {
   const aar = aarNaa();
@@ -23,6 +24,8 @@ export function minside(main, S) {
           <p class="hint">Har du betalt nylig? Det kan ta litt tid før kassereren registrerer det.</p>`)}
     </section>
 
+    ${raw(supportKort(S))}
+
     <form id="profil" class="skjema kort">
       <h2>Mine opplysninger</h2>
       <p class="hint">Innlogget som ${S.bruker.email}</p>
@@ -34,6 +37,7 @@ export function minside(main, S) {
       </div>
     </form>`;
 
+  kobleSupport(main, S);
   const f = main.querySelector("#profil");
   f.addEventListener("submit", async (e) => {
     e.preventDefault();

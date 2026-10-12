@@ -9,6 +9,7 @@ import {
 import { melding, medKnapp, bekreft } from "../ui.js";
 import { gaaTil } from "../app.js";
 import { ikon } from "../ikoner.js";
+import { erStyret } from "../tilgang.js";
 
 export const typeTekst = { styremote: "Styremøte", medlemsmote: "Medlemsmøte", arsmote: "Årsmøte" };
 // Årsmøter og medlemsmøter er åpne for alle medlemmer.
@@ -21,7 +22,7 @@ const referatTekst = {
 };
 const referatKlasse = { ingen: "", utkast: "", signering: "status-sendt", godkjent: "status-utbetalt" };
 
-export const erStyret = (S) => S.profil?.rolle === "kasserer" || S.profil?.styre === true;
+export { erStyret } from "../tilgang.js";
 const meg = (S) => normalEpost(S.bruker.email);
 const signaturerFor = (S, id) => S.signaturer.filter((s) => s.moteId === id);
 const harSignert = (S, mote, epost) => signaturerFor(S, mote.id).some((s) => s.epost === epost);

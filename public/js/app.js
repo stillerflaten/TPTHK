@@ -2,7 +2,7 @@
 
 import {
   klar, auth, konto, lyttProfil, lyttSamling, lyttDokument, lyttMineSoknader, lyttMinForesporsel, normalEpost,
-  lagrePersonliste,
+  lagrePersonliste, lyttSupport,
 } from "./firebase.js";
 import { html, raw, esc, aarNaa } from "./util.js";
 import { medStandard, tilgjengeligeAar, nummererBilag } from "./regnskap.js";
@@ -16,6 +16,8 @@ import * as innstillinger from "./views/innstillinger.js";
 import * as minside from "./views/minside.js";
 import * as moter from "./views/moter.js";
 import { ikon } from "./ikoner.js";
+import { erKasserer as kasserer, erStyret, supportAktiv } from "./tilgang.js";
+import { supportStripe, oppdaterSupportKort } from "./views/support.js";
 
 const main = document.getElementById("innhold");
 const meny = document.getElementById("meny");
@@ -28,6 +30,7 @@ export const S = {
   foresporsel: null,
   poster: [], medlemmer: [], soknader: [], brukere: [], foresporsler: [],
   moter: [], signaturer: [], personer: [],
+  support: null,
   innst: medStandard(null),
   info: {},
   mittMedlem: null,
@@ -84,7 +87,7 @@ const medlemSider = {
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
 
-const erKasserer = () => S.profil?.rolle === "kasserer";
+const erKasserer = () => kasserer(S);
 const sider = () => (erKasserer() ? kassererSider : medlemSider);
 const startside = () => (erKasserer() ? "oversikt" : "mine");
 
@@ -110,7 +113,7 @@ function dataEndret() {
     if (!S.bruker) return;
     oppdaterPersonliste();
     if (!gjeldendeSide || gjeldendeSide.live || gjeldendeSide.venter) tegn();
-    else tegnMeny();
+    else { tegnMeny(lesSti().navn); oppdaterSupportKort(main, S); }
   });
 }
 
@@ -137,6 +140,8 @@ function tegn() {
   document.title = `${side.tittel ? side.tittel + " · " : ""}${S.innst.kortnavn || "TPTHK"}`;
   main.scrollTop = 0;
   side(main, S, param);
+  const stripe = supportStripe(S, erKasserer() ? "innstillinger" : "minside");
+  if (stripe && navn !== "innstillinger" && navn !== "minside") main.insertAdjacentHTML("afterbegin", stripe);
 }
 
 function venter() {
@@ -147,7 +152,7 @@ const utloggKnapp = () =>
   html`<button class="utlogg" id="loggut" title="Logg ut ${S.bruker.email}">${raw(ikon("utlogg"))}<span>Logg ut</span></button>`;
 
 function tegnMeny(aktiv) {
-  document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? "admin" : erKasserer() ? "kasserer" : S.profil.styre ? "styret" : "medlem") : "";
+  document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? (supportAktiv(S) ? "support" : "admin") : erKasserer() ? "kasserer" : S.profil.styre ? "styret" : "medlem") : "";
   if (!S.bruker || !S.profil) {
     meny.innerHTML = "";
     topp.innerHTML = S.bruker ? utloggKnapp() : "";
@@ -198,29 +203,52 @@ function startLyttere() {
   S.lastet = new Set();
   const lyttere = [];
 
-  // Profilen (rolle) styrer hva vi ellers lytter på.
-  let rolle;
+  // Profilen (rolle) og support styrer hva vi ellers lytter på.
+  // Supportstatus kan bare leses av dem som har tilgang, så den lyttes på først når profilen finnes.
+  rolle = undefined;
+  let stoppSupport = null;
   lyttere.push(lyttProfil((p) => {
     S.profil = p;
-    const ny = p ? `${p.rolle}|${p.styre === true}` : undefined;
-    if (ny !== rolle) {
-      rolle = ny;
-      startRolleLyttere();
+    if (p && !stoppSupport) {
+      stoppSupport = lyttSupport((s) => { S.support = s; vurderRolle(); dataEndret(); }, () => { stoppSupport = null; });
+    } else if (!p && stoppSupport) {
+      stoppSupport();
+      stoppSupport = null;
+      S.support = null;
     }
+    vurderRolle();
     dataEndret();
   }, visFeil));
+  lyttere.push(() => stoppSupport?.());
   lyttere.push(lyttMinForesporsel((f) => { S.foresporsel = f; dataEndret(); }, () => {}));
   stoppProfil = () => lyttere.forEach((f) => f());
 }
 
 let stoppProfil = () => {};
 
+// Når rollen endrer seg (også når support starter eller går ut), byttes datalytterne.
+let rolle;
+let supportTimer = null;
+function vurderRolle() {
+  const ny = S.profil ? `${S.profil.rolle}|${erKasserer()}|${erStyret(S)}` : undefined;
+  if (ny !== rolle) {
+    rolle = ny;
+    gjeldendeSide = null; // tegn siden på nytt, menyen og sidene er annerledes nå
+    startRolleLyttere();
+  }
+  // Vekk appen når support går ut, så menyen og dataene forsvinner av seg selv.
+  clearTimeout(supportTimer);
+  const utloper = S.support?.utloper;
+  if (utloper && !S.support.avsluttet && utloper > Date.now()) {
+    supportTimer = setTimeout(() => { vurderRolle(); dataEndret(); }, Math.min(utloper - Date.now() + 1000, 2 ** 31 - 1));
+  }
+}
+
 function startRolleLyttere() {
   stopp();
   S.lastet = new Set();
   const sett = (felt, navn = felt) => (data) => { S[felt] = data; S.lastet.add(navn); dataEndret(); };
-  const r = S.profil?.rolle;
-  if (!r) return;
+  if (!S.profil?.rolle) return;
 
   stoppLyttere.push(lyttDokument("innstillinger", "medlemsinfo", (d) => sett("info")(d || {}), visFeil));
   stoppLyttere.push(lyttMineSoknader(sett("mineSoknader"), visFeil));
@@ -240,7 +268,7 @@ function startRolleLyttere() {
     S.lastet.add("personer");
   }
 
-  if (r === "kasserer") {
+  if (erKasserer()) {
     stoppLyttere.push(lyttSamling("poster", (p) => sett("poster")(nummererBilag(p)), visFeil));
     stoppLyttere.push(lyttSamling("medlemmer", sett("medlemmer"), visFeil));
     stoppLyttere.push(lyttSamling("soknader", sett("soknader"), visFeil));
@@ -279,8 +307,10 @@ if (klar) {
     Object.assign(S, {
       bruker, profil: undefined, foresporsel: null, poster: [], medlemmer: [], soknader: [], mineSoknader: [],
       brukere: [], foresporsler: [], innst: medStandard(null), info: {}, mittMedlem: null, lastet: new Set(),
-      moter: [], signaturer: [], personer: [],
+      moter: [], signaturer: [], personer: [], support: null,
     });
+    rolle = undefined;
+    clearTimeout(supportTimer);
     if (bruker?.emailVerified) startLyttere();
     tegn();
   });
