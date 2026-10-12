@@ -1,7 +1,7 @@
 // Service worker: gjør at nettsiden kan legges på hjemskjermen og åpnes uten dekning.
 // Strategi: prøv nettet først (så man alltid får nyeste versjon), bruk lagret kopi hvis man er offline.
 
-const CACHE = "tpthk-v1";
+const CACHE = "tpthk-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => {
@@ -27,7 +27,9 @@ self.addEventListener("fetch", (e) => {
 });
 
 async function hentOgLagre(req) {
-  const svar = await fetch(req);
+  // «no-cache»: spør alltid GitHub om fila er endret, i stedet for å bruke nettleserens kopi (som ellers kan være opptil 10 minutter gammel).
+  // Uendrede filer koster nesten ingenting å sjekke.
+  const svar = await fetch(req, req.url.includes("/firebasejs/") ? undefined : { cache: "no-cache" });
   if (svar.ok) {
     const kopi = svar.clone();
     caches.open(CACHE).then((c) => c.put(req, kopi));
