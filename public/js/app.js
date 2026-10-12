@@ -31,6 +31,17 @@ export const S = {
   lastet: new Set(),
 };
 
+// Forespørsler fra folk som allerede har tilgang (f.eks. kassereren selv under oppsett) skjules.
+let alleForesporsler = [];
+Object.defineProperty(S, "foresporsler", {
+  get() {
+    const harTilgang = new Set(S.brukere.map((b) => b.id));
+    return alleForesporsler.filter((f) => !harTilgang.has(f.id));
+  },
+  set(v) { alleForesporsler = v; },
+  enumerable: true,
+});
+
 let stoppLyttere = [];
 let gjeldendeSide = null;
 
