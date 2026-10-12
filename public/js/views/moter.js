@@ -10,7 +10,9 @@ import { melding, medKnapp, bekreft } from "../ui.js";
 import { gaaTil } from "../app.js";
 import { ikon } from "../ikoner.js";
 
-export const typeTekst = { styremote: "Styremøte", arsmote: "Årsmøte" };
+export const typeTekst = { styremote: "Styremøte", medlemsmote: "Medlemsmøte", arsmote: "Årsmøte" };
+// Årsmøter og medlemsmøter er åpne for alle medlemmer.
+const erAapent = (m) => m.type === "arsmote" || m.type === "medlemsmote";
 const referatTekst = {
   ingen: "Referat ikke skrevet",
   utkast: "Referat under arbeid",
@@ -64,6 +66,7 @@ export function liste(main, S) {
       <select id="type" aria-label="Møtetype">
         <option value="alle" ${filter.type === "alle" ? "selected" : ""}>Alle møter</option>
         <option value="styremote" ${filter.type === "styremote" ? "selected" : ""}>Styremøter</option>
+        <option value="medlemsmote" ${filter.type === "medlemsmote" ? "selected" : ""}>Medlemsmøter</option>
         <option value="arsmote" ${filter.type === "arsmote" ? "selected" : ""}>Årsmøter</option>
       </select>
     </div>
@@ -73,7 +76,7 @@ export function liste(main, S) {
         <span class="post-dato">${datoTekst(m.dato)}</span>
         <span class="post-tekst">
           <span>${motetittel(m)}</span>
-          <span class="post-kategori">${typeTekst[m.type]}${m.sted ? ` · ${m.sted}` : ""} ${raw(statusMerke(m))}</span>
+          <span class="post-kategori">${typeTekst[m.type]}${erAapent(m) ? ", åpent for alle" : ""}${m.sted ? ` · ${m.sted}` : ""} ${raw(statusMerke(m))}</span>
         </span>
         <span class="post-pil">${raw(ikon("pil"))}</span>
       </a></li>`))}</ul>`)
@@ -107,7 +110,7 @@ export function detalj(main, S, id) {
     <section class="kort">
       <h2>Innkalling</h2>
       <dl class="info">
-        <dt>Møte</dt><dd>${typeTekst[m.type]}</dd>
+        <dt>Møte</dt><dd>${typeTekst[m.type]}${erAapent(m) ? raw(` <span class="status status-utbetalt">Åpent for alle medlemmer</span>`) : ""}</dd>
         <dt>Tid</dt><dd>${datoTekst(m.dato)}${m.tid ? ` kl. ${m.tid}` : ""}</dd>
         ${m.sted ? raw(html`<dt>Sted</dt><dd>${m.sted}</dd>`) : ""}
       </dl>
@@ -217,8 +220,9 @@ export function skjema(main, S, id) {
   main.innerHTML = html`
     <div class="sidetopp"><h1>${ny ? "Ny innkalling" : "Rediger innkalling"}</h1><a class="lenkeknapp" href="${ny ? "#/moter" : `#/mote/${m.id}`}">Avbryt</a></div>
     <form id="skjema" class="skjema kort">
-      <div class="veksler">
+      <div class="veksler tre">
         <button type="button" data-type="styremote" class="${m.type === "styremote" ? "valgt" : ""}">Styremøte</button>
+        <button type="button" data-type="medlemsmote" class="${m.type === "medlemsmote" ? "valgt" : ""}">Medlemsmøte</button>
         <button type="button" data-type="arsmote" class="${m.type === "arsmote" ? "valgt" : ""}">Årsmøte</button>
       </div>
       <label>Tittel (valgfritt)<input name="tittel" value="${m.tittel || ""}" maxlength="120" placeholder="F.eks. Årsmøte ${m.dato.slice(0, 4)}"></label>
@@ -264,7 +268,7 @@ export async function referat(main, S, id) {
   const personer = [...(S.personer || [])].sort((a, b) => Number(b.styre) - Number(a.styre) || (a.navn || a.epost).localeCompare(b.navn || b.epost, "nb"));
   // Styremøte: hele styret signerer som standard. Årsmøte: møteleder og protokollvitner velges.
   const valgt = new Set(utkast?.signatarer || (m.type === "styremote" ? personer.filter((p) => p.styre).map((p) => p.epost) : []));
-  const mal = m.type === "arsmote"
+  const mal = erAapent(m)
     ? "Til stede: \n\nSak 1: Konstituering (valg av møteleder, referent og to protokollvitner)\nVedtak: \n\nSak 2: \nVedtak: \n"
     : "Til stede: \nForfall: \n\nSak 1: \nVedtak: \n";
 
@@ -276,7 +280,7 @@ export async function referat(main, S, id) {
     </form>
     <section class="kort">
       <h2>Hvem skal signere?</h2>
-      <p class="hint">${m.type === "arsmote" ? "Vanligvis møteleder og to protokollvitner." : "Vanligvis styremedlemmene som var til stede."}
+      <p class="hint">${erAapent(m) ? "Vanligvis møteleder og to protokollvitner." : "Vanligvis styremedlemmene som var til stede."}
         Bare personer med innlogging kan velges. Mangler noen, må kassereren gi dem innlogging under Medlemmer.</p>
       ${personer.length ? raw(html`<div class="velgliste">${personer.map((p) => raw(html`
         <label class="avkryss"><input type="checkbox" name="signatar" value="${p.epost}" ${valgt.has(p.epost) ? "checked" : ""}>

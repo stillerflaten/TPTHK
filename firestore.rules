@@ -112,7 +112,7 @@ service cloud.firestore {
     // Møter: innkalling (alle kan lese) og referat. Referatet ligger her først når det sendes til signering.
     match /moter/{id} {
       function gyldigMote(d) {
-        return d.type in ['styremote', 'arsmote'] && d.dato is string && d.tittel is string
+        return d.type in ['styremote', 'medlemsmote', 'arsmote'] && d.dato is string && d.tittel is string
           && d.referatStatus in ['ingen', 'utkast', 'signering'];
       }
       function referatUendret() {
