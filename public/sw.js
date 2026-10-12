@@ -1,7 +1,7 @@
 // Service worker: gjør at nettsiden kan legges på hjemskjermen og åpnes uten dekning.
 // Strategi: prøv nettet først (så man alltid får nyeste versjon), bruk lagret kopi hvis man er offline.
 
-const CACHE = "tpthk-v2";
+const CACHE = "tpthk-v3";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => {
