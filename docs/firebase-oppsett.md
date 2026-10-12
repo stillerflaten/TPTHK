@@ -64,13 +64,13 @@ Det er helt greit at disse verdiene ligger åpent på GitHub. De er ikke passord
 5. Når den har grønn hake (et par minutter), ligger nettsiden på
    **https://stillerflaten.github.io/TPTHK/**
 
-> Vil dere ha en egen adresse senere, f.eks. `kasserer.tpthk.no`, går det fint. Den settes opp under Settings → Pages → Custom domain, og legges også inn under *Authorized domains* i steg 3.
+> Nettsiden bruker nå domenet **tpthk.no**. Se [eget-domene.md](eget-domene.md) for hvordan det er satt opp. Den gamle adressen sender folk videre automatisk.
 
 ## Steg 6: Gjør deg selv til kasserer
 
 Dette er det eneste som må gjøres direkte i databasen. Alle senere brukere styrer du fra nettsiden.
 
-1. Åpne **https://stillerflaten.github.io/TPTHK/**
+1. Åpne **https://tpthk.no**
 2. Trykk **Ny bruker? Opprett konto**, bruk e-posten din og velg et passord.
 3. Åpne e-posten fra Firebase og trykk på lenken. Gå tilbake til nettsiden og trykk **Jeg har bekreftet**.
 4. Du ser nå «Be om tilgang». La siden stå åpen.
@@ -100,7 +100,7 @@ Da får dere TPTHK-logoen som app-ikon, og den åpnes uten adresselinje.
 
 ## Slik får medlemmene tilgang
 
-1. Del adressen **https://stillerflaten.github.io/TPTHK/** med medlemmene.
+1. Del adressen **https://tpthk.no** med medlemmene.
 2. De trykker **Opprett konto**, bekrefter e-posten og skriver navnet sitt under «Be om tilgang».
 3. Du ser forespørselen under **Medlemmer** (og på Oversikt). Trykk **Gi tilgang**.
    Har du allerede lagt inn medlemmet med samme e-post, blir kontoen koblet til det.

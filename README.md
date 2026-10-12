@@ -2,7 +2,7 @@
 
 Nettside (PWA) for kassereren i Trøndelag Politis Tjenestehundklubb. Kan legges på hjemskjermen og brukes som en app.
 
-**Adresse:** https://stillerflaten.github.io/TPTHK/ (når den er publisert)
+**Adresse:** https://tpthk.no (se [docs/eget-domene.md](docs/eget-domene.md) for oppsettet av domenet)
 
 **Oppsett:** Se [docs/firebase-oppsett.md](docs/firebase-oppsett.md) for steg-for-steg.
 
