@@ -10,6 +10,7 @@ import * as innlogging from "./views/innlogging.js";
 import * as oversikt from "./views/oversikt.js";
 import * as poster from "./views/poster.js";
 import * as rapport from "./views/rapport.js";
+import { budsjett } from "./views/budsjett.js";
 import * as soknader from "./views/soknader.js";
 import * as medlemmer from "./views/medlemmer.js";
 import * as innstillinger from "./views/innstillinger.js";
@@ -67,6 +68,7 @@ const kassererSider = {
   medlemmer: { meny: "Medlemmer", ikon: "medlemmer", side: medlemmer.liste },
   medlem: { side: medlemmer.skjema },
   rapport: { meny: "Årsrapport", ikon: "rapport", side: rapport.rapport },
+  budsjett: { side: budsjett },
   moter: { meny: "Møter", ikon: "moter", side: moter.liste },
   innstillinger: { meny: "Innstillinger", ikon: "innstillinger", side: innstillinger.innstillinger },
   mine: { side: soknader.mineListe },
@@ -93,9 +95,10 @@ const medlemSider = {
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
 
-// Styret ser regnskapet og søknadene, men kan ikke endre dem.
+// Styret ser regnskapet, årsrapporten med budsjett og søknadene, men kan ikke endre dem.
 const styreSider = {
   oversikt: { meny: "Oversikt", ikon: "oversikt", side: oversikt.oversikt },
+  rapport: { meny: "Årsrapport", ikon: "rapport", side: rapport.rapport },
   soknader: { meny: "Søknader", ikon: "soknader", side: soknader.kassererListe },
   soknad: { side: soknader.kassererDetalj },
   mine: { meny: "Mine søknader", ikon: "poster", side: soknader.mineListe },
@@ -230,7 +233,7 @@ function tegnMeny(aktiv) {
   }).join("") + `<div class="meny-fot">${ikon("stjerne")}<span>Trøndelag Politis<br>Tjenestehundklubb · 1952</span></div>`;
 
   const aarValg = seRegnskap()
-    ? html`<label class="aarvalg"><span class="skjult">Regnskapsår</span><select id="aar">${tilgjengeligeAar(S.poster).map((a) => raw(html`<option ${a === S.aar ? "selected" : ""}>${a}</option>`))}</select></label>`
+    ? html`<label class="aarvalg"><span class="skjult">Regnskapsår</span><select id="aar">${tilgjengeligeAar(S.poster, [S.aar, ...Object.keys(S.innst.budsjett || {}).map(Number)]).map((a) => raw(html`<option ${a === S.aar ? "selected" : ""}>${a}</option>`))}</select></label>`
     : "";
   topp.innerHTML = aarValg + hjelpLenke() + utloggKnapp();
   topp.querySelector("#loggut").addEventListener("click", () => konto.loggUt());
@@ -239,7 +242,7 @@ function tegnMeny(aktiv) {
 
 // Undersider markerer menypunktet de hører til.
 const hører = (navn) => ({ post: "poster", soknad: "soknader", medlem: "medlemmer", "ny-soknad": "mine", "min-soknad": "mine",
-  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter" })[navn];
+  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter", budsjett: "rapport" })[navn];
 
 // ---------- Data ----------
 

@@ -181,6 +181,7 @@ async function lagSikkerhetskopi(S, vis) {
     { navn: "regnskap.csv", data: csvTekst(regnskapRader(poster, innst, kvitteringsfil)) },
     { navn: "medlemmer.csv", data: csvTekst(medlemsrader(data.medlemmer)) },
     { navn: "soknader.csv", data: csvTekst(soknadsrader(data.soknader, kvitteringsfil)) },
+    { navn: "budsjett.csv", data: csvTekst(budsjettRader(innst)) },
   );
   for (const navn of Object.keys(data)) {
     filer.push({ navn: `data/${navn}.json`, data: JSON.stringify(data[navn].map(tilJson), null, 1) });
@@ -232,6 +233,17 @@ function kvitteringsnavn(kvitteringer, poster, soknader) {
 }
 
 const typeTekst = { inntekt: "Inntekt", utgift: "Utgift", overforing: "Overføring" };
+
+/** Budsjettet for alle år, én rad per kategori. Selve budsjettet ligger i data/innstillinger.json og gjenopprettes derfra. */
+function budsjettRader(innst) {
+  const rader = [["År", "Type", "Kategori", "Budsjett"]];
+  for (const aar of Object.keys(innst.budsjett || {}).sort()) {
+    for (const type of ["inntekt", "utgift"]) {
+      for (const b of innst.budsjett[aar]?.[type] || []) rader.push([aar, typeTekst[type], b.kategori, tall(b.belop)]);
+    }
+  }
+  return rader;
+}
 
 function regnskapRader(poster, innst, kvitteringsfil) {
   const rader = [["År", "Bilagsnr", "Dato", "Type", "Konto", "Kategori", "Beskrivelse", "Inn", "Ut", "Overført", "Kvitteringer"]];
@@ -312,6 +324,7 @@ function lesmeg(innst, laget, antall) {
     `  regnskap.csv     Alle poster (${antall.poster}) med bilagsnummer. Åpnes i Excel eller Numbers.`,
     `  medlemmer.csv    Medlemmer (${antall.medlemmer}) og kontingent for alle år.`,
     `  soknader.csv     Søknader om refusjon (${antall.soknader}).`,
+    "  budsjett.csv     Budsjettet per år og kategori.",
     `  kvitteringer/    Kvitteringer (${antall.kvitteringer}). Mappene heter etter år, og filene etter bilagsnummeret i regnskap.csv.`,
     "                   Kvitteringer til søknader som ikke er utbetalt ennå, ligger i kvitteringer/soknader.",
     `  moter/           Innkallinger og referater (${antall.moter} møter) som tekst, med hvem som har signert.`,
@@ -372,8 +385,12 @@ async function gjenopprett(fil, S, vis) {
     tildelt: vervKopi.tildelt, styre: vervKopi.styre, navn: vervKopi.navn,
     ...(erAdmin(S) || supportAktiv(S) ? { liste: vervKopi.liste } : {}),
   } : null;
+  // Budsjett for år som er borte i dag (klubbinnstillingene finnes, men uten budsjettet), legges tilbake år for år.
+  const klubbNaa = naaInnst.find((d) => d.id === "klubb");
+  const budsjettKopi = kopi.innstillinger.find((d) => d.id === "klubb")?.budsjett || {};
+  const budsjettAar = klubbNaa ? Object.keys(budsjettKopi).filter((aar) => !klubbNaa.budsjett?.[aar]).sort() : [];
   const signerte = plan.moter.filter((m) => m.referatStatus === "signering" || m.referatStatus === "godkjent");
-  const totalt = Object.values(plan).reduce((s, l) => s + l.length, 0) + (verv ? 1 : 0);
+  const totalt = Object.values(plan).reduce((s, l) => s + l.length, 0) + (verv ? 1 : 0) + (budsjettAar.length ? 1 : 0);
 
   vis("");
   const laget = new Date(manifest.laget).toLocaleString("nb-NO", { dateStyle: "long", timeStyle: "short" });
@@ -388,7 +405,8 @@ async function gjenopprett(fil, S, vis) {
     <h2>Gjenopprette fra sikkerhetskopi</h2>
     <p>Sikkerhetskopien er fra <strong>${laget}</strong>. Dette mangler i dag og kan legges tilbake:</p>
     <ul>${Object.entries(plan).filter(([, l]) => l.length).map(([navn, l]) => raw(html`<li>${antallTekst(navn, l.length)}</li>`))}
-      ${verv ? raw("<li>hvem som har hvilke styreverv</li>") : ""}</ul>
+      ${verv ? raw("<li>hvem som har hvilke styreverv</li>") : ""}
+      ${budsjettAar.length ? raw(html`<li>budsjettet for ${budsjettAar.join(", ")}</li>`) : ""}</ul>
     ${signerte.length ? raw(html`<p class="hint">${signerte.length} ${signerte.length === 1 ? "referat var" : "referater var"} sendt til signering eller godkjent.
       Signaturer kan ikke legges tilbake, så ${signerte.length === 1 ? "det" : "de"} kommer tilbake som utkast og må signeres på nytt.
       Den signerte teksten med navn og tidspunkt ligger i mappa «moter» i ZIP-fila.</p>`) : ""}
@@ -398,6 +416,9 @@ async function gjenopprett(fil, S, vis) {
   d.querySelector("#startGjenoppretting").addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
     const { forst, etterpaa } = byggSkriving(plan, filer);
     if (verv) etterpaa.push({ samling: "innstillinger", id: "verv", endre: verv });
+    if (budsjettAar.length) {
+      etterpaa.push({ samling: "innstillinger", id: "klubb", endre: Object.fromEntries(budsjettAar.map((aar) => [`budsjett.${aar}`, budsjettKopi[aar]])) });
+    }
     const alle = forst.length + etterpaa.length;
     vis(`Legger tilbake 0 av ${alle} …`);
     await skrivMange(forst, (n) => vis(`Legger tilbake ${n} av ${alle} …`));

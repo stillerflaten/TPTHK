@@ -1,7 +1,7 @@
 // Forsiden for kassereren og styret: saldo, årets tall og det som venter. Styret ser, men endrer ikke.
 
 import { html, raw, kr, datoTekst } from "../util.js";
-import { saldoNaa, aarsregnskap, sorterPoster, kontingentStatus } from "../regnskap.js";
+import { saldoNaa, aarsregnskap, sorterPoster, kontingentStatus, budsjettFor } from "../regnskap.js";
 import { belopHtml } from "./poster.js";
 import { ikon } from "../ikoner.js";
 import { erKasserer, erRevisor } from "../tilgang.js";
@@ -12,6 +12,8 @@ export function oversikt(main, S) {
   const sePoster = kasserer || erRevisor(S);
   const r = aarsregnskap(S.poster, S.innst, S.aar);
   const k = kontingentStatus(S.medlemmer, S.aar);
+  const b = budsjettFor(S.innst, S.aar);
+  const avBudsjett = (v) => (b.finnes ? raw(html`<span class="budsjett">Budsjett ${kr(v)}</span>`) : "");
   const venter = S.soknader.filter((s) => s.status === "sendt" || s.status === "godkjent");
   const siste = sorterPoster(r.poster).slice(0, 6);
   const stoerst = Math.max(1, ...r.inntekter.map(([, v]) => v), ...r.utgifter.map(([, v]) => v));
@@ -36,9 +38,9 @@ export function oversikt(main, S) {
 
     <div class="nokkeltall">
       <div class="tallkort"><span class="etikett">Saldo nå</span><span class="verdi">${kr(saldoNaa(S.poster, S.innst))}</span></div>
-      <div class="tallkort"><span class="etikett">Inntekter ${S.aar}</span><span class="verdi pluss">${kr(r.sumInntekter)}</span></div>
-      <div class="tallkort"><span class="etikett">Utgifter ${S.aar}</span><span class="verdi minus">${kr(r.sumUtgifter)}</span></div>
-      <div class="tallkort"><span class="etikett">Resultat ${S.aar}</span><span class="verdi ${r.resultat < 0 ? "minus" : "pluss"}">${kr(r.resultat)}</span></div>
+      <div class="tallkort"><span class="etikett">Inntekter ${S.aar}</span><span class="verdi pluss">${kr(r.sumInntekter)}</span>${avBudsjett(b.sumInntekter)}</div>
+      <div class="tallkort"><span class="etikett">Utgifter ${S.aar}</span><span class="verdi minus">${kr(r.sumUtgifter)}</span>${avBudsjett(b.sumUtgifter)}</div>
+      <div class="tallkort"><span class="etikett">Resultat ${S.aar}</span><span class="verdi ${r.resultat < 0 ? "minus" : "pluss"}">${kr(r.resultat)}</span>${avBudsjett(b.resultat)}</div>
     </div>
 
     ${S.innst.kontoer.length > 1 ? raw(html`

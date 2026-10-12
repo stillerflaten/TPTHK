@@ -517,3 +517,16 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
   .ny-side { break-before: page; }
   .regnskap tr { break-inside: avoid; }
 }
+
+/* Budsjett */
+.tabell-rull { overflow-x: auto; }
+@media print { .tabell-rull { overflow: visible; } }
+.budsjett-rad { display: grid; grid-template-columns: 1fr minmax(110px, 160px); gap: 12px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--linje); font-weight: 500; }
+.budsjett-rad > span .hint { display: block; margin: 0; font-weight: 400; }
+.budsjett-rad input { text-align: right; font-variant-numeric: tabular-nums; }
+.budsjett-rad.sum, .budsjett-rad.totalt { font-weight: 600; }
+.budsjett-rad.sum strong, .budsjett-rad.totalt strong { text-align: right; font-variant-numeric: tabular-nums; }
+.budsjett-rad.totalt { border-top: 1.5px solid var(--blekk); border-bottom: 3px double var(--blekk); margin-top: 14px; }
+.skjema label.budsjett-rad { display: grid; margin: 0; }
+.skjema .budsjett-rad input { margin-top: 0; }
+.tallkort .budsjett { font-size: .75rem; color: var(--dempet); }
