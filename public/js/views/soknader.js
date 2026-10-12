@@ -247,7 +247,8 @@ export function nySoknad(main, S) {
     const belop = tolkBelop(f.belop);
     const konto = f.kontonummer.replace(/\D/g, "");
     if (!belop || belop <= 0) return melding("Skriv et gyldig beløp, f.eks. 450 eller 450,50.", "feil");
-    if (!gyldigKontonummer(konto)) return melding("Kontonummeret ser ikke riktig ut. Det skal ha 11 siffer.", "feil");
+    if (konto.length !== 11) return melding(`Kontonummeret skal ha 11 siffer, du har skrevet ${konto.length}.`, "feil");
+    if (!gyldigKontonummer(konto)) return melding("Kontonummeret finnes ikke (kontrollsifferet stemmer ikke). Sjekk at du har skrevet riktig.", "feil");
     if (!velger.antall()) return melding("Legg ved minst én kvittering.", "feil");
 
     await medKnapp(e.submitter, async () => {
