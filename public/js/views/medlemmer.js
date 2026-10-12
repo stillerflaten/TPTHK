@@ -72,7 +72,7 @@ export function liste(main, S) {
         <li class="${m.aktiv === false ? "utmeldt" : ""}">
           <a href="#/medlem/${m.id}" class="medlem-info">
             <strong>${m.navn}</strong>
-            <span class="hint">${[filter.vis === "ubetalt" && !m.epost && "mangler e-post", m.epost, t && (roller(S, t).join(", ") || "har innlogging"), m.aktiv === false && "utmeldt",
+            <span class="hint">${[filter.vis === "ubetalt" && !m.epost && "mangler e-post", m.epost, t && (roller(S, t).join(", ") || "medlem"), m.aktiv === false && "utmeldt",
               filter.vis === "ubetalt" && m.paminnet?.[aar] && `påminnet ${datoTekst(m.paminnet[aar])}`].filter(Boolean).join(" · ")}</span>
           </a>
           <button class="kontingent ${betalt ? "betalt" : ""}" data-kontingent="${m.id}" title="Kontingent ${aar}">
