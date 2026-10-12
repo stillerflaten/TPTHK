@@ -8,6 +8,7 @@ rules_version = '2';
 //  • Kasserere ser og endrer alt.
 //  • Medlemmer ser bare sine egne søknader og kvitteringer, sitt eget medlemskort og betalingsinfo.
 //  • Alle med tilgang ser møteinnkallinger og referater. Styret (de som har et verv, og kasserere) legger dem ut.
+//  • Alle med tilgang ser regelverket (vedtekter o.l.). Styret legger inn, endrer og sletter.
 //  • Styret kan lese regnskapet, medlemslisten og søknadene, men ikke endre noe der.
 //  • Revisor (revisor: true i «brukere») kan lese regnskapet med kvitteringer, kontoene og medlemslisten,
 //    men ikke søknadene eller brukerne (der ligger kontonumre), og kan ikke endre noe. Tilgangen kan ha en
@@ -214,6 +215,25 @@ service cloud.firestore {
           && request.resource.data.referatStatus == 'godkjent'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['referatStatus', 'godkjent'])
           && existsAfter(/databases/$(database)/documents/signaturer/$(id + '__' + epost())));
+    }
+
+    // Regelverk: vedtekter, statutter og andre regler. Alle med tilgang leser, styret legger inn og endrer.
+    match /regelverk/{id} {
+      function gyldigRegel(d) {
+        return d.tittel is string && d.tittel.size() > 0 && d.tittel.size() <= 200
+          && d.kategori in ['vedtekter', 'retningslinjer', 'vedtak', 'annet']
+          && (!('lenke' in d) || (d.lenke is string && d.lenke.matches('https?://.+')));
+      }
+      allow read: if harTilgang();
+      allow create, update: if erStyret() && gyldigRegel(request.resource.data);
+      allow delete: if erStyret();
+    }
+    // PDF-ene i regelverket, delt i biter fordi et dokument kan være maks 1 MB.
+    match /regelverkfiler/{id} {
+      allow read: if harTilgang();
+      allow create, update: if erStyret()
+        && request.resource.data.data is string && request.resource.data.data.size() < 1000000;
+      allow delete: if erStyret();
     }
 
     // Referatet mens styret skriver på det. Bare styret ser utkast.

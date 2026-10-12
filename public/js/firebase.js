@@ -343,6 +343,62 @@ export const lagrePersonliste = (liste) => setDoc(doc(db, "innstillinger", "pers
 export const lagreVerv = ({ liste, tildelt, styre, navn }) =>
   setDoc(doc(db, "innstillinger", "verv"), { liste, tildelt, styre, navn, endret: serverTimestamp(), endretAv: meg() });
 
+// ---------- Regelverk ----------
+// Vedtekter og andre regler. PDF-ene deles i biter, fordi et Firestore-dokument kan være maks 1 MB.
+// Bitene ligger i «regelverkfiler» med ID «fil-ID__nr», så de bare lastes når noen åpner dokumentet.
+
+const REGELBIT = 900_000;
+
+/** Deler en PDF (base64) i biter og lagrer dem. Gir tilbake fil-ID og antall biter. */
+export async function lagreRegelfil(base64, filId = doc(collection(db, "regelverkfiler")).id) {
+  const biter = [];
+  for (let i = 0; i < base64.length; i += REGELBIT) biter.push(base64.slice(i, i + REGELBIT));
+  // Én og én bit, så store filer ikke sprenger grensen for hvor mye som kan sendes på en gang.
+  for (const [nr, data] of biter.entries()) {
+    await setDoc(doc(db, "regelverkfiler", `${filId}__${nr}`), { filId, nr, data });
+  }
+  return { id: filId, deler: biter.length };
+}
+
+/** Henter en PDF fra regelverket og gir den tilbake som base64. */
+export async function hentRegelfil(fil) {
+  const biter = await Promise.all(Array.from({ length: fil.deler }, (_, nr) => getDoc(doc(db, "regelverkfiler", `${fil.id}__${nr}`))));
+  if (biter.some((b) => !b.exists())) throw new Error("Fant ikke hele fila. Prøv igjen, eller be styret laste den opp på nytt.");
+  return biter.map((b) => b.data().data).join("");
+}
+
+async function slettRegelfil(fil) {
+  if (!fil?.id) return;
+  const batch = writeBatch(db);
+  for (let nr = 0; nr < fil.deler; nr++) batch.delete(doc(db, "regelverkfiler", `${fil.id}__${nr}`));
+  await batch.commit();
+}
+
+/**
+ * Lagrer et dokument i regelverket. pdf = { navn, storrelse, base64 } når en ny fil er valgt.
+ * Er det en lenke (eller en ny PDF), slettes den gamle fila etterpå.
+ */
+export async function lagreRegel(regel, data, pdf) {
+  const ref = regel ? doc(db, "regelverk", regel.id) : doc(collection(db, "regelverk"));
+  let fil = regel?.fil || null;
+  if (pdf) fil = { ...(await lagreRegelfil(pdf.base64)), navn: pdf.navn, storrelse: pdf.storrelse };
+  if (data.lenke) fil = null;
+  await setDoc(ref, {
+    ...data,
+    lenke: data.lenke || deleteField(),
+    fil: fil || deleteField(),
+    endret: serverTimestamp(), endretAv: meg(),
+    ...(regel ? {} : { opprettet: serverTimestamp(), opprettetAv: meg() }),
+  }, { merge: true });
+  if (regel?.fil && regel.fil.id !== fil?.id) await slettRegelfil(regel.fil).catch(() => {});
+  return ref.id;
+}
+
+export async function slettRegel(regel) {
+  await deleteDoc(doc(db, "regelverk", regel.id));
+  await slettRegelfil(regel.fil).catch(() => {});
+}
+
 // ---------- Sikkerhetskopi ----------
 // Leses rett fra serveren (ikke fra lageret på telefonen), så kopien blir komplett.
 

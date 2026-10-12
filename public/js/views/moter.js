@@ -10,7 +10,7 @@ import {
 import { melding, medKnapp, bekreft } from "../ui.js";
 import { gaaTil } from "../app.js";
 import { ikon } from "../ikoner.js";
-import { erStyret } from "../tilgang.js";
+import { erStyret, erKasserer } from "../tilgang.js";
 
 export const typeTekst = { styremote: "Styremøte", medlemsmote: "Medlemsmøte", arsmote: "Årsmøte" };
 // Årsmøter og medlemsmøter er åpne for alle medlemmer.
@@ -55,6 +55,7 @@ export function liste(main, S) {
       <h1>Møter</h1>
       <div class="knapperad">
         <a class="knapp sekundaer" href="#/styret">${raw(ikon("medlemmer"))} Styret</a>
+        ${erKasserer(S) ? raw(`<a class="knapp sekundaer" href="#/regelverk">${ikon("regelverk")} Regelverk</a>`) : ""}
         ${erStyret(S) ? raw(`<a class="knapp" href="#/mote-skjema/ny">+ Ny innkalling</a>`) : ""}
       </div>
     </div>

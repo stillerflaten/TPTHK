@@ -22,6 +22,7 @@ Nettside (PWA) for kassereren i Trøndelag Politis Tjenestehundklubb. Kan legges
 - Opprette konto og be om tilgang
 - Sende søknad om refusjon av utlegg med kvitteringer, og følge status
 - Se om kontingenten er registrert, og hvor den skal betales
+- Lese klubbens vedtekter og andre regler under Regelverk (styret legger dem inn som PDF eller lenke)
 
 ## Teknisk
 
@@ -41,6 +42,8 @@ Nettside (PWA) for kassereren i Trøndelag Politis Tjenestehundklubb. Kan legges
 | `kvitteringer` | Komprimert bilde/PDF som data-URL, `eier` |
 | `medlemmer` | `navn`, `epost`, `telefon`, `aktiv`, `kontingent.{år}` |
 | `soknader` | Refusjonssøknader: `epost`, `navn`, `formaal`, `dato`, `belop`, `kontonummer`, `status`, `kvitteringIds` |
+| `regelverk` | Vedtekter og andre regler: `kategori`, `tittel`, `beskrivelse`, `dato`, `lenke` eller `fil` (`id`, `navn`, `storrelse`, `deler`) |
+| `regelverkfiler/{filId}__{nr}` | PDF-ene i regelverket som base64, delt i biter på inntil 900 000 tegn |
 | `innstillinger/klubb` | Klubbinfo, startsaldo, kategorier (bare kasserer) |
 | `innstillinger/medlemsinfo` | Kontingent og betalingsinfo (synlig for medlemmer) |
 

@@ -116,7 +116,7 @@ export async function forberedKvittering(fil) {
   throw new Error("Klarte ikke å gjøre bildet lite nok. Prøv et annet bilde.");
 }
 
-function lesSomDataUrl(fil) {
+export function lesSomDataUrl(fil) {
   return new Promise((ok, feil) => {
     const r = new FileReader();
     r.onload = () => ok(r.result);

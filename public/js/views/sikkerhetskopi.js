@@ -5,6 +5,7 @@
 //  • *.csv           regnskap, medlemmer og søknader, til å åpne i Excel
 //  • kvitteringer/   alle kvitteringsbilder og PDF-er, navngitt etter bilagsnummer
 //  • moter/          innkallinger og referater som tekst, med hvem som har signert
+//  • regelverk/      vedtekter og andre regler som PDF
 //
 // Gjenoppretting legger bare tilbake dokumenter som mangler. Ingenting som finnes, blir endret eller slettet.
 
@@ -26,13 +27,13 @@ const VERSJON = 1;
 /** Hvor ofte det bør tas en kopi. Avtalen sier hvert kvartal. */
 export const PAAMINN_DAGER = 90;
 
-const SAMLINGER = ["brukere", "foresporsler", "poster", "medlemmer", "soknader", "kvitteringer", "moter", "referatutkast", "signaturer"];
+const SAMLINGER = ["brukere", "foresporsler", "poster", "medlemmer", "soknader", "kvitteringer", "moter", "referatutkast", "signaturer", "regelverk"];
 const INNSTILLINGER = ["klubb", "medlemsinfo", "verv", "personer", "support"];
 
 const NAVN = {
   brukere: ["innlogging", "innlogginger"], poster: ["post", "poster"], medlemmer: ["medlem", "medlemmer"],
   soknader: ["søknad", "søknader"], kvitteringer: ["kvittering", "kvitteringer"], moter: ["møte", "møter"],
-  referatutkast: ["referatutkast", "referatutkast"], innstillinger: ["innstilling", "innstillinger"],
+  referatutkast: ["referatutkast", "referatutkast"], regelverk: ["dokument i regelverket", "dokumenter i regelverket"], innstillinger: ["innstilling", "innstillinger"],
 };
 const antallTekst = (samling, n) => `${n} ${NAVN[samling]?.[n === 1 ? 0 : 1] || samling}`;
 
@@ -73,7 +74,7 @@ export function kopiKort(S) {
       <h2>Sikkerhetskopi</h2>
       <p>${s ? raw(html`Siste sikkerhetskopi: <strong>${datoTekst(isoDato(s.tid))}</strong>${s.navn ? ` av ${s.navn}` : ""}.`) : "Det er ikke tatt noen sikkerhetskopi ennå."}
         ${trengerKopi(S) ? raw(`<span class="status status-sendt">Ta en ny</span>`) : ""}</p>
-      <p class="hint">Laster ned alt som er lagret (regnskap, medlemmer, søknader, kvitteringer, møter og referater) som én ZIP-fil.
+      <p class="hint">Laster ned alt som er lagret (regnskap, medlemmer, søknader, kvitteringer, møter, referater og regelverk) som én ZIP-fil.
         Ta en kopi minst hvert kvartal, og lagre den et trygt sted klubben har tilgang til, for eksempel i klubbens e-post eller sky.
         Fila inneholder personopplysninger og kontonumre, så ikke del den med andre enn styret og revisor. Slett eldre kopier når du har en ny.</p>
       <div class="knapper venstre">
@@ -152,6 +153,10 @@ async function lagSikkerhetskopi(S, vis) {
   vis("Henter innstillinger …");
   data.innstillinger = (await Promise.all(INNSTILLINGER.map((id) => hentDokument("innstillinger", id)))).filter(Boolean);
 
+  // PDF-ene i regelverket ligger i biter. De settes sammen til hele filer, og JSON-fila peker på fila.
+  vis("Henter PDF-ene i regelverket …");
+  const regelbiter = await hentSamling("regelverkfiler");
+
   vis("Pakker fila …");
   const innst = medStandard(data.innstillinger.find((d) => d.id === "klubb") || null);
   const poster = nummererBilag(data.poster);
@@ -166,6 +171,8 @@ async function lagSikkerhetskopi(S, vis) {
       k.data = { __fil: sti };
     }
   }
+
+  for (const f of regelFiler(data.regelverk, regelbiter)) filer.push(f);
 
   const laget = new Date();
   const kortnavn = innst.kortnavn || "TPTHK";
@@ -189,6 +196,23 @@ async function lagSikkerhetskopi(S, vis) {
   for (const m of moteFiler(data.moter, data.referatutkast, data.signaturer)) filer.push(m);
 
   return { blob: lagZip(filer), filnavn: `${kortnavn}-sikkerhetskopi-${iDag()}.zip` };
+}
+
+/** Setter sammen PDF-ene i regelverket. Hvert dokument får fil.__fil med stien i ZIP-fila. */
+function regelFiler(regelverk, biter) {
+  const ut = [];
+  const brukt = new Set();
+  for (const r of regelverk) {
+    if (!r.fil?.id) continue;
+    const deler = biter.filter((b) => b.filId === r.fil.id).sort((a, b) => a.nr - b.nr);
+    if (deler.length !== r.fil.deler) continue; // ufullstendig, tas ikke med
+    let navn = `regelverk/${rens(r.tittel)}`;
+    if (brukt.has(navn)) navn += `-${r.id}`;
+    brukt.add(navn);
+    ut.push({ navn: `${navn}.pdf`, data: dataUrlTilBytes(`,${deler.map((d) => d.data).join("")}`) });
+    r.fil = { ...r.fil, __fil: `${navn}.pdf` };
+  }
+  return ut;
 }
 
 function dataUrlTilBytes(dataUrl) {
@@ -328,6 +352,7 @@ function lesmeg(innst, laget, antall) {
     `  kvitteringer/    Kvitteringer (${antall.kvitteringer}). Mappene heter etter år, og filene etter bilagsnummeret i regnskap.csv.`,
     "                   Kvitteringer til søknader som ikke er utbetalt ennå, ligger i kvitteringer/soknader.",
     `  moter/           Innkallinger og referater (${antall.moter} møter) som tekst, med hvem som har signert.`,
+    `  regelverk/       Vedtekter og andre regler (${antall.regelverk} dokumenter). PDF-ene ligger her, lenker står i data/regelverk.json.`,
     "  data/            Alt i databasen, slik det er lagret. Brukes for å gjenopprette.",
     "",
     "Gjenopprette:",
@@ -360,7 +385,7 @@ async function gjenopprett(fil, S, vis) {
 
   vis("Sjekker hva som mangler …");
   const finnes = {};
-  for (const navn of ["brukere", "poster", "medlemmer", "soknader", "kvitteringer", "moter", "referatutkast"]) {
+  for (const navn of ["brukere", "poster", "medlemmer", "soknader", "kvitteringer", "moter", "referatutkast", "regelverk"]) {
     finnes[navn] = new Set((await hentSamling(navn)).map((d) => d.id));
   }
   const naaInnst = (await Promise.all(["klubb", "medlemsinfo", "verv", "personer"].map((id) => hentDokument("innstillinger", id)))).filter(Boolean);
@@ -376,6 +401,7 @@ async function gjenopprett(fil, S, vis) {
     poster: mangler("poster"),
     moter: mangler("moter"),
     referatutkast: mangler("referatutkast"),
+    regelverk: mangler("regelverk"),
   };
   // Nettsiden lager standardverv av seg selv første gang kassereren logger inn. Er ingen verv delt ut ennå,
   // hentes hvem som har hvilke verv fra kopien.
@@ -462,5 +488,21 @@ function byggSkriving(plan, filer) {
     if (referatStatus !== "ingen" && (referat || utkast.has(m.id))) settStatus.push(m.id);
   }
   for (const u of utkast.values()) legg("referatutkast", u);
+
+  // Regelverket: PDF-en deles i biter igjen og lagres før dokumentet som peker på den.
+  for (const r of plan.regelverk) {
+    const { fil, ...rest } = utenId(r);
+    const bytes = fil?.__fil ? filer.get(fil.__fil) : null;
+    if (bytes) {
+      const b64 = bytesTilDataUrl(bytes, "application/pdf").split(",")[1];
+      const biter = [];
+      for (let i = 0; i < b64.length; i += 900_000) biter.push(b64.slice(i, i + 900_000));
+      biter.forEach((data, nr) => ut.push({ samling: "regelverkfiler", id: `${fil.id}__${nr}`, data: { filId: fil.id, nr, data } }));
+      const { __fil, ...filInfo } = fil;
+      ut.push({ samling: "regelverk", id: r.id, data: { ...rest, fil: { ...filInfo, deler: biter.length } } });
+    } else {
+      ut.push({ samling: "regelverk", id: r.id, data: rest });
+    }
+  }
   return { forst: ut, etterpaa: settStatus.map((id) => ({ samling: "moter", id, endre: { referatStatus: "utkast" } })) };
 }
