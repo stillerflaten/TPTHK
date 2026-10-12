@@ -68,7 +68,7 @@ export function kassererListe(main, S) {
       <button data-fane="venter" class="${fane === "venter" ? "valgt" : ""}">Venter (${venter.length})</button>
       <button data-fane="ferdig" class="${fane === "ferdig" ? "valgt" : ""}">Ferdige (${ferdig.length})</button>
     </div>
-    ${vis.length ? raw(soknadsliste(vis, "soknad")) : raw(`<div class="tom">${fane === "venter" ? "Ingen søknader venter. 🎉" : "Ingen ferdigbehandlede søknader ennå."}</div>`)}`;
+    ${vis.length ? raw(soknadsliste(vis, "soknad")) : raw(`<div class="tom">${fane === "venter" ? "Ingen søknader venter." : "Ingen ferdigbehandlede søknader ennå."}</div>`)}`;
   main.querySelectorAll("[data-fane]").forEach((b) => b.addEventListener("click", () => { fane = b.dataset.fane; kassererListe(main, S); }));
 }
 kassererListe.live = true;

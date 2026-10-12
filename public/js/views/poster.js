@@ -5,6 +5,7 @@ import { aarFor, sorterPoster, bilagsnrForNy, endring, kontoFor, kontonavn } fro
 import { lagrePost, slettPost, slettKvittering } from "../firebase.js";
 import { melding, medKnapp, bekreft, kvitteringsvelger } from "../ui.js";
 import { gaaTil } from "../app.js";
+import { ikon } from "../ikoner.js";
 
 // Filteret huskes mens appen er åpen.
 const filter = { type: "", kategori: "", konto: "", sok: "" };
@@ -19,7 +20,7 @@ export function kontotekst(p, innst) {
 
 /** Beløp med fortegn og farge. Med konto vises endringen for den kontoen. */
 export function belopHtml(p, innst, konto) {
-  if (p.type === "overforing" && !konto) return html`<span class="post-belop noytral">⇄ ${kr(p.belop)}</span>`;
+  if (p.type === "overforing" && !konto) return html`<span class="post-belop noytral">${kr(p.belop)}</span>`;
   const e = endring(p, innst, konto);
   return html`<span class="post-belop ${e < 0 ? "minus" : "pluss"}">${e < 0 ? "−" : "+"}${kr(Math.abs(e))}</span>`;
 }
@@ -41,7 +42,7 @@ export function liste(main, S) {
     <div class="sidetopp">
       <h1>Poster ${S.aar}</h1>
       <div class="knapperad">
-        <button class="knapp sekundaer" id="eksport">⬇︎ Excel</button>
+        <button class="knapp sekundaer" id="eksport">${raw(ikon("lastned"))} Excel</button>
         <a class="knapp" href="#/post/ny">+ Ny post</a>
       </div>
     </div>
@@ -70,7 +71,7 @@ export function liste(main, S) {
             <span class="post-bilag">#${p.bilagsnr}</span>
             <span class="post-tekst">
               <span>${p.beskrivelse || p.kategori || typeTekst[p.type]}</span>
-              <span class="post-kategori">${[p.kategori, flereKontoer || p.type === "overforing" ? kontotekst(p, S.innst) : ""].filter(Boolean).join(" · ")}${p.kvitteringIds?.length ? " · 📎" : ""}${p.soknadId ? " · fra søknad" : ""}</span>
+              <span class="post-kategori">${[p.kategori, flereKontoer || p.type === "overforing" ? kontotekst(p, S.innst) : ""].filter(Boolean).join(" · ")}${p.kvitteringIds?.length ? " · kvittering" : ""}${p.soknadId ? " · fra søknad" : ""}</span>
             </span>
             ${raw(belopHtml(p, S.innst, filter.konto || undefined))}
           </a></li>`))}

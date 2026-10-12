@@ -3,6 +3,7 @@
 import { html, raw, kr, datoTekst } from "../util.js";
 import { saldoNaa, aarsregnskap, sorterPoster, kontingentStatus } from "../regnskap.js";
 import { belopHtml } from "./poster.js";
+import { ikon } from "../ikoner.js";
 
 export function oversikt(main, S) {
   const r = aarsregnskap(S.poster, S.innst, S.aar);
@@ -24,9 +25,9 @@ export function oversikt(main, S) {
     </div>
 
     ${venter.length ? raw(html`
-      <a class="varsel info lenke" href="#/soknader">📥 ${venter.length} ${venter.length === 1 ? "søknad venter" : "søknader venter"} på behandling eller utbetaling</a>`) : ""}
+      <a class="varsel info lenke" href="#/soknader">${raw(ikon("soknader"))} ${venter.length} ${venter.length === 1 ? "søknad venter" : "søknader venter"} på behandling eller utbetaling</a>`) : ""}
     ${S.foresporsler.length ? raw(html`
-      <a class="varsel info lenke" href="#/medlemmer">👋 ${S.foresporsler.length} ${S.foresporsler.length === 1 ? "person ber" : "personer ber"} om tilgang</a>`) : ""}
+      <a class="varsel info lenke" href="#/medlemmer">${raw(ikon("person"))} ${S.foresporsler.length} ${S.foresporsler.length === 1 ? "person ber" : "personer ber"} om tilgang</a>`) : ""}
 
     <div class="nokkeltall">
       <div class="tallkort"><span class="etikett">Saldo nå</span><span class="verdi">${kr(saldoNaa(S.poster, S.innst))}</span></div>

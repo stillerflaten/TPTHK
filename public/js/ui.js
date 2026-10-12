@@ -2,6 +2,7 @@
 
 import { esc, html, raw, forberedKvittering, dataUrlTilBlob } from "./util.js";
 import { hentKvittering, lagreKvittering } from "./firebase.js";
+import { ikon } from "./ikoner.js";
 
 // ---------- Korte beskjeder nederst på skjermen ----------
 
@@ -90,7 +91,7 @@ export async function visKvittering(id) {
       return;
     }
     vindu.innerHTML = html`
-      <div class="dialog-topp"><strong>${k.navn}</strong><button class="ikonknapp" data-lukk aria-label="Lukk">✕</button></div>
+      <div class="dialog-topp"><strong>${k.navn}</strong><button class="ikonknapp" data-lukk aria-label="Lukk">${raw(ikon("lukk"))}</button></div>
       <img class="kvittering-stor" src="${k.data}" alt="Kvittering ${k.navn}">
       <div class="knapper"><a class="knapp sekundaer" href="${k.data}" download="${k.navn}">Last ned</a></div>`;
   } catch (e) {
@@ -101,7 +102,7 @@ export async function visKvittering(id) {
 
 /** Knapper for å vise kvitteringer som allerede er lagret. */
 export function kvitteringslenker(ids = []) {
-  return ids.map((id, i) => html`<button type="button" class="brikke" data-kvittering="${id}">📎 Kvittering ${ids.length > 1 ? i + 1 : ""}</button>`).join("");
+  return ids.map((id, i) => html`<button type="button" class="brikke" data-kvittering="${id}">${raw(ikon("binders"))} Kvittering ${ids.length > 1 ? i + 1 : ""}</button>`).join("");
 }
 
 export function kobleKvitteringslenker(rot) {
@@ -121,7 +122,7 @@ export function kvitteringsvelger(beholder, { eksisterende = [], kanFjerne = tru
   beholder.innerHTML = html`
     <div class="kvitteringer"></div>
     <label class="knapp sekundaer filknapp">
-      📷 Legg til kvittering
+      ${raw(ikon("kamera"))} Legg til kvittering
       <input type="file" accept="image/*,application/pdf" multiple hidden>
     </label>
     <p class="hint">Ta bilde med mobilen eller velg en fil (bilde eller PDF).</p>`;
@@ -132,14 +133,14 @@ export function kvitteringsvelger(beholder, { eksisterende = [], kanFjerne = tru
     liste.innerHTML = [
       ...beholdte.map((id, i) => html`
         <div class="kvittering-rad">
-          <button type="button" class="brikke" data-kvittering="${id}">📎 Lagret kvittering ${i + 1}</button>
-          ${kanFjerne ? raw(html`<button type="button" class="ikonknapp" data-fjern-lagret="${id}" aria-label="Fjern">✕</button>`) : ""}
+          <button type="button" class="brikke" data-kvittering="${id}">${raw(ikon("binders"))} Lagret kvittering ${i + 1}</button>
+          ${kanFjerne ? raw(html`<button type="button" class="ikonknapp" data-fjern-lagret="${id}" aria-label="Fjern">${raw(ikon("lukk"))}</button>`) : ""}
         </div>`),
       ...nye.map((f, i) => html`
         <div class="kvittering-rad">
           ${f.type.startsWith("image/") ? raw(html`<img class="miniatyr" src="${f.data}" alt="">`) : raw(`<span class="brikke">PDF</span>`)}
           <span class="filnavn">${f.navn}</span>
-          <button type="button" class="ikonknapp" data-fjern-ny="${i}" aria-label="Fjern">✕</button>
+          <button type="button" class="ikonknapp" data-fjern-ny="${i}" aria-label="Fjern">${raw(ikon("lukk"))}</button>
         </div>`),
     ].join("");
     kobleKvitteringslenker(liste);

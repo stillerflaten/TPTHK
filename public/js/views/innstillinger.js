@@ -3,6 +3,7 @@
 import { html, raw, tolkBelop, belopTilInput } from "../util.js";
 import { lagreInnstillinger, lagreMedlemsinfo, lagreBruker, normalEpost } from "../firebase.js";
 import { melding, medKnapp, bekreft } from "../ui.js";
+import { ikon } from "../ikoner.js";
 
 export function innstillinger(main, S) {
   const i = S.innst;
@@ -14,7 +15,7 @@ export function innstillinger(main, S) {
   const kategoriliste = (type) => html`
     <div class="kategorier" data-type="${type}">
       ${i.kategorier[type].map((k, n) => raw(html`
-        <span class="brikke">${k}<button type="button" class="ikonknapp" data-fjern="${n}" aria-label="Fjern ${k}">✕</button></span>`))}
+        <span class="brikke">${k}<button type="button" class="ikonknapp" data-fjern="${n}" aria-label="Fjern ${k}">${raw(ikon("lukk"))}</button></span>`))}
       <form class="ny-kategori"><input placeholder="Ny kategori" maxlength="40" required><button class="knapp sekundaer liten">Legg til</button></form>
     </div>`;
 
@@ -149,7 +150,7 @@ function kobleKontoer(main, S) {
         <label>Navn<input name="navn" value="${k.navn}" placeholder="F.eks. Brukskonto" required></label>
         <label>Kontonummer<input name="kontonummer" value="${k.kontonummer || ""}" inputmode="numeric" placeholder="Valgfritt"></label>
         <label>Startsaldo (kr)<input name="startSaldo" inputmode="decimal" value="${k.saldoTekst ?? belopTilInput(k.startSaldo || 0)}"></label>
-        <button type="button" class="ikonknapp" data-fjern-konto="${k.id}" aria-label="Fjern ${k.navn}" ${kontoer.length < 2 ? "hidden" : ""}>✕</button>
+        <button type="button" class="ikonknapp" data-fjern-konto="${k.id}" aria-label="Fjern ${k.navn}" ${kontoer.length < 2 ? "hidden" : ""}>${raw(ikon("lukk"))}</button>
       </div>`).join("");
     rader.querySelectorAll("[data-fjern-konto]").forEach((b) => b.addEventListener("click", () => {
       const id = b.dataset.fjernKonto;

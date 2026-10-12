@@ -3,6 +3,7 @@
 import { html, raw, kr, datoTekst } from "../util.js";
 import { aarsregnskap, sorterPoster, kontingentStatus } from "../regnskap.js";
 import { kontotekst } from "./poster.js";
+import { ikon } from "../ikoner.js";
 
 let medBilagsliste = false;
 
@@ -25,7 +26,7 @@ export function rapport(main, S) {
       <h1>Årsrapport ${S.aar}</h1>
       <div class="knapperad">
         <label class="avkryss"><input type="checkbox" id="bilag" ${medBilagsliste ? "checked" : ""}> Ta med bilagsliste</label>
-        <button class="knapp" id="skriv">🖨 Skriv ut / lagre PDF</button>
+        <button class="knapp" id="skriv">${raw(ikon("skriver"))} Skriv ut / lagre PDF</button>
       </div>
     </div>
     <p class="hint ikke-utskrift">Tips: Velg «Lagre som PDF» i utskriftsvinduet for å sende rapporten på e-post.</p>

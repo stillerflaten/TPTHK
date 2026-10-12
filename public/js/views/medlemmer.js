@@ -8,6 +8,7 @@ import {
 } from "../firebase.js";
 import { melding, medKnapp, bekreft, dialog } from "../ui.js";
 import { gaaTil } from "../app.js";
+import { ikon } from "../ikoner.js";
 
 const filter = { sok: "", vis: "aktive" };
 
@@ -25,7 +26,7 @@ export function liste(main, S) {
     <div class="sidetopp">
       <h1>Medlemmer</h1>
       <div class="knapperad">
-        <button class="knapp sekundaer" id="eksport">⬇︎ Excel</button>
+        <button class="knapp sekundaer" id="eksport">${raw(ikon("lastned"))} Excel</button>
         <a class="knapp" href="#/medlem/ny">+ Nytt medlem</a>
       </div>
     </div>
@@ -59,7 +60,7 @@ export function liste(main, S) {
         <li class="${m.aktiv === false ? "utmeldt" : ""}">
           <a href="#/medlem/${m.id}" class="medlem-info">
             <strong>${m.navn}</strong>
-            <span class="hint">${[m.hund && `🐕 ${m.hund}`, m.epost].filter(Boolean).join(" · ")}${t ? ` · ${t.rolle === "kasserer" ? (t.admin ? "administrator" : "kasserer") : "har innlogging"}` : ""}${m.aktiv === false ? " · utmeldt" : ""}</span>
+            <span class="hint">${[m.hund && `Hund: ${m.hund}`, m.epost].filter(Boolean).join(" · ")}${t ? ` · ${t.rolle === "kasserer" ? (t.admin ? "administrator" : "kasserer") : "har innlogging"}` : ""}${m.aktiv === false ? " · utmeldt" : ""}</span>
           </a>
           <button class="kontingent ${betalt ? "betalt" : ""}" data-kontingent="${m.id}" title="Kontingent ${aar}">
             ${betalt ? `✓ Betalt ${aar}` : `Ikke betalt ${aar}`}

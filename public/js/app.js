@@ -13,6 +13,7 @@ import * as soknader from "./views/soknader.js";
 import * as medlemmer from "./views/medlemmer.js";
 import * as innstillinger from "./views/innstillinger.js";
 import * as minside from "./views/minside.js";
+import { ikon } from "./ikoner.js";
 
 const main = document.getElementById("innhold");
 const meny = document.getElementById("meny");
@@ -48,25 +49,25 @@ let gjeldendeSide = null;
 // ---------- Sider ----------
 
 const kassererSider = {
-  oversikt: { meny: "Oversikt", ikon: "📊", side: oversikt.oversikt },
-  poster: { meny: "Poster", ikon: "🧾", side: poster.liste },
+  oversikt: { meny: "Oversikt", ikon: "oversikt", side: oversikt.oversikt },
+  poster: { meny: "Poster", ikon: "poster", side: poster.liste },
   post: { side: poster.skjema },
-  soknader: { meny: "Søknader", ikon: "📥", side: soknader.kassererListe },
+  soknader: { meny: "Søknader", ikon: "soknader", side: soknader.kassererListe },
   soknad: { side: soknader.kassererDetalj },
-  medlemmer: { meny: "Medlemmer", ikon: "👥", side: medlemmer.liste },
+  medlemmer: { meny: "Medlemmer", ikon: "medlemmer", side: medlemmer.liste },
   medlem: { side: medlemmer.skjema },
-  rapport: { meny: "Årsrapport", ikon: "📄", side: rapport.rapport },
-  innstillinger: { meny: "Innstillinger", ikon: "⚙️", side: innstillinger.innstillinger },
+  rapport: { meny: "Årsrapport", ikon: "rapport", side: rapport.rapport },
+  innstillinger: { meny: "Innstillinger", ikon: "innstillinger", side: innstillinger.innstillinger },
   mine: { side: soknader.mineListe },
   "ny-soknad": { side: soknader.nySoknad },
   "min-soknad": { side: soknader.minDetalj },
 };
 
 const medlemSider = {
-  mine: { meny: "Mine søknader", ikon: "📥", side: soknader.mineListe },
-  "ny-soknad": { meny: "Ny søknad", ikon: "➕", side: soknader.nySoknad },
+  mine: { meny: "Mine søknader", ikon: "soknader", side: soknader.mineListe },
+  "ny-soknad": { meny: "Ny søknad", ikon: "ny", side: soknader.nySoknad },
   "min-soknad": { side: soknader.minDetalj },
-  minside: { meny: "Min side", ikon: "👤", side: minside.minside },
+  minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
 
 const erKasserer = () => S.profil?.rolle === "kasserer";
@@ -127,29 +128,34 @@ function venter() {
   main.innerHTML = `<div class="laster"><div class="spinner"></div></div>`;
 }
 
+const utloggKnapp = () =>
+  html`<button class="utlogg" id="loggut" title="Logg ut ${S.bruker.email}">${raw(ikon("utlogg"))}<span>Logg ut</span></button>`;
+
 function tegnMeny(aktiv) {
   document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? "admin" : erKasserer() ? "kasserer" : "medlem") : "";
   if (!S.bruker || !S.profil) {
     meny.innerHTML = "";
-    topp.innerHTML = S.bruker ? html`<button class="lenkeknapp" id="loggut">Logg ut</button>` : "";
+    topp.innerHTML = S.bruker ? utloggKnapp() : "";
     topp.querySelector("#loggut")?.addEventListener("click", () => konto.loggUt());
     document.body.classList.remove("har-meny");
+    document.body.classList.add("ute");
     return;
   }
   document.body.classList.add("har-meny");
+  document.body.classList.remove("ute");
   const s = sider();
   meny.innerHTML = Object.entries(s).filter(([, v]) => v.meny).map(([k, v]) => {
     const merke = k === "soknader" ? S.soknader.filter((x) => x.status === "sendt").length
       : k === "medlemmer" ? S.foresporsler.length : 0;
     return html`<a href="#/${k}" class="${k === aktiv || (s[aktiv] && !s[aktiv].meny && hører(aktiv) === k) ? "aktiv" : ""}">
-      <span class="ikon" aria-hidden="true">${v.ikon}</span><span>${v.meny}</span>${merke ? raw(`<span class="merke">${merke}</span>`) : ""}
+      ${raw(ikon(v.ikon))}<span class="meny-tekst">${v.meny}</span>${merke ? raw(`<span class="merke">${merke}</span>`) : ""}
     </a>`;
-  }).join("");
+  }).join("") + `<div class="meny-fot">${ikon("stjerne")}<span>Trøndelag Politis<br>Tjenestehundklubb · 1952</span></div>`;
 
   const aarValg = erKasserer()
     ? html`<label class="aarvalg"><span class="skjult">Regnskapsår</span><select id="aar">${tilgjengeligeAar(S.poster).map((a) => raw(html`<option ${a === S.aar ? "selected" : ""}>${a}</option>`))}</select></label>`
     : "";
-  topp.innerHTML = aarValg + html`<button class="lenkeknapp" id="loggut" title="${S.bruker.email}">Logg ut</button>`;
+  topp.innerHTML = aarValg + utloggKnapp();
   topp.querySelector("#loggut").addEventListener("click", () => konto.loggUt());
   topp.querySelector("#aar")?.addEventListener("change", (e) => { S.aar = Number(e.target.value); tegn(); });
 }
