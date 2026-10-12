@@ -7,6 +7,8 @@ rules_version = '2';
 //  • Bare innloggede med bekreftet e-post, som kassereren har gitt tilgang (en rad i «brukere»), kommer inn.
 //  • Kasserere ser og endrer alt.
 //  • Medlemmer ser bare sine egne søknader og kvitteringer, sitt eget medlemskort og betalingsinfo.
+//  • Alle med tilgang ser møteinnkallinger og referater. Styret (styre: true, og kasserere) legger dem ut.
+//  • Et referat signeres av de styret velger. Når alle har signert, er referatet låst for godt.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -28,6 +30,9 @@ service cloud.firestore {
     }
     function erKasserer() {
       return harTilgang() && profil().rolle == 'kasserer';
+    }
+    function erStyret() {
+      return harTilgang() && (profil().rolle == 'kasserer' || profil().get('styre', false) == true);
     }
     function gyldigBelop(b) {
       return b is int && b > 0 && b < 100000000;
@@ -96,6 +101,64 @@ service cloud.firestore {
       allow update: if erKasserer();
       allow delete: if erKasserer()
         || (harTilgang() && resource.data.eier == epost() && resource.data.get('laast', false) != true);
+    }
+
+    // Hvem som har innlogging, så styret kan velge hvem som skal signere et referat. Holdes oppdatert av kassereren.
+    match /innstillinger/personer {
+      allow read: if erStyret();
+      allow write: if erKasserer();
+    }
+
+    // Møter: innkalling (alle kan lese) og referat. Referatet ligger her først når det sendes til signering.
+    match /moter/{id} {
+      function gyldigMote(d) {
+        return d.type in ['styremote', 'arsmote'] && d.dato is string && d.tittel is string
+          && d.referatStatus in ['ingen', 'utkast', 'signering'];
+      }
+      function referatUendret() {
+        return request.resource.data.get('referat', null) == resource.data.get('referat', null)
+          && request.resource.data.get('referatHash', null) == resource.data.get('referatHash', null)
+          && request.resource.data.get('signatarer', []) == resource.data.get('signatarer', []);
+      }
+      allow read: if harTilgang();
+      allow create: if erStyret() && gyldigMote(request.resource.data) && request.resource.data.referatStatus == 'ingen';
+      allow delete: if erStyret() && resource.data.referatStatus != 'godkjent';
+      allow update: if
+        // Styret endrer så lenge referatet ikke er godkjent. Under signering kan ikke teksten endres
+        // (da må referatet trekkes tilbake, og signaturene slettes).
+        (erStyret() && resource.data.referatStatus != 'godkjent' && gyldigMote(request.resource.data)
+          && (resource.data.referatStatus != 'signering' || request.resource.data.referatStatus != 'signering' || referatUendret()))
+        // Den som signerer sist, markerer referatet som godkjent.
+        || (harTilgang() && resource.data.referatStatus == 'signering' && epost() in resource.data.signatarer
+          && request.resource.data.referatStatus == 'godkjent'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['referatStatus', 'godkjent'])
+          && existsAfter(/databases/$(database)/documents/signaturer/$(id + '__' + epost())));
+    }
+
+    // Referatet mens styret skriver på det. Bare styret ser utkast.
+    match /referatutkast/{id} {
+      allow read, write: if erStyret();
+    }
+
+    // Signaturer på referater. Dokument-ID er «møte-ID__e-post». Hver person signerer bare for seg selv,
+    // og bare den teksten som faktisk er sendt til signering (kontrollsummen må stemme).
+    match /signaturer/{id} {
+      function mote() {
+        return get(/databases/$(database)/documents/moter/$(request.resource.data.moteId)).data;
+      }
+      allow read: if harTilgang();
+      allow create: if harTilgang()
+        && request.resource.data.keys().hasOnly(['moteId', 'epost', 'navn', 'hash', 'tidspunkt'])
+        && request.resource.data.moteId is string
+        && id == request.resource.data.moteId + '__' + epost()
+        && request.resource.data.epost == epost()
+        && request.resource.data.navn is string && request.resource.data.navn.size() < 100
+        && request.resource.data.tidspunkt == request.time
+        && mote().referatStatus == 'signering'
+        && epost() in mote().signatarer
+        && request.resource.data.hash == mote().referatHash;
+      allow delete: if erStyret()
+        && get(/databases/$(database)/documents/moter/$(resource.data.moteId)).data.get('referatStatus', 'slettet') != 'godkjent';
     }
   }
 }

@@ -2,6 +2,7 @@
 
 import {
   klar, auth, konto, lyttProfil, lyttSamling, lyttDokument, lyttMineSoknader, lyttMinForesporsel, normalEpost,
+  lagrePersonliste,
 } from "./firebase.js";
 import { html, raw, esc, aarNaa } from "./util.js";
 import { medStandard, tilgjengeligeAar, nummererBilag } from "./regnskap.js";
@@ -13,6 +14,7 @@ import * as soknader from "./views/soknader.js";
 import * as medlemmer from "./views/medlemmer.js";
 import * as innstillinger from "./views/innstillinger.js";
 import * as minside from "./views/minside.js";
+import * as moter from "./views/moter.js";
 import { ikon } from "./ikoner.js";
 
 const main = document.getElementById("innhold");
@@ -25,6 +27,7 @@ export const S = {
   profil: undefined, // undefined = ikke lastet, null = finnes ikke (ingen tilgang)
   foresporsel: null,
   poster: [], medlemmer: [], soknader: [], brukere: [], foresporsler: [],
+  moter: [], signaturer: [], personer: [],
   innst: medStandard(null),
   info: {},
   mittMedlem: null,
@@ -57,16 +60,27 @@ const kassererSider = {
   medlemmer: { meny: "Medlemmer", ikon: "medlemmer", side: medlemmer.liste },
   medlem: { side: medlemmer.skjema },
   rapport: { meny: "Årsrapport", ikon: "rapport", side: rapport.rapport },
+  moter: { meny: "Møter", ikon: "moter", side: moter.liste },
   innstillinger: { meny: "Innstillinger", ikon: "innstillinger", side: innstillinger.innstillinger },
   mine: { side: soknader.mineListe },
   "ny-soknad": { side: soknader.nySoknad },
   "min-soknad": { side: soknader.minDetalj },
 };
 
+// Møter og referater: felles for alle. Hva man kan endre, styres av om man sitter i styret.
+const moteSider = {
+  mote: { side: moter.detalj },
+  "mote-skjema": { side: moter.skjema },
+  referat: { side: moter.referat },
+};
+Object.assign(kassererSider, moteSider);
+
 const medlemSider = {
   mine: { meny: "Mine søknader", ikon: "soknader", side: soknader.mineListe },
   "ny-soknad": { meny: "Ny søknad", ikon: "ny", side: soknader.nySoknad },
   "min-soknad": { side: soknader.minDetalj },
+  moter: { meny: "Møter", ikon: "moter", side: moter.liste },
+  ...moteSider,
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
 
@@ -94,6 +108,7 @@ function dataEndret() {
   requestAnimationFrame(() => {
     planlagt = false;
     if (!S.bruker) return;
+    oppdaterPersonliste();
     if (!gjeldendeSide || gjeldendeSide.live || gjeldendeSide.venter) tegn();
     else tegnMeny();
   });
@@ -132,7 +147,7 @@ const utloggKnapp = () =>
   html`<button class="utlogg" id="loggut" title="Logg ut ${S.bruker.email}">${raw(ikon("utlogg"))}<span>Logg ut</span></button>`;
 
 function tegnMeny(aktiv) {
-  document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? "admin" : erKasserer() ? "kasserer" : "medlem") : "";
+  document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? "admin" : erKasserer() ? "kasserer" : S.profil.styre ? "styret" : "medlem") : "";
   if (!S.bruker || !S.profil) {
     meny.innerHTML = "";
     topp.innerHTML = S.bruker ? utloggKnapp() : "";
@@ -146,7 +161,8 @@ function tegnMeny(aktiv) {
   const s = sider();
   meny.innerHTML = Object.entries(s).filter(([, v]) => v.meny).map(([k, v]) => {
     const merke = k === "soknader" ? S.soknader.filter((x) => x.status === "sendt").length
-      : k === "medlemmer" ? S.foresporsler.length : 0;
+      : k === "medlemmer" ? S.foresporsler.length
+      : k === "moter" && S.lastet.has("signaturer") ? moter.venterPaaMeg(S).length : 0;
     return html`<a href="#/${k}" class="${k === aktiv || (s[aktiv] && !s[aktiv].meny && hører(aktiv) === k) ? "aktiv" : ""}">
       ${raw(ikon(v.ikon))}<span class="meny-tekst">${v.meny}</span>${merke ? raw(`<span class="merke">${merke}</span>`) : ""}
     </a>`;
@@ -161,7 +177,8 @@ function tegnMeny(aktiv) {
 }
 
 // Undersider markerer menypunktet de hører til.
-const hører = (navn) => ({ post: "poster", soknad: "soknader", medlem: "medlemmer", "ny-soknad": "mine", "min-soknad": "mine" })[navn];
+const hører = (navn) => ({ post: "poster", soknad: "soknader", medlem: "medlemmer", "ny-soknad": "mine", "min-soknad": "mine",
+  mote: "moter", "mote-skjema": "moter", referat: "moter" })[navn];
 
 // ---------- Data ----------
 
@@ -185,8 +202,9 @@ function startLyttere() {
   let rolle;
   lyttere.push(lyttProfil((p) => {
     S.profil = p;
-    if (p?.rolle !== rolle) {
-      rolle = p?.rolle;
+    const ny = p ? `${p.rolle}|${p.styre === true}` : undefined;
+    if (ny !== rolle) {
+      rolle = ny;
       startRolleLyttere();
     }
     dataEndret();
@@ -213,6 +231,15 @@ function startRolleLyttere() {
     S.lastet.add("mittMedlem");
   }
 
+  stoppLyttere.push(lyttSamling("moter", sett("moter"), visFeil));
+  stoppLyttere.push(lyttSamling("signaturer", sett("signaturer"), visFeil));
+  if (moter.erStyret(S)) {
+    stoppLyttere.push(lyttDokument("innstillinger", "personer", (d) => sett("personer")(d?.liste || []), visFeil));
+  } else {
+    S.personer = [];
+    S.lastet.add("personer");
+  }
+
   if (r === "kasserer") {
     stoppLyttere.push(lyttSamling("poster", (p) => sett("poster")(nummererBilag(p)), visFeil));
     stoppLyttere.push(lyttSamling("medlemmer", sett("medlemmer"), visFeil));
@@ -221,6 +248,24 @@ function startRolleLyttere() {
     stoppLyttere.push(lyttSamling("foresporsler", sett("foresporsler"), visFeil));
     stoppLyttere.push(lyttDokument("innstillinger", "klubb", (d) => { S.innst = medStandard(d); S.lastet.add("innst"); dataEndret(); }, visFeil));
   }
+}
+
+/**
+ * Styret kan ikke lese «brukere» (der ligger blant annet kontonumre), men trenger navn og e-post
+ * for å velge hvem som skal signere referater. Kassereren holder derfor en kort liste oppdatert.
+ */
+let sistePersonliste = null;
+function oppdaterPersonliste() {
+  if (!erKasserer() || !S.lastet.has("brukere") || !S.lastet.has("personer")) return;
+  const liste = S.brukere
+    .map((b) => ({ epost: b.id, navn: b.navn || "", styre: b.styre === true || (b.rolle === "kasserer" && !b.admin) }))
+    .sort((a, b) => a.epost.localeCompare(b.epost));
+  const ny = JSON.stringify(liste);
+  const naa = JSON.stringify(S.personer.map((p) => ({ epost: p.epost, navn: p.navn, styre: p.styre }))
+    .sort((a, b) => a.epost.localeCompare(b.epost)));
+  if (ny === naa || ny === sistePersonliste) return;
+  sistePersonliste = ny;
+  lagrePersonliste(liste).catch(visFeil);
 }
 
 // ---------- Oppstart ----------
@@ -234,6 +279,7 @@ if (klar) {
     Object.assign(S, {
       bruker, profil: undefined, foresporsel: null, poster: [], medlemmer: [], soknader: [], mineSoknader: [],
       brukere: [], foresporsler: [], innst: medStandard(null), info: {}, mittMedlem: null, lastet: new Set(),
+      moter: [], signaturer: [], personer: [],
     });
     if (bruker?.emailVerified) startLyttere();
     tegn();

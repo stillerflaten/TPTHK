@@ -222,3 +222,83 @@ export async function utbetalSoknad(soknad, post) {
 
 export const lagreInnstillinger = (data) => setDoc(doc(db, "innstillinger", "klubb"), data, { merge: true });
 export const lagreMedlemsinfo = (data) => setDoc(doc(db, "innstillinger", "medlemsinfo"), data, { merge: true });
+
+// ---------- Møter, referater og signering ----------
+
+/** Lager en kontrollsum av referatet. Den lagres med hver signatur, så man kan se at teksten ikke er endret etterpå. */
+export async function referatHash(moteId, tekst) {
+  const bytes = new TextEncoder().encode(`${moteId}\n${tekst}`);
+  const sum = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(sum)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function lagreMote(id, data) {
+  const felt = { ...data, endret: serverTimestamp(), endretAv: meg() };
+  if (id) {
+    await updateDoc(doc(db, "moter", id), felt);
+    return id;
+  }
+  const ref = await addDoc(collection(db, "moter"), {
+    ...felt, referatStatus: "ingen", opprettet: serverTimestamp(), opprettetAv: meg(),
+  });
+  return ref.id;
+}
+
+export async function slettMote(mote, signaturer) {
+  const batch = writeBatch(db);
+  for (const s of signaturer) batch.delete(doc(db, "signaturer", s.id));
+  batch.delete(doc(db, "referatutkast", mote.id));
+  batch.delete(doc(db, "moter", mote.id));
+  await batch.commit();
+}
+
+export async function hentReferatutkast(moteId) {
+  const d = await getDoc(doc(db, "referatutkast", moteId));
+  return d.exists() ? d.data() : null;
+}
+
+/** Lagrer referatet som utkast (bare styret ser det). */
+export async function lagreReferatutkast(mote, { tekst, signatarer }) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, "referatutkast", mote.id), { tekst, signatarer, endret: serverTimestamp(), endretAv: meg() });
+  if (mote.referatStatus === "ingen") batch.update(doc(db, "moter", mote.id), { referatStatus: "utkast" });
+  await batch.commit();
+}
+
+/** Sender referatet til signering: teksten blir synlig for alle med tilgang, og kan ikke endres uten å trekkes tilbake. */
+export async function sendTilSignering(mote, { tekst, signatarer, navn }) {
+  const hash = await referatHash(mote.id, tekst);
+  const batch = writeBatch(db);
+  batch.set(doc(db, "referatutkast", mote.id), { tekst, signatarer, endret: serverTimestamp(), endretAv: meg() });
+  batch.update(doc(db, "moter", mote.id), {
+    referatStatus: "signering", referat: tekst, referatHash: hash, signatarer, signatarNavn: navn,
+    sendtTilSignering: serverTimestamp(), sendtAv: meg(),
+  });
+  await batch.commit();
+}
+
+/** Trekker referatet tilbake fra signering. Signaturene som er gitt, slettes. */
+export async function trekkTilbakeReferat(mote, signaturer) {
+  const batch = writeBatch(db);
+  for (const s of signaturer) batch.delete(doc(db, "signaturer", s.id));
+  batch.update(doc(db, "moter", mote.id), {
+    referatStatus: "utkast", referat: deleteField(), referatHash: deleteField(), signatarer: deleteField(),
+    signatarNavn: deleteField(), sendtTilSignering: deleteField(), sendtAv: deleteField(),
+  });
+  await batch.commit();
+}
+
+/** Signerer referatet. Er man den siste, blir referatet samtidig markert som godkjent. */
+export async function signerReferat(mote, navn, erSist) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, "signaturer", `${mote.id}__${meg()}`), {
+    moteId: mote.id, epost: meg(), navn, hash: mote.referatHash, tidspunkt: serverTimestamp(),
+  });
+  if (erSist) batch.update(doc(db, "moter", mote.id), { referatStatus: "godkjent", godkjent: serverTimestamp() });
+  await batch.commit();
+}
+
+export const markerGodkjent = (mote) =>
+  updateDoc(doc(db, "moter", mote.id), { referatStatus: "godkjent", godkjent: serverTimestamp() });
+
+export const lagrePersonliste = (liste) => setDoc(doc(db, "innstillinger", "personer"), { liste });

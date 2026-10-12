@@ -60,7 +60,7 @@ export function liste(main, S) {
         <li class="${m.aktiv === false ? "utmeldt" : ""}">
           <a href="#/medlem/${m.id}" class="medlem-info">
             <strong>${m.navn}</strong>
-            <span class="hint">${[m.hund && `Hund: ${m.hund}`, m.epost].filter(Boolean).join(" · ")}${t ? ` · ${t.rolle === "kasserer" ? (t.admin ? "administrator" : "kasserer") : "har innlogging"}` : ""}${m.aktiv === false ? " · utmeldt" : ""}</span>
+            <span class="hint">${[m.hund && `Hund: ${m.hund}`, m.epost].filter(Boolean).join(" · ")}${t ? ` · ${t.rolle === "kasserer" ? (t.admin ? "administrator" : "kasserer") : t.styre ? "styret" : "har innlogging"}` : ""}${m.aktiv === false ? " · utmeldt" : ""}</span>
           </a>
           <button class="kontingent ${betalt ? "betalt" : ""}" data-kontingent="${m.id}" title="Kontingent ${aar}">
             ${betalt ? `✓ Betalt ${aar}` : `Ikke betalt ${aar}`}
@@ -183,6 +183,8 @@ export function skjema(main, S, id) {
       <label class="avkryss"><input type="checkbox" name="aktiv" ${m.aktiv !== false ? "checked" : ""}> Aktivt medlem</label>
       <label class="avkryss"><input type="checkbox" name="tilgang" ${tilgang ? "checked" : ""} ${erMeg ? "disabled" : ""}>
         Kan logge inn og sende søknader om refusjon</label>
+      <label class="avkryss" id="styre-valg" ${tilgang || erMeg ? "" : "hidden"}><input type="checkbox" name="styre" ${tilgang?.styre ? "checked" : ""}>
+        Sitter i styret (kan legge ut møteinnkallinger og referater)</label>
       <p class="hint">Personen oppretter selv konto på nettsiden med samme e-post. ${tilgang?.rolle === "kasserer" ? "Denne personen er kasserer (endres under Innstillinger)." : ""}</p>
       <div class="knapper">
         ${ny ? "" : raw(`<button type="button" class="knapp farlig sekundaer" id="slett">Slett</button>`)}
@@ -197,6 +199,7 @@ export function skjema(main, S, id) {
       </section>`) : ""}`;
 
   const f = main.querySelector("#skjema");
+  f.elements.tilgang.addEventListener("change", () => { main.querySelector("#styre-valg").hidden = !f.elements.tilgang.checked; });
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(f));
@@ -214,7 +217,7 @@ export function skjema(main, S, id) {
       if (tilgang && tilgang.rolle !== "kasserer" && (gammelEpost !== epost || !vilHaTilgang)) await slettBruker(gammelEpost);
       if (vilHaTilgang) {
         const rolle = (gammelEpost === epost && tilgang?.rolle) || S.brukere.find((b) => b.id === epost)?.rolle || "medlem";
-        await lagreBruker(epost, { rolle, navn: v.navn.trim(), medlemId });
+        await lagreBruker(epost, { rolle, navn: v.navn.trim(), medlemId, styre: Boolean(v.styre) });
       }
       melding(ny ? "Medlemmet er lagt til." : "Endringene er lagret.");
       gaaTil("medlemmer");
