@@ -17,6 +17,7 @@ import * as innstillinger from "./views/innstillinger.js";
 import * as minside from "./views/minside.js";
 import * as moter from "./views/moter.js";
 import * as styret from "./views/styret.js";
+import * as regelverk from "./views/regelverk.js";
 import { hjelp } from "./views/hjelp.js";
 import { personvern } from "./views/personvern.js";
 import { ikon } from "./ikoner.js";
@@ -33,7 +34,7 @@ export const S = {
   profil: undefined, // undefined = ikke lastet, null = finnes ikke (ingen tilgang)
   foresporsel: null,
   poster: [], medlemmer: [], soknader: [], brukere: [], foresporsler: [],
-  moter: [], signaturer: [], personer: [],
+  moter: [], signaturer: [], personer: [], regelverk: [],
   support: null,
   verv: undefined, // undefined = ikke lastet, null = ikke opprettet ennå
   innst: medStandard(null),
@@ -74,6 +75,8 @@ const kassererSider = {
   mine: { side: soknader.mineListe },
   "ny-soknad": { side: soknader.nySoknad },
   "min-soknad": { side: soknader.minDetalj },
+  // Kassereren har mange menypunkter, så Min side ligger som lenke øverst i stedet.
+  minside: { side: minside.minside },
 };
 
 // Møter og referater: felles for alle. Hva man kan endre, styres av om man sitter i styret.
@@ -84,13 +87,17 @@ const moteSider = {
   styret: { side: styret.styret },
   hjelp: { side: hjelp },
 };
-Object.assign(kassererSider, moteSider);
+// Regelverket: i menyen for alle unntatt kassereren, som har så mange menypunkter fra før. Kassereren finner det under Møter.
+const regelSider = { regelverk: { side: regelverk.liste }, "regel-skjema": { side: regelverk.skjema } };
+const regelMeny = { ...regelSider, regelverk: { meny: "Regelverk", ikon: "regelverk", side: regelverk.liste } };
+Object.assign(kassererSider, moteSider, regelSider);
 
 const medlemSider = {
   mine: { meny: "Mine søknader", ikon: "soknader", side: soknader.mineListe },
   "ny-soknad": { meny: "Ny søknad", ikon: "ny", side: soknader.nySoknad },
   "min-soknad": { side: soknader.minDetalj },
   moter: { meny: "Møter", ikon: "moter", side: moter.liste },
+  ...regelMeny,
   ...moteSider,
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
@@ -105,6 +112,7 @@ const styreSider = {
   "ny-soknad": { side: soknader.nySoknad },
   "min-soknad": { side: soknader.minDetalj },
   moter: { meny: "Møter", ikon: "moter", side: moter.liste },
+  ...regelMeny,
   ...moteSider,
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
@@ -121,6 +129,7 @@ const revisorSider = (styre) => ({
   "ny-soknad": { side: soknader.nySoknad },
   "min-soknad": { side: soknader.minDetalj },
   moter: { meny: "Møter", ikon: "moter", side: moter.liste },
+  ...regelMeny,
   ...moteSider,
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 });
@@ -206,6 +215,7 @@ function venter() {
   main.innerHTML = `<div class="laster"><div class="spinner"></div></div>`;
 }
 
+const minSideLenke = () => `<a class="utlogg" href="#/minside" title="Min side" aria-label="Min side">${ikon("person")}<span>Min side</span></a>`;
 const hjelpLenke = () => `<a class="utlogg" href="#/hjelp" title="Hjelp" aria-label="Hjelp">${ikon("hjelp")}<span>Hjelp</span></a>`;
 const utloggKnapp = () =>
   html`<button class="utlogg" id="loggut" title="Logg ut ${S.bruker.email}">${raw(ikon("utlogg"))}<span>Logg ut</span></button>`;
@@ -235,14 +245,14 @@ function tegnMeny(aktiv) {
   const aarValg = seRegnskap()
     ? html`<label class="aarvalg"><span class="skjult">Regnskapsår</span><select id="aar">${tilgjengeligeAar(S.poster, [S.aar, ...Object.keys(S.innst.budsjett || {}).map(Number)]).map((a) => raw(html`<option ${a === S.aar ? "selected" : ""}>${a}</option>`))}</select></label>`
     : "";
-  topp.innerHTML = aarValg + hjelpLenke() + utloggKnapp();
+  topp.innerHTML = aarValg + (s.minside && !s.minside.meny ? minSideLenke() : "") + hjelpLenke() + utloggKnapp();
   topp.querySelector("#loggut").addEventListener("click", () => konto.loggUt());
   topp.querySelector("#aar")?.addEventListener("change", (e) => { S.aar = Number(e.target.value); tegn(); });
 }
 
 // Undersider markerer menypunktet de hører til.
 const hører = (navn) => ({ post: "poster", soknad: "soknader", medlem: "medlemmer", "ny-soknad": "mine", "min-soknad": "mine",
-  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter", budsjett: "rapport" })[navn];
+  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter", budsjett: "rapport", "regel-skjema": "regelverk" })[navn];
 
 // ---------- Data ----------
 
@@ -349,6 +359,7 @@ function startRolleLyttere() {
 
   stoppLyttere.push(lyttSamling("moter", sett("moter"), visFeil));
   stoppLyttere.push(lyttSamling("signaturer", sett("signaturer"), visFeil));
+  stoppLyttere.push(lyttSamling("regelverk", sett("regelverk"), visFeil));
   if (moter.erStyret(S) || erAdmin(S)) {
     stoppLyttere.push(lyttDokument("innstillinger", "personer", (d) => sett("personer")(d?.liste || []), visFeil));
   } else {
@@ -419,7 +430,7 @@ if (klar) {
     Object.assign(S, {
       bruker, profil: undefined, foresporsel: null, poster: [], medlemmer: [], soknader: [], mineSoknader: [],
       brukere: [], foresporsler: [], innst: medStandard(null), info: {}, mittMedlem: null, lastet: new Set(),
-      moter: [], signaturer: [], personer: [], support: null, verv: undefined,
+      moter: [], signaturer: [], personer: [], regelverk: [], support: null, verv: undefined,
     });
     vervOpprettet = false;
     rolle = undefined;

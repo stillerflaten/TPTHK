@@ -41,6 +41,8 @@ const DELER = [
         huk av for at du har lest det og trykk «Signer». Når alle har signert, blir referatet godkjent og kan ikke endres lenger.</p>
         <p>Signaturen er en bekreftelse fra deg som innlogget bruker, med tidspunkt og en kontrollsum av teksten. Den viser at teksten
         ikke er endret etter at den ble signert. Det er ikke BankID.</p>`, ["signer"]],
+      ["Regelverk", `<p>Under <a href="#/regelverk">Regelverk</a> finner du klubbens vedtekter og andre regler, sortert i vedtekter og statutter,
+        retningslinjer, vedtak og annet. Trykk «Åpne» for å lese dokumentet. PDF-er åpnes i en ny fane, og lenker går til nettsiden der regelen ligger.</p>`],
       ["Min side og kontingent", `<p>På <a href="#/minside">Min side</a> ser du navnet ditt, kontonummeret for refusjoner og om kontingenten
         for i år er registrert som betalt. Der står også hvordan du betaler kontingenten. Har du nettopp betalt, kan det ta litt tid før kassereren registrerer det.</p>`, ["minside"]],
       ["Personvern", `<p>I <a href="#/personvern">personvernerklæringen</a> står det hva som lagres om deg, hvem som ser det, og hvilke rettigheter du har.
@@ -74,6 +76,14 @@ const DELER = [
           <li>Velg hvem som skal signere, og send til signering. Da kan alle medlemmer lese referatet, og de som skal signere, får varsel.</li>
           <li>Må noe endres, trykk «Trekk tilbake for å endre». Signaturer som er gitt, slettes, og alle må signere på nytt.</li>
         </ol>`, ["referat"]],
+      ["Legg inn vedtekter og andre regler", `
+        <ol>
+          <li>Gå til «Regelverk» og trykk «+ Legg til dokument».</li>
+          <li>Velg kategori, skriv tittel og gjerne en kort beskrivelse og dato for når det gjelder fra.</li>
+          <li>Velg «PDF-fil» og last opp fila (maks 5 MB), eller «Lenke» hvis regelen ligger på en annen nettside.</li>
+          <li>Trykk «Legg til». Alle medlemmer kan lese dokumentet med en gang.</li>
+        </ol>
+        <p>Er vedtektene endret, trykker du «Endre» og «Bytt fil». Den gamle fila slettes når du lagrer. Alle i styret kan legge inn og endre.</p>`],
       ["Styreverv", `<p>Under «Møter» og «Styret» ser du hvem som har hvilke verv. Kassereren og administratoren kan endre hvem som har dem.</p>`],
       ["Trenger dere hjelp?", `<p>Under Min side kan du be om support. Da får administratoren full tilgang i 24 timer, og tilgangen stenges av seg selv.</p>`],
     ],
@@ -124,6 +134,11 @@ const DELER = [
         </ol>
         <p>Medlemmer uten e-post står i en egen liste, så du kan ringe eller sende SMS. Når du sender, noteres datoen på hvert medlem.
         Nettsiden sender ikke e-post selv. Det er alltid du som trykker send i e-postprogrammet.</p>`],
+      ["Dine egne utlegg og Min side", `<p>Har du selv lagt ut penger for klubben, trykker du «+ Ny søknad» under <a href="#/soknader">Søknader</a>,
+        akkurat som medlemmene. «Mine søknader» viser dine egne. Åpner du din egen søknad for å behandle den, får du en påminnelse om at det er lurt
+        at leder eller et annet styremedlem ser over den først.</p>
+        <p><a href="#/minside">Min side</a> finner du øverst på siden, ved siden av Hjelp. Der ser du kontingenten din og kan endre navn og kontonummer.
+        Regelverket finner du under «Møter».</p>`],
       ["Gi nye brukere tilgang", `<p>Når noen ber om tilgang, vises de øverst under Medlemmer. Trykk «Gi tilgang» eller «Avvis».
         Du kan også åpne et medlem med e-post og huke av for innlogging. Da kommer personen inn når hen lager konto med samme e-post.</p>`],
       ["Styreverv", `<p>Under «Møter» og «Styret» trykker du «Endre verv» for å velge hvem som har hvilket verv. Den som har et verv,

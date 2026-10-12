@@ -78,6 +78,13 @@ code { background: var(--papir); border: 1px solid var(--linje); padding: .05em 
 .utlogg:hover { color: #fff; }
 a.utlogg { text-decoration: none; }
 @media (max-width: 600px) { a.utlogg span { display: none; } }
+.utlogg span { white-space: nowrap; }
+/* Smale telefoner: kassereren har både årsvalg, Min side, Hjelp og Logg ut øverst. */
+@media (max-width: 420px) {
+  .topp-hoyre { gap: 2px; } .topplinje { gap: 8px; } .merkevare { gap: 8px; overflow: hidden; }
+  .aarvalg select { padding: 6px 26px 6px 9px; background-position: right 6px center; }
+  .har-meny .utlogg span { display: none; }
+}
 .utlogg .ikon { width: 18px; height: 18px; }
 .aarvalg select {
   appearance: none; -webkit-appearance: none;
@@ -374,6 +381,16 @@ legend { font-weight: 600; font-size: .84rem; padding: 0 6px; }
   .postliste.moteliste a { grid-template-columns: auto 1fr auto; grid-template-areas: none; gap: 12px; }
   .postliste.moteliste a > * { grid-area: auto; }
   .postliste.moteliste a .post-dato { font-size: .78rem; }
+}
+/* Regelverk */
+.regel-gruppe { margin: 22px 0 10px; }
+.regelliste li { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 13px 18px; }
+.regel-ikon { color: var(--svak); display: grid; }
+.regel-beskrivelse { font-size: .88rem; color: var(--tekst); overflow-wrap: anywhere; }
+.regelliste .knapperad { flex-wrap: nowrap; }
+@media (max-width: 520px) {
+  .regelliste li { grid-template-columns: 1fr; gap: 8px; padding: 12px 16px; }
+  .regel-ikon { display: none; }
 }
 .filterlinje.en { grid-template-columns: minmax(0, 260px); }
 h2 .status { text-transform: none; letter-spacing: 0; margin-left: 8px; vertical-align: 1px; }

@@ -2,7 +2,7 @@
 
 import { html, raw, kr, datoTekst, iDag, tolkBelop, belopTilInput } from "../util.js";
 import { kontovalg } from "./poster.js";
-import { sendSoknad, trekkSoknad, behandleSoknad, utbetalSoknad, oppdaterMinProfil } from "../firebase.js";
+import { sendSoknad, trekkSoknad, behandleSoknad, utbetalSoknad, oppdaterMinProfil, normalEpost } from "../firebase.js";
 import { melding, medKnapp, bekreft, kvitteringslenker, kobleKvitteringslenker, kvitteringsvelger } from "../ui.js";
 import { gaaTil } from "../app.js";
 import { erKasserer } from "../tilgang.js";
@@ -63,7 +63,10 @@ export function kassererListe(main, S) {
   const ferdig = S.soknader.filter((s) => s.status === "utbetalt" || s.status === "avslatt").sort(nyesteFoerst);
   const vis = fane === "venter" ? venter : ferdig;
   main.innerHTML = html`
-    <div class="sidetopp"><h1>Søknader om refusjon</h1></div>
+    <div class="sidetopp">
+      <h1>Søknader om refusjon</h1>
+      ${erKasserer(S) ? raw(`<div class="knapperad"><a class="knapp sekundaer" href="#/mine">Mine søknader</a><a class="knapp" href="#/ny-soknad">+ Ny søknad</a></div>`) : ""}
+    </div>
     <p class="hint">${erKasserer(S) ? "Medlemmene sender inn utlegg med kvittering fra sin egen side. Her godkjenner du, og fører dem i regnskapet når pengene er betalt ut."
       : "Søknadene medlemmene har sendt inn. Kassereren behandler og betaler dem ut. Som styremedlem kan du lese dem og se kvitteringene."}</p>
     <div class="faner">
@@ -87,6 +90,7 @@ export function kassererDetalj(main, S, id) {
   const kanUtbetales = kasserer && (s.status === "sendt" || s.status === "godkjent");
   main.innerHTML = html`
     <div class="sidetopp"><h1>Søknad fra ${s.navn}</h1><a class="lenkeknapp" href="#/soknader">Tilbake</a></div>
+    ${kasserer && kanUtbetales && s.epost === normalEpost(S.bruker.email) ? raw(`<div class="varsel info">Dette er din egen søknad. Det er lurt at leder eller et annet styremedlem ser over den før du betaler ut.</div>`) : ""}
     <section class="kort">${raw(soknadsinfo(s))}</section>
 
     ${kasserer && s.status === "utbetalt" && s.postId ? raw(html`<p><a href="#/post/${s.postId}">Åpne posten i regnskapet</a></p>`) : ""}

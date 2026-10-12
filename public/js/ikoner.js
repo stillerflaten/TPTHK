@@ -28,6 +28,8 @@ const STI = {
     <path d="m12 12 .9 1.8 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/>`,
   // Signer: penn over en linje
   signer: `<path d="M4 20.5h16"/><path d="M14.8 4.2a2 2 0 0 1 2.9 2.9L9 15.8l-3.8.9.9-3.8z"/><path d="m13.3 5.7 2.9 2.9"/>`,
+  // Regelverk: bok med linjer
+  regelverk: `<path d="M5 19.5V4.8A1.8 1.8 0 0 1 6.8 3H19v14.5H6.8A1.8 1.8 0 0 0 5 19.3a1.8 1.8 0 0 0 1.8 1.7H19"/><path d="M9 7.5h6.5"/><path d="M9 11h4.5"/>`,
   pil: `<path d="m9 5 7 7-7 7"/>`,
   // Send: papirfly
   send: `<path d="M21 3 10.5 13.5"/><path d="M21 3 14.5 21l-4-7.5L3 9.5z"/>`,
