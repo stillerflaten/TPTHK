@@ -135,10 +135,12 @@ service cloud.firestore {
     // Søknader om refusjon av utlegg.
     match /soknader/{id} {
       allow read: if erStyret() || (harTilgang() && resource.data.epost == epost());
-      allow create: if harTilgang()
-        && request.resource.data.epost == epost()
-        && request.resource.data.status == 'sendt'
-        && gyldigBelop(request.resource.data.belop);
+      // Kassereren kan i tillegg legge tilbake søknader fra en sikkerhetskopi.
+      allow create: if (harTilgang()
+          && request.resource.data.epost == epost()
+          && request.resource.data.status == 'sendt'
+          && gyldigBelop(request.resource.data.belop))
+        || (erKasserer() && request.resource.data.epost is string && gyldigBelop(request.resource.data.belop));
       allow update: if erKasserer();
       allow delete: if erKasserer()
         || (harTilgang() && resource.data.epost == epost() && resource.data.status == 'sendt');
@@ -147,8 +149,8 @@ service cloud.firestore {
     // Kvitteringsbilder. «laast» settes når en søknad er utbetalt, så de ikke kan slettes av medlemmet.
     match /kvitteringer/{id} {
       allow read: if erStyret() || (harTilgang() && resource.data.eier == epost());
-      allow create: if harTilgang()
-        && request.resource.data.eier == epost()
+      // Kassereren kan i tillegg legge tilbake kvitteringer fra en sikkerhetskopi.
+      allow create: if (harTilgang() && request.resource.data.eier == epost() || erKasserer())
         && request.resource.data.data is string
         && request.resource.data.data.size() < 1000000;
       allow update: if erKasserer();

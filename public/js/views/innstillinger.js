@@ -1,10 +1,11 @@
-// Innstillinger: klubbinfo, kontingent, startsaldo, kategorier, hvem som er kasserer, og support.
+// Innstillinger: klubbinfo, kontingent, startsaldo, kategorier, hvem som er kasserer, support og sikkerhetskopi.
 
 import { html, raw, tolkBelop, belopTilInput } from "../util.js";
 import { lagreInnstillinger, lagreMedlemsinfo, lagreBruker, normalEpost } from "../firebase.js";
 import { melding, medKnapp, bekreft } from "../ui.js";
 import { ikon } from "../ikoner.js";
 import { supportKort, kobleSupport } from "./support.js";
+import { kopiKort, kobleKopi } from "./sikkerhetskopi.js";
 
 export function innstillinger(main, S) {
   const i = S.innst;
@@ -78,7 +79,9 @@ export function innstillinger(main, S) {
             <button class="knapp sekundaer" id="gjorKasserer">Gjør til kasserer</button>
           </span>
         </label>`) : raw(`<p class="hint">For å legge til en ny kasserer: legg personen inn som medlem med e-post og huk av for innlogging. Da dukker hen opp her.</p>`)}
-    </section>`;
+    </section>
+
+    ${raw(kopiKort(S))}`;
 
   const klubb = main.querySelector("#klubb");
   klubb.addEventListener("submit", async (e) => {
@@ -120,6 +123,7 @@ export function innstillinger(main, S) {
   });
 
   kobleSupport(main, S);
+  kobleKopi(main, S);
   main.querySelector("#tilSupport")?.addEventListener("click", async (e) => {
     if (!(await bekreft("Bli vanlig medlem som administrator? Du mister tilgangen til regnskapet med en gang, og får den bare tilbake når kassereren eller styret ber om support.", { ja: "Bytt" }))) return;
     await medKnapp(e.currentTarget, () => lagreBruker(meg, { rolle: "medlem", admin: true }));

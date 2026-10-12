@@ -8,7 +8,7 @@ import {
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator,
   collection, doc, onSnapshot, getDoc, setDoc, updateDoc, deleteDoc, addDoc, writeBatch,
-  query, where, serverTimestamp, deleteField,
+  query, where, serverTimestamp, deleteField, getDocsFromServer, getDocFromServer, Timestamp,
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
@@ -335,3 +335,50 @@ export const lagrePersonliste = (liste) => setDoc(doc(db, "innstillinger", "pers
 /** Lagrer hele vervoversikten: hvilke verv som finnes, og hvem som har dem. */
 export const lagreVerv = ({ liste, tildelt, styre, navn }) =>
   setDoc(doc(db, "innstillinger", "verv"), { liste, tildelt, styre, navn, endret: serverTimestamp(), endretAv: meg() });
+
+// ---------- Sikkerhetskopi ----------
+// Leses rett fra serveren (ikke fra lageret på telefonen), så kopien blir komplett.
+
+export const hentSamling = async (navn) => medId(await getDocsFromServer(collection(db, navn)));
+
+export async function hentDokument(samling, id) {
+  const d = await getDocFromServer(doc(db, samling, id));
+  return d.exists() ? { id: d.id, ...d.data() } : null;
+}
+
+export const erTidspunkt = (v) => v instanceof Timestamp;
+export const tidspunktFra = (ms) => Timestamp.fromMillis(ms);
+
+export const merkSikkerhetskopi = (navn) => setDoc(doc(db, "innstillinger", "klubb"), {
+  sisteSikkerhetskopi: { tid: serverTimestamp(), av: meg(), navn: navn || "" },
+}, { merge: true });
+
+/**
+ * Skriver dokumenter i omganger. Firestore tåler maks 500 endringer og 10 MB per omgang,
+ * og kvitteringene er store, så vi deler opp etter både antall og størrelse.
+ * @param {{samling: string, id: string, data?: object, endre?: object}[]} liste  data = nytt dokument, endre = oppdater felt
+ */
+export async function skrivMange(liste, fremdrift = () => {}) {
+  let batch = writeBatch(db);
+  let antall = 0;
+  let bytes = 0;
+  let ferdig = 0;
+  for (const s of liste) {
+    const ref = doc(db, s.samling, s.id);
+    if (s.endre) batch.update(ref, s.endre);
+    else batch.set(ref, s.data);
+    const str = JSON.stringify(s.data || s.endre).length;
+    antall++;
+    bytes += str;
+    if (antall >= 400 || bytes > 4_000_000) {
+      await batch.commit();
+      ferdig += antall;
+      fremdrift(ferdig);
+      batch = writeBatch(db);
+      antall = 0;
+      bytes = 0;
+    }
+  }
+  if (antall) await batch.commit();
+  fremdrift(ferdig + antall);
+}
