@@ -328,3 +328,9 @@ export const markerGodkjent = (mote) =>
   updateDoc(doc(db, "moter", mote.id), { referatStatus: "godkjent", godkjent: serverTimestamp() });
 
 export const lagrePersonliste = (liste) => setDoc(doc(db, "innstillinger", "personer"), { liste });
+
+// ---------- Styreverv ----------
+
+/** Lagrer hele vervoversikten: hvilke verv som finnes, og hvem som har dem. */
+export const lagreVerv = ({ liste, tildelt, styre, navn }) =>
+  setDoc(doc(db, "innstillinger", "verv"), { liste, tildelt, styre, navn, endret: serverTimestamp(), endretAv: meg() });

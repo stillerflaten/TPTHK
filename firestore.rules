@@ -7,7 +7,9 @@ rules_version = '2';
 //  • Bare innloggede med bekreftet e-post, som kassereren har gitt tilgang (en rad i «brukere»), kommer inn.
 //  • Kasserere ser og endrer alt.
 //  • Medlemmer ser bare sine egne søknader og kvitteringer, sitt eget medlemskort og betalingsinfo.
-//  • Alle med tilgang ser møteinnkallinger og referater. Styret (styre: true, og kasserere) legger dem ut.
+//  • Alle med tilgang ser møteinnkallinger og referater. Styret (de som har et verv, og kasserere) legger dem ut.
+//  • Styret kan lese regnskapet, medlemslisten og søknadene, men ikke endre noe der.
+//  • Administratoren bestemmer hvilke styreverv som finnes. Administrator og kasserer bestemmer hvem som har dem.
 //  • Et referat signeres av de styret velger. Når alle har signert, er referatet låst for godt.
 //  • Administratoren (admin: true) er vanlig medlem, men får full tilgang i inntil 24 timer
 //    når kasserer eller styret ber om support. Tidspunktet sjekkes her, mot serverens klokke.
@@ -34,8 +36,16 @@ service cloud.firestore {
     function ekteKasserer() {
       return harTilgang() && profil().rolle == 'kasserer';
     }
+    function vervSti() {
+      return /databases/$(database)/documents/innstillinger/verv;
+    }
+    // Styret: de som har et styreverv (lista «styre» i innstillinger/verv), og kasserere.
     function ekteStyret() {
-      return harTilgang() && (profil().rolle == 'kasserer' || profil().get('styre', false) == true);
+      return harTilgang() && (profil().rolle == 'kasserer'
+        || (exists(vervSti()) && epost() in get(vervSti()).data.get('styre', [])));
+    }
+    function erAdmin() {
+      return harTilgang() && profil().get('admin', false) == true;
     }
     function supportSti() {
       return /databases/$(database)/documents/innstillinger/support;
@@ -80,7 +90,8 @@ service cloud.firestore {
 
     // Regnskapet: bare kasserer.
     match /poster/{id} {
-      allow read, delete: if erKasserer();
+      allow read: if erStyret();
+      allow delete: if erKasserer();
       allow create, update: if erKasserer()
         && request.resource.data.type in ['inntekt', 'utgift', 'overforing']
         && gyldigBelop(request.resource.data.belop)
@@ -88,12 +99,14 @@ service cloud.firestore {
     }
 
     match /medlemmer/{id} {
-      allow read, write: if erKasserer();
+      allow read: if erStyret();
+      allow write: if erKasserer();
       allow get: if harTilgang() && profil().get('medlemId', '') == id;
     }
 
     match /innstillinger/klubb {
-      allow read, write: if erKasserer();
+      allow read: if erStyret();
+      allow write: if erKasserer();
     }
     // Support: kasserer eller styret gir administratoren full tilgang i inntil 24 timer.
     // Administratoren selv kan lese den og avslutte den tidlig, men ikke starte eller forlenge den.
@@ -121,7 +134,7 @@ service cloud.firestore {
 
     // Søknader om refusjon av utlegg.
     match /soknader/{id} {
-      allow read: if erKasserer() || (harTilgang() && resource.data.epost == epost());
+      allow read: if erStyret() || (harTilgang() && resource.data.epost == epost());
       allow create: if harTilgang()
         && request.resource.data.epost == epost()
         && request.resource.data.status == 'sendt'
@@ -133,7 +146,7 @@ service cloud.firestore {
 
     // Kvitteringsbilder. «laast» settes når en søknad er utbetalt, så de ikke kan slettes av medlemmet.
     match /kvitteringer/{id} {
-      allow read: if erKasserer() || (harTilgang() && resource.data.eier == epost());
+      allow read: if erStyret() || (harTilgang() && resource.data.eier == epost());
       allow create: if harTilgang()
         && request.resource.data.eier == epost()
         && request.resource.data.data is string
@@ -143,9 +156,21 @@ service cloud.firestore {
         || (harTilgang() && resource.data.eier == epost() && resource.data.get('laast', false) != true);
     }
 
+    // Styreverv. Alle med tilgang ser hvem som sitter i styret.
+    // Administratoren bestemmer hvilke verv som finnes; kassereren kan bare endre hvem som har dem.
+    match /innstillinger/verv {
+      function gyldigVerv(d) {
+        return d.liste is list && d.tildelt is map && d.styre is list && d.navn is map;
+      }
+      allow read: if harTilgang();
+      allow create: if (erAdmin() || erKasserer()) && gyldigVerv(request.resource.data);
+      allow update: if gyldigVerv(request.resource.data) && (erAdmin() || supportAktiv()
+        || (ekteKasserer() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tildelt', 'styre', 'navn', 'endret', 'endretAv'])));
+    }
+
     // Hvem som har innlogging, så styret kan velge hvem som skal signere et referat. Holdes oppdatert av kassereren.
     match /innstillinger/personer {
-      allow read: if erStyret();
+      allow read: if erStyret() || erAdmin();
       allow write: if erKasserer();
     }
 
