@@ -180,6 +180,8 @@ body.har-meny .levert { padding-bottom: calc(var(--bunnmeny) + 20px + env(safe-a
 .hjelp-tekst { padding: 0 2px 14px; }
 .hjelp-tekst p, .hjelp-tekst ol, .hjelp-tekst ul { margin: 0 0 10px; }
 .hjelp-tekst li { margin-bottom: 4px; }
+.hjelp-bilder { display: flex; flex-wrap: wrap; gap: 14px; margin: 4px 0 6px; }
+.hjelp-bilder img { width: 100%; max-width: 300px; height: auto; border: 1px solid var(--linje); border-radius: var(--radius-liten); box-shadow: var(--skygge); }
 
 /* ---------- Byggeklosser ---------- */
 
