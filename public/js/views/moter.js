@@ -1,7 +1,8 @@
 // Møter: innkallinger og referater fra styremøter og årsmøter, med elektronisk signering av referatet.
 // Styret (og kasserere) legger ut. Alle med innlogging kan lese. De styret velger, signerer referatet her.
 
-import { html, raw, datoTekst, iDag } from "../util.js";
+import { html, raw, datoTekst, iDag, lastNed } from "../util.js";
+import { lagInnkallingPdf } from "../innkallingPdf.js";
 import {
   lagreMote, slettMote, hentReferatutkast, lagreReferatutkast, sendTilSignering, trekkTilbakeReferat,
   signerReferat, markerGodkjent, referatHash, normalEpost,
@@ -93,8 +94,10 @@ liste.live = true;
 liste.tittel = "Møter";
 liste.trenger = ["moter", "signaturer"];
 
-// ---------- Innkalling på e-post ----------
-// Gratis løsning: åpner e-postprogrammet med mottakerne i Bcc, så ingen ser hverandres adresser.
+// ---------- Innkalling som PDF og på e-post ----------
+// Innkallingen lages som PDF med logo. Nettleseren kan ikke legge ved filer i en e-post av seg selv,
+// så «Send på e-post» laster ned PDF-en og åpner e-postprogrammet med mottakerne i Bcc. Da legger man ved fila selv.
+// På telefon kan «Del PDF» sende fila rett til Mail, Outlook o.l.
 
 /** Hvem som skal ha innkallingen: aktive medlemmer med e-post, eller bare styret for styremøter. */
 function mottakere(S, m) {
@@ -102,34 +105,46 @@ function mottakere(S, m) {
   return [...new Set(S.medlemmer.filter((x) => x.aktiv !== false && x.epost).map((x) => normalEpost(x.epost)))];
 }
 
+const kanDeleFil = () => {
+  try {
+    return !!navigator.canShare?.({ files: [new File(["x"], "test.pdf", { type: "application/pdf" })] });
+  } catch {
+    return false;
+  }
+};
+
 function epostboks(S, m) {
   const klar = erAapent(m) ? S.lastet.has("medlemmer") : S.lastet.has("personer");
-  if (!klar) return "";
-  const antall = mottakere(S, m).length;
+  const antall = klar ? mottakere(S, m).length : 0;
+  const hvem = erAapent(m) ? `alle ${antall} aktive medlemmer med e-post` : `styret (${antall})`;
   return html`
     <div class="epostboks">
-      <p class="hint">${antall
-        ? `Send innkallingen til ${erAapent(m) ? `alle ${antall} aktive medlemmer med e-post` : `styret (${antall})`}. E-postprogrammet ditt åpnes med adressene som blindkopi (Bcc).`
-        : erAapent(m) ? "Ingen aktive medlemmer har e-post i medlemslisten." : "Fant ingen i styret med e-post."}</p>
-      ${antall ? raw(html`<div class="knapperad">
-        <button type="button" class="knapp liten" id="sendEpost">${raw(ikon("send"))} Send på e-post</button>
-        <button type="button" class="knapp sekundaer liten" id="kopierAdresser">Kopier adressene</button>
-        <button type="button" class="knapp sekundaer liten" id="kopierTekst">Kopier teksten</button>
-      </div>`) : ""}
+      <p class="hint">${!klar ? "Henter mottakerne …"
+        : antall ? `Innkallingen lages som PDF med logo og sendes til ${hvem}. «Send på e-post» laster ned PDF-en og åpner e-postprogrammet med adressene som blindkopi (Bcc). Legg ved PDF-en før du sender.${kanDeleFil() ? " «Del PDF» sender fila rett til e-postappen og kopierer adressene, så du kan lime dem inn." : ""}`
+        : erAapent(m) ? "Ingen aktive medlemmer har e-post i medlemslisten. Du kan likevel laste ned PDF-en."
+        : "Fant ingen i styret med e-post. Du kan likevel laste ned PDF-en."}</p>
+      <div class="knapperad">
+        <button type="button" class="knapp sekundaer liten" id="lastNedPdf">${raw(ikon("lastned"))} Last ned PDF</button>
+        ${antall ? raw(html`
+          <button type="button" class="knapp liten" id="sendEpost">${raw(ikon("send"))} Send på e-post</button>
+          ${kanDeleFil() ? raw(`<button type="button" class="knapp sekundaer liten" id="delPdf">Del PDF</button>`) : ""}
+          <button type="button" class="knapp sekundaer liten" id="kopierAdresser">Kopier adressene</button>`) : ""}
+      </div>
     </div>`;
 }
 
+const moteLenke = (m) => `${location.origin}${location.pathname}#/mote/${m.id}`;
+
 function epostTekst(m) {
-  const lenke = `${location.origin}${location.pathname}#/mote/${m.id}`;
   return [
-    `Innkalling til ${typeTekst[m.type].toLowerCase()}${erAapent(m) ? " (åpent for alle medlemmer)" : ""}`,
+    "Hei!",
+    "",
+    `Vedlagt er innkalling til ${typeTekst[m.type].toLowerCase()}${m.tittel ? `: ${m.tittel}` : ""}.`,
     "",
     `Tid: ${datoTekst(m.dato)}${m.tid ? ` kl. ${m.tid}` : ""}`,
     m.sted ? `Sted: ${m.sted}` : null,
     "",
-    m.innkalling || null,
-    m.innkalling ? "" : null,
-    `Innkallingen ligger også på nettsiden: ${lenke}`,
+    `Innkallingen ligger også på nettsiden: ${moteLenke(m)}`,
   ].filter((x) => x !== null).join("\n");
 }
 
@@ -142,19 +157,47 @@ async function kopier(tekst, ok) {
   }
 }
 
+const lagPdf = (S, m) => lagInnkallingPdf(m, {
+  klubbnavn: S.innst.klubbnavn, typeTekst: typeTekst[m.type], aapent: erAapent(m), lenke: moteLenke(m),
+});
+
 function kobleEpost(main, S, m) {
-  main.querySelector("#sendEpost")?.addEventListener("click", () => {
+  const emne = `Innkalling: ${motetittel(m)}`;
+  main.querySelector("#lastNedPdf")?.addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
+    const { blob, filnavn } = await lagPdf(S, m);
+    lastNed(filnavn, blob);
+  }));
+  main.querySelector("#sendEpost")?.addEventListener("click", (e) => {
     const adr = mottakere(S, m);
-    const emne = `Innkalling: ${motetittel(m)}`;
     const url = `mailto:?bcc=${adr.map(encodeURIComponent).join(",")}&subject=${encodeURIComponent(emne)}&body=${encodeURIComponent(epostTekst(m).replace(/\n/g, "\r\n"))}`;
     // Svært lange lenker (mange mottakere) kan e-postprogrammer avvise. Da er kopiering tryggere.
-    if (url.length > 8000) return melding("Det er for mange mottakere til å åpne e-postprogrammet direkte. Bruk «Kopier adressene» og «Kopier teksten».", "feil");
-    location.href = url;
+    const forLang = url.length > 8000;
+    medKnapp(e.currentTarget, async () => {
+      const { blob, filnavn } = await lagPdf(S, m);
+      lastNed(filnavn, blob);
+      if (forLang) {
+        await kopier(adr.join(", "), "PDF-en er lastet ned og adressene kopiert. Det er for mange mottakere til å åpne e-postprogrammet direkte, så lim adressene inn i Bcc-feltet selv.");
+        return;
+      }
+      melding(`PDF-en «${filnavn}» er lastet ned. Legg den ved e-posten som åpnes nå.`);
+      setTimeout(() => { location.href = url; }, 400);
+    });
   });
+  const del = main.querySelector("#delPdf");
+  if (del) {
+    // Telefonen godtar bare deling rett etter et trykk, så PDF-en lages på forhånd.
+    let fil = null;
+    lagPdf(S, m).then(({ blob, filnavn }) => { fil = new File([blob], filnavn, { type: "application/pdf" }); }).catch(() => {});
+    del.addEventListener("click", () => {
+      if (!fil) return melding("PDF-en lages fortsatt. Prøv igjen om et øyeblikk.");
+      navigator.clipboard?.writeText(mottakere(S, m).join(", ")).catch(() => {});
+      navigator.share({ files: [fil], title: emne, text: epostTekst(m) }).catch((err) => {
+        if (err?.name !== "AbortError") melding("Klarte ikke å dele PDF-en. Bruk «Send på e-post» i stedet.", "feil");
+      });
+    });
+  }
   main.querySelector("#kopierAdresser")?.addEventListener("click", () =>
     kopier(mottakere(S, m).join(", "), "Adressene er kopiert. Lim dem inn i Bcc-feltet i e-posten."));
-  main.querySelector("#kopierTekst")?.addEventListener("click", () =>
-    kopier(epostTekst(m), "Teksten er kopiert. Lim den inn i e-posten."));
 }
 
 // ---------- Ett møte ----------
