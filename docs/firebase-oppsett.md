@@ -40,7 +40,7 @@ Det er helt greit at disse verdiene ligger åpent på GitHub. De er ikke passord
 1. I menyen til venstre: **Build → Authentication** (eller *Security → Authentication*) → **Get started**.
 2. Under fanen **Sign-in method**: velg **Email/Password**.
 3. Slå på den øverste bryteren **Email/Password**. La «Email link (passwordless sign-in)» være av. → **Save**.
-4. Gå til fanen **Settings** → **Authorized domains** → **Add domain** → skriv `stillerflaten.github.io` → **Add**.
+4. Fortsatt inne i **Authentication** (ikke tannhjulet for prosjektinnstillinger): gå til fanen **Settings** øverst → **Authorized domains** → **Add domain** → skriv `stillerflaten.github.io` → **Add**.
 5. Fortsatt under **Settings**: finn **User actions** og sjekk at **Enable create (sign-up)** er PÅ. (Medlemmene lager kontoen selv. De får likevel ikke se noe før du har gitt dem tilgang.)
 6. Valgfritt, men fint: fanen **Templates** → trykk på blyanten ved *Template language* → velg **Norwegian** → **Save**. Da blir e-postene om bekreftelse og nytt passord på norsk.
 
