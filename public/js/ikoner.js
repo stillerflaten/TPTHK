@@ -21,6 +21,12 @@ const STI = {
   ny: `<circle cx="12" cy="12" r="8.8"/><path d="M12 8v8"/><path d="M8 12h8"/>`,
   // Min side: person
   person: `<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.5c.6-4 3.4-6.4 7.2-6.4s6.6 2.4 7.2 6.4"/>`,
+  // Møter: kalender med stjerne
+  moter: `<rect x="3.5" y="5" width="17" height="15.5" rx="1.8"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/>
+    <path d="m12 12 .9 1.8 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/>`,
+  // Signer: penn over en linje
+  signer: `<path d="M4 20.5h16"/><path d="M14.8 4.2a2 2 0 0 1 2.9 2.9L9 15.8l-3.8.9.9-3.8z"/><path d="m13.3 5.7 2.9 2.9"/>`,
+  pil: `<path d="m9 5 7 7-7 7"/>`,
   binders: `<path d="m20 11.5-7.8 7.8a5 5 0 0 1-7.1-7.1l8.2-8.2a3.3 3.3 0 0 1 4.7 4.7l-8.2 8.2a1.7 1.7 0 0 1-2.4-2.4l7.5-7.5"/>`,
   kamera: `<path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.7l1.6-2.2h6.4L16.8 7h2.7A1.5 1.5 0 0 1 21 8.5v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z"/><circle cx="12" cy="13" r="3.5"/>`,
   lastned: `<path d="M12 3.5v11"/><path d="m7.5 10 4.5 4.5 4.5-4.5"/><path d="M4.5 16.5v2.5a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-2.5"/>`,
