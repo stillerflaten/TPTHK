@@ -1,7 +1,7 @@
 // Service worker: gjør at nettsiden kan legges på hjemskjermen og åpnes uten dekning.
 // Strategi: prøv nettet først (så man alltid får nyeste versjon), bruk lagret kopi hvis man er offline.
 
-const CACHE = "tpthk-v5";
+const CACHE = "tpthk-v6";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => {
@@ -20,6 +20,8 @@ self.addEventListener("fetch", (e) => {
     e.respondWith(caches.match(e.request).then((svar) => svar || hentOgLagre(e.request)));
     return;
   }
+  // Ikontest-sidene skal virke helt uten service workeren.
+  if (url.origin === self.location.origin && url.pathname.startsWith("/ikontest/")) return;
   // Ikoner og manifest: la iPhone hente dem rett fra nettet. Via service workeren kan iPhone ende opp med en bokstav i stedet for logoen på hjemskjermen.
   if (url.origin === self.location.origin && /\.(png|webmanifest)$/.test(url.pathname)) return;
   // Våre egne filer: nettet først, lagret kopi som reserve.
