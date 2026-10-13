@@ -28,10 +28,24 @@ function dekodTekst(bytes) {
   }
 }
 
-/** CSV med semikolon, komma eller tabulator. Tegnet som brukes mest på første linje, vinner. */
+/**
+ * CSV med semikolon, komma eller tabulator. Nordea har noen linjer med kontoinfo før overskriftene,
+ * så skilletegnet velges ut fra de første 30 linjene: det som gir like mange kolonner på flest linjer, vinner
+ * (tegn inne i "…" telles ikke).
+ */
 export function lesCsv(tekst) {
-  const forste = tekst.split(/\r?\n/).find((l) => l.trim()) || "";
-  const skille = [";", "\t", ","].map((t) => [t, forste.split(t).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const linjer = tekst.split(/\r?\n/).filter((l) => l.trim()).slice(0, 30);
+  const poeng = (t) => {
+    const antall = new Map();
+    for (const l of linjer) {
+      const n = l.replace(/"[^"]*"/g, "").split(t).length - 1;
+      if (n) antall.set(n, (antall.get(n) || 0) + 1);
+    }
+    // [antall linjer med det vanligste antallet, det antallet]
+    return [...antall].map(([n, ganger]) => [ganger, n]).sort((a, b) => b[0] - a[0] || b[1] - a[1])[0] || [0, 0];
+  };
+  const skille = [";", "\t", ","].map((t) => [t, poeng(t)])
+    .sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1])[0][0];
   const rader = [];
   let rad = [];
   let celle = "";
@@ -95,12 +109,12 @@ function kolonneIndeks(ref) {
 
 const norm = (s) => String(s ?? "").toLowerCase().replace(/[^a-zæøåäö]/g, "");
 
-// Kjente kolonnenavn, det beste først. Nordea bruker «Bokføringsdato», «Beløp», «Tittel» og «Navn».
+// Kjente kolonnenavn, det beste først. Nordea bruker «Bokføringsdato», «Utgående»/«Innkommende» (eller «Beløp»), «Tittel» og «Navn».
 const KJENTE = {
   dato: ["bokføringsdato", "bokføringsdag", "bokført", "bokførtdato", "bokføringsdatum", "bokföringsdag", "transaksjonsdato", "dato", "date", "bookingdate", "rentedato", "valuteringsdato"],
   belop: ["beløp", "belop", "belopp", "amount", "beløpinok", "beløpnok", "transaksjonsbeløp"],
-  inn: ["innpåkonto", "inn", "innskudd", "kredit", "kreditt", "credit"],
-  ut: ["utfrakonto", "utavkonto", "ut", "uttak", "debet", "debit"],
+  inn: ["innpåkonto", "innkommende", "inn", "innskudd", "kredit", "kreditt", "credit"],
+  ut: ["utfrakonto", "utavkonto", "utgående", "ut", "uttak", "debet", "debit"],
   tekst: ["tittel", "tekst", "beskrivelse", "forklaring", "transaksjonstekst", "rubrik", "description", "text", "melding", "navn", "mottakernavn", "betalingsmottaker", "name"],
   ref: ["arkivreferanse", "arkivref", "referanse", "reference", "transaksjonsid"],
 };
