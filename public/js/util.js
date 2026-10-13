@@ -143,9 +143,10 @@ async function lastBilde(fil) {
   }
 }
 
-export function dataUrlTilBlob(dataUrl) {
+/** Gjør en data-URL om til en fil. Med «fastType» brukes den typen, uansett hva data-URL-en sier. */
+export function dataUrlTilBlob(dataUrl, fastType) {
   const [hode, b64] = dataUrl.split(",");
-  const type = hode.match(/data:(.*?);/)[1];
+  const type = fastType || hode.match(/data:(.*?);/)[1];
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   return new Blob([bytes], { type });
 }
