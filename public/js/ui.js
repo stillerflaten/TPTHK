@@ -84,12 +84,16 @@ export async function visKvittering(id) {
   try {
     const k = await hentKvittering(id);
     if (!k) throw new Error("Fant ikke kvitteringen.");
+    const data = String(k.data || "");
     if (k.type === "application/pdf") {
       vindu.close();
-      const url = URL.createObjectURL(dataUrlTilBlob(k.data));
+      if (!data.startsWith("data:application/pdf;base64,")) throw new Error("Kvitteringen er ikke en gyldig PDF.");
+      // Åpnes alltid som PDF, uansett hva fila selv sier at den er.
+      const url = URL.createObjectURL(dataUrlTilBlob(data, "application/pdf"));
       window.open(url, "_blank");
       return;
     }
+    if (!data.startsWith("data:image/")) throw new Error("Kvitteringen er ikke et gyldig bilde.");
     vindu.innerHTML = html`
       <div class="dialog-topp"><strong>${k.navn}</strong><button class="ikonknapp" data-lukk aria-label="Lukk">${raw(ikon("lukk"))}</button></div>
       <img class="kvittering-stor" src="${k.data}" alt="Kvittering ${k.navn}">

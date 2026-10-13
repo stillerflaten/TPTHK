@@ -163,11 +163,18 @@ service cloud.firestore {
 
     // Kvitteringsbilder. «laast» settes når en søknad er utbetalt, så de ikke kan slettes av medlemmet.
     match /kvitteringer/{id} {
+      // Bare bilder (JPEG/PNG) og PDF, og innholdet må være av samme type som kvitteringen sier.
+      function gyldigKvittering(d) {
+        return d.data is string && d.data.size() < 1000000
+          && d.type in ['image/jpeg', 'image/png', 'application/pdf']
+          && d.data.matches('data:' + d.type + ';base64,[A-Za-z0-9+/=]+');
+      }
       allow read: if seRegnskap() || (harTilgang() && resource.data.eier == epost());
       // Kassereren kan i tillegg legge tilbake kvitteringer fra en sikkerhetskopi.
-      allow create: if (harTilgang() && request.resource.data.eier == epost() || erKasserer())
-        && request.resource.data.data is string
-        && request.resource.data.data.size() < 1000000;
+      allow create: if gyldigKvittering(request.resource.data)
+        && ((harTilgang() && request.resource.data.eier == epost()
+            && request.resource.data.keys().hasOnly(['navn', 'type', 'data', 'eier', 'lastetOpp']))
+          || erKasserer());
       allow update: if erKasserer();
       allow delete: if erKasserer()
         || (harTilgang() && resource.data.eier == epost() && resource.data.get('laast', false) != true);
