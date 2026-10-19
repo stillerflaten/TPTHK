@@ -582,3 +582,21 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
   .bankliste .post-dato { grid-area: dato; font-size: .78rem; }
   .bankliste .bank-knapper { grid-area: knapper; }
 }
+
+/* Fôrbestilling */
+.skjema .forvarer li input:not([type=checkbox]) { flex: 0 0 84px; width: 84px; min-height: 40px; padding: 6px 10px; border: 1px solid var(--linje-sterk); border-radius: var(--radius-liten); font: inherit; text-align: right; }
+.forliste .forrad { padding: 13px 18px; }
+.forbestillinger { list-style: none; margin: 0; padding: 0; }
+.forbestillinger li { padding: 14px 0; display: grid; gap: 6px; }
+.forbestillinger li + li { border-top: 1px solid var(--linje); }
+.forbestilling-topp { display: flex; align-items: center; gap: 8px; }
+.forbestilling-topp .ikonknapp { margin-left: auto; }
+.forbestilling-felt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
+.forbestilling-felt label { margin: 0; }
+.forbestilling-felt input:not([type=checkbox]), .forvare-rad input, .kort > .knapperad input[type=date] {
+  min-height: 38px; padding: 6px 10px; border: 1px solid var(--linje-sterk); border-radius: var(--radius-liten); font: inherit;
+}
+.forbestilling-felt input:not([type=checkbox]) { width: 110px; margin-left: 6px; }
+.forvarer-rediger { display: grid; gap: 8px; }
+.forvare-rad { display: grid; grid-template-columns: 1fr 110px auto; gap: 8px; align-items: center; }
+.seksjonstittel { margin: 24px 0 10px; }

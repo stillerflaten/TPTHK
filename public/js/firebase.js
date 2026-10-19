@@ -320,6 +320,65 @@ export async function utbetalSoknad(soknad, post) {
   return ref.id;
 }
 
+// ---------- Fôrbestilling ----------
+
+export const lyttMineForbestillinger = (cb, feil) =>
+  onSnapshot(query(collection(db, "forbestillinger"), where("epost", "==", meg())), (s) => cb(medId(s)), feil);
+
+export const lyttMittForabonnement = (cb, feil) => lyttDokument("forabonnenter", meg(), cb, feil);
+export const lagreForabonnement = (data) =>
+  setDoc(doc(db, "forabonnenter", meg()), { ...data, epost: meg(), endret: serverTimestamp() });
+export const meldAvFor = () => deleteDoc(doc(db, "forabonnenter", meg()));
+
+export const lagreForInnstillinger = (data) => setDoc(doc(db, "innstillinger", "for"), data, { merge: true });
+
+export const sendForbestilling = (data) =>
+  addDoc(collection(db, "forbestillinger"), { ...data, epost: meg(), status: "ny", opprettet: serverTimestamp() });
+export const endreForbestilling = (id, data) => updateDoc(doc(db, "forbestillinger", id), data);
+export const slettForbestilling = (id) => deleteDoc(doc(db, "forbestillinger", id));
+
+// Teksten må være nøyaktig den samme som i firestore.rules (match /mail).
+const FORVARSEL = {
+  subject: "Ny fôrbestilling",
+  text: "Det har kommet en ny bestilling av fôr. Logg inn på https://tpthk.no for å se den.",
+};
+/** E-post til fôransvarlig om at det har kommet en ny bestilling. «til» er lista over fôransvarlige. */
+export const varsleOmForbestilling = (til) => addDoc(collection(db, "mail"), { to: til, message: FORVARSEL });
+
+// Beskjeder til de påmeldte. Tekstene må være nøyaktig de samme som i firestore.rules (match /mail).
+const FORBESKJED = {
+  aapen: {
+    subject: "Fôrbestillingen er åpen",
+    text: "En ny bestillingsrunde for fôr er åpnet. Logg inn på https://tpthk.no for å bestille, eller for å se over eller endre den faste bestillingen din.",
+  },
+  paaminnelse: {
+    subject: "Påminnelse om fôrbestilling",
+    text: "Husk fôrbestillingen. Runden stenges snart. Logg inn på https://tpthk.no for å bestille.",
+  },
+};
+/** Sender beskjed til de påmeldte som blindkopi, så ingen ser hverandres adresser. */
+export const sendForbeskjed = (type, adresser) => addDoc(collection(db, "mail"), { bcc: adresser, message: FORBESKJED[type] });
+
+/** Åpner en ny runde og legger inn de faste bestillingene til de påmeldte i samme slengen. */
+export async function aapneForrunde(innst, faste) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, "innstillinger", "for"), innst, { merge: true });
+  for (const a of faste) {
+    batch.set(doc(collection(db, "forbestillinger")), {
+      navn: a.navn, epost: a.epost, runde: innst.runde, linjer: a.fast, kommentar: "", status: "ny", fast: true, opprettet: serverTimestamp(),
+    });
+  }
+  await batch.commit();
+}
+
+/** Stenger runden: ingen kan bestille mer, og bestillingene i runden merkes som bestilt hos leverandøren. */
+export async function stengForrunde(bestillinger, dato) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, "innstillinger", "for"), { aapen: false, stengt: dato }, { merge: true });
+  for (const b of bestillinger) if (b.status === "ny") batch.update(doc(db, "forbestillinger", b.id), { status: "bestilt" });
+  await batch.commit();
+}
+
 // ---------- Innstillinger ----------
 
 export const lagreInnstillinger = (data) => setDoc(doc(db, "innstillinger", "klubb"), data, { merge: true });

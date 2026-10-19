@@ -3,7 +3,7 @@
 
 import { html, raw, esc } from "../util.js";
 
-const OPPDATERT = "12. oktober 2026";
+const OPPDATERT = "19. oktober 2026";
 const KONTAKT = "Mona Melvold (kasserer)";
 
 export function personvern(main, S) {
@@ -26,6 +26,7 @@ export function personvern(main, S) {
         <li><strong>Søknader om refusjon:</strong> hva du har lagt ut for, beløp, dato, kontonummeret ditt og bilder av kvitteringene.</li>
         <li><strong>Regnskapet:</strong> poster som kan nevne deg, for eksempel kontingent eller refusjon til deg.</li>
         <li><strong>Møter:</strong> styreverv, og når du har signert et referat (navn, tidspunkt og en kontrollsum av teksten).</li>
+        <li><strong>Fôrbestilling:</strong> hva du har bestilt, pris, om du har betalt, og om du er påmeldt den faste ordningen (med eventuell fast bestilling).</li>
       </ul>
 
       <h2>Hvorfor vi lagrer det</h2>
@@ -34,6 +35,7 @@ export function personvern(main, S) {
         <li>For å betale tilbake penger du har lagt ut for klubben.</li>
         <li>For å føre regnskap, som klubben er pålagt.</li>
         <li>For å kalle inn til møter og godkjenne referater.</li>
+        <li>For å samle fôrbestillinger til én bestilling, og holde oversikt over hvem som har betalt.</li>
       </ul>
       <p>Grunnlaget er medlemskapet ditt i klubben, klubbens plikt til å føre regnskap, og klubbens berettigede interesse i å drive foreningen.</p>
 
@@ -43,11 +45,14 @@ export function personvern(main, S) {
         <li><strong>Styret</strong> ser oversikten over regnskapet, søknader om refusjon og medlemslisten.</li>
         <li><strong>Revisor</strong> ser regnskapet med kvitteringer og medlemslisten når klubben gir tilgang, men ikke søknadene eller kontonummeret ditt.
           Revisor kan ikke endre noe, og tilgangen gis bare for revisjonen. Revisor trenger ikke være medlem av klubben.</li>
+        <li><strong>Fôransvarlig</strong> ser alle fôrbestillingene og hvem som er påmeldt ordningen, men ikke regnskapet.</li>
         <li><strong>Vanlige medlemmer</strong> ser bare sine egne søknader, møteinnkallinger, referater og hvem som sitter i styret.</li>
         <li><strong>Administratoren</strong> (Tillerflaten Digital) ser regnskapet bare når klubben ber om hjelp, og da i høyst 24 timer om gangen.</li>
       </ul>
       <p>Ved innkalling til møter sendes e-postadressen din til den som sender innkallingen, og den ligger i blindkopi så andre mottakere ikke ser den.</p>
       <p>Når du sender en søknad om refusjon, kan kassereren få en kort e-post om at det har kommet en ny søknad. E-posten inneholder ingen opplysninger om deg eller søknaden.</p>
+      <p>Er du påmeldt fôrordningen, får du e-post når en bestillingsrunde åpner, og eventuelt en påminnelse. Du står i blindkopi, så andre mottakere ikke ser adressen din.
+      Når du bestiller, får fôransvarlig en kort e-post uten opplysninger om deg eller bestillingen.</p>
 
       <h2>Hvem som behandler opplysningene for oss</h2>
       <ul>
@@ -61,6 +66,7 @@ export function personvern(main, S) {
         <li>Regnskap og bilag, også kvitteringer fra søknader som er betalt ut, lagres i 5 år etter regnskapsåret, slik bokføringsloven krever.</li>
         <li>Søknader som er avslått eller trukket, kan slettes når de er ferdig behandlet.</li>
         <li>Når du melder deg ut, slettes innloggingen din, og opplysningene i medlemslisten slettes eller anonymiseres. Det som må beholdes i regnskapet, beholdes til fristen er ute.</li>
+        <li>Fôrbestillinger kan slettes av fôransvarlig når de er betalt og levert. Melder du deg av ordningen, slettes påmeldingen med en gang.</li>
         <li>Godkjente møtereferater og signaturer er en del av klubbens historikk og beholdes.</li>
         <li>Kassereren tar en sikkerhetskopi av alt minst hvert kvartal, så ingenting går tapt. Kopiene oppbevares trygt av klubben,
           og eldre kopier slettes når nyere finnes.</li>

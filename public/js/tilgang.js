@@ -33,3 +33,10 @@ export const eksternRevisor = (S) => S.profil?.rolle === "revisor";
 
 /** Ser regnskapet (oversikt, årsrapport). */
 export const seRegnskap = (S) => erKasserer(S) || erStyret(S) || erRevisor(S);
+
+/** Fôransvarlig (innstillinger/for): ser alle fôrbestillingene og styrer bestillingsrundene. */
+export const erForansvarlig = (S) => Boolean(S.bruker)
+  && (S.forInnst?.ansvarlige || []).includes(String(S.bruker.email || "").toLowerCase());
+export const styrerFor = (S) => erForansvarlig(S) || supportAktiv(S);
+/** Velger hvem som er fôransvarlig: kassereren eller administratoren. */
+export const kanVelgeForansvarlig = (S) => erKasserer(S) || erAdmin(S);

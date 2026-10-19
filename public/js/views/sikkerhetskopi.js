@@ -370,6 +370,8 @@ function lesmeg(innst, laget, antall) {
     "Ikke med:",
     "  Passord. De ligger hos Firebase og kan ikke tas ut. Etter en gjenoppretting til et nytt",
     "  Firebase-prosjekt lager alle ny konto med samme e-post, og får da tilgangen sin tilbake.",
+    "  Fôrbestillingene. De er ikke en del av regnskapet, og bare fôransvarlig kan se dem.",
+    "  De er med i den automatiske daglige sikkerhetskopien i Google Cloud.",
     "",
     "Fila inneholder personopplysninger og kontonumre. Oppbevar den trygt.",
   ].join("\r\n");
