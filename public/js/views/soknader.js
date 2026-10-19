@@ -227,7 +227,7 @@ export function nySoknad(main, S) {
   main.innerHTML = html`
     <div class="sidetopp"><h1>Ny søknad om refusjon</h1><a class="lenkeknapp" href="#/mine">Avbryt</a></div>
     <form id="skjema" class="skjema kort">
-      <label>Ditt navn<input name="navn" value="${S.profil.navn || ""}" autocomplete="name" required></label>
+      <label>Ditt navn<input name="navn" value="${S.profil.navn || ""}" autocomplete="name" required maxlength="100"></label>
       <label>Hva har du lagt ut for?
         <textarea name="formaal" rows="3" required maxlength="500" placeholder="F.eks. Kjøpte premier til klubbmesterskapet"></textarea>
       </label>

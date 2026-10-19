@@ -1,0 +1,23 @@
+# Slår på automatisk sikkerhetskopi av databasen (én kopi hver natt, tas vare på i 14 dager).
+# Kjøres for hånd én gang: Actions → «Slå på automatisk sikkerhetskopi» → Run workflow.
+# Kan kjøres igjen når som helst for å se at kopiene blir tatt. Se docs/sikkerhetskopi-automatisk.md.
+name: Slå på automatisk sikkerhetskopi
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sikkerhetskopi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Slå på og vis sikkerhetskopiene
+        env:
+          NOKKEL: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node .github/sikkerhetskopi-oppsett.mjs tpthk-3405f

@@ -20,7 +20,9 @@ Du trenger:
 5. **Google Analytics: slå det AV** (trengs ikke) → **Create project**.
 6. Vent til det står at prosjektet er klart → **Continue**.
 
-Prosjektet er nå på gratisplanen **Spark**. Den holder lenge for en klubb, og du trenger ikke legge inn betalingskort.
+Prosjektet starter på gratisplanen **Spark**. TPTHK sitt prosjekt er senere flyttet til **Blaze** (betaling etter bruk, med kort),
+fordi det trengs for automatisk sikkerhetskopi av databasen. For en klubb koster det i praksis bare noen øre i måneden.
+Sett gjerne et budsjettvarsel (Google Cloud → **Billing** → **Budgets & alerts**), så får eieren e-post hvis det skulle bli dyrere enn ventet.
 
 ## Steg 2: Registrer nettsiden og hent oppsettet
 
@@ -121,12 +123,17 @@ Administratoren (den som drifter nettsiden, merket `admin: true`) er vanlig medl
 Trenger dere hjelp, trykker kassereren **Innstillinger → Be om support i 24 timer** (styremedlemmer finner samme knapp på **Min side**).
 Da får administratoren full tilgang i 24 timer. Alle ser en gul stripe så lenge supporten er på, og dere kan trykke **Avslutt support nå** når dere vil.
 
-Tidsgrensen sjekkes i databasereglene mot Firebase sin klokke, så den kan ikke jukses med på skjermen. Under support kan administratoren ikke endre sin egen rolle.
+Tidsgrensen sjekkes i databasereglene mot Firebase sin klokke, så den kan ikke jukses med på skjermen. Under support kan administratoren ikke endre sin egen rolle,
+ikke gi noen kasserer-, administrator- eller revisortilgang, og ikke sette seg selv i et styreverv. Da kan ikke tilgangen vare etter at supporten er over.
+Utenom support kan administratoren legge til, endre og fjerne styreverv, men ikke bestemme hvem som har dem.
 
 ## Om kvitteringer og lagring
 
-Kvitteringsbilder krympes automatisk og lagres i databasen. Gratisplanen gir 1 GB, som rommer flere tusen kvitteringer. PDF-er må være under ca. 650 kB; større PDF-er kan man ta skjermbilde av i stedet.
+Kvitteringsbilder krympes automatisk og lagres i databasen. 1 GB lagring er gratis, og det rommer flere tusen kvitteringer. PDF-er må være under ca. 650 kB; større PDF-er kan man ta skjermbilde av i stedet.
 
 ## Sikkerhetskopi
 
-Bruk **⬇︎ Excel** under Poster og Medlemmer jevnlig (f.eks. etter hvert årsmøte), og lagre årsrapporten som PDF. Da har dere alltid en kopi utenfor Firebase.
+Google tar en kopi av databasen hver natt og beholder den i 14 dager, når det er slått på. Se [sikkerhetskopi-automatisk.md](sikkerhetskopi-automatisk.md).
+
+Kassereren tar i tillegg en sikkerhetskopi under **Innstillinger → Sikkerhetskopi** minst hvert kvartal, og lagrer den hos klubben.
+Bruk også gjerne **⬇︎ Excel** under Poster og Medlemmer (f.eks. etter hvert årsmøte), og lagre årsrapporten som PDF.

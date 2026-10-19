@@ -1,12 +1,13 @@
 // Styret: hvilke styreverv klubben har, og hvem som har dem.
-// Alle ser oversikten. Administratoren bestemmer hvilke verv som finnes; administrator og kasserer bestemmer hvem som har dem.
+// Alle ser oversikten. Administratoren bestemmer hvilke verv som finnes; kassereren bestemmer hvem som har dem.
+// Under support kan administratoren gjøre begge deler, men ikke sette seg selv i et verv (se firestore.rules).
 // Den som har et verv, er med i styret og kan legge ut møteinnkallinger og referater.
 
 import { html, raw } from "../util.js";
 import { lagreVerv, normalEpost } from "../firebase.js";
 import { melding, medKnapp, bekreft } from "../ui.js";
 import { ikon } from "../ikoner.js";
-import { erAdmin, erKasserer, supportAktiv } from "../tilgang.js";
+import { erAdmin, erKasserer, ekteKasserer, supportAktiv } from "../tilgang.js";
 
 export const STANDARDVERV = [
   { id: "leder", navn: "Leder" },
@@ -39,7 +40,8 @@ export function byggVerv(liste, tildelt, personer, gamleNavn = {}) {
 }
 
 const kanEndreListe = (S) => erAdmin(S) || supportAktiv(S);
-const kanTildele = (S) => kanEndreListe(S) || erKasserer(S);
+const kanVelgePersoner = (S) => erKasserer(S);
+const kanTildele = (S) => kanEndreListe(S) || kanVelgePersoner(S);
 
 let redigering = null; // { liste, tildelt } mens noen redigerer
 
@@ -48,6 +50,9 @@ export function styret(main, S) {
   if (!kanTildele(S)) redigering = null;
   const r = redigering;
   const personer = [...(S.personer || [])].sort((a, b) => (a.navn || a.epost).localeCompare(b.navn || b.epost, "nb"));
+  // Under support kan ikke administratoren velge seg selv.
+  const meg = normalEpost(S.bruker?.email);
+  const kanVelge = (e) => ekteKasserer(S) || e !== meg || (S.verv?.styre || []).includes(meg);
   const navnPaa = (e) => personer.find((p) => p.epost === e)?.navn || data.navn[e] || e;
 
   main.innerHTML = html`
@@ -72,6 +77,7 @@ export function styret(main, S) {
       <section class="kort">
         <h2>Verv og hvem som har dem</h2>
         ${kanEndreListe(S) ? "" : raw(`<p class="hint">Bare administratoren kan legge til, endre navn på eller fjerne verv. Du kan endre hvem som har dem.</p>`)}
+        ${kanVelgePersoner(S) ? "" : raw(`<p class="hint">Du kan legge til, endre navn på og fjerne verv. Hvem som har dem, bestemmer kassereren.</p>`)}
         <div class="vervredigering">${r.liste.map((v, i) => raw(html`
           <div class="vervrad" data-i="${i}">
             <div class="vervrad-topp">
@@ -85,11 +91,11 @@ export function styret(main, S) {
                 : raw(html`<strong>${v.navn}</strong>`)}
             </div>
             <div class="brikker">${(r.tildelt[v.id] || []).map((e) => raw(html`
-              <span class="brikke">${navnPaa(e)}<button type="button" class="ikonknapp" data-fjern-person="${v.id}|${e}" aria-label="Fjern ${navnPaa(e)}">${raw(ikon("lukk"))}</button></span>`))}
-              <select class="legg-til-person" data-verv="${v.id}" aria-label="Legg til person som ${v.navn}">
+              <span class="brikke">${navnPaa(e)}${kanVelgePersoner(S) ? raw(html`<button type="button" class="ikonknapp" data-fjern-person="${v.id}|${e}" aria-label="Fjern ${navnPaa(e)}">${raw(ikon("lukk"))}</button>`) : ""}</span>`))}
+              ${kanVelgePersoner(S) ? raw(html`<select class="legg-til-person" data-verv="${v.id}" aria-label="Legg til person som ${v.navn}">
                 <option value="">+ Legg til person …</option>
-                ${personer.filter((p) => !(r.tildelt[v.id] || []).includes(p.epost)).map((p) => raw(html`<option value="${p.epost}">${p.navn || p.epost}</option>`))}
-              </select>
+                ${personer.filter((p) => !(r.tildelt[v.id] || []).includes(p.epost) && kanVelge(p.epost)).map((p) => raw(html`<option value="${p.epost}">${p.navn || p.epost}</option>`))}
+              </select>`) : ""}
             </div>
           </div>`))}
         </div>

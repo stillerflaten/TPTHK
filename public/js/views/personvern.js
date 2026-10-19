@@ -63,6 +63,7 @@ export function personvern(main, S) {
         <li>Godkjente møtereferater og signaturer er en del av klubbens historikk og beholdes.</li>
         <li>Kassereren tar en sikkerhetskopi av alt minst hvert kvartal, så ingenting går tapt. Kopiene oppbevares trygt av klubben,
           og eldre kopier slettes når nyere finnes.</li>
+        <li>I tillegg tar Google en kopi av databasen hver natt. Den ligger hos Google i Europa og slettes av seg selv etter 14 dager.</li>
       </ul>
 
       <h2>Rettighetene dine</h2>

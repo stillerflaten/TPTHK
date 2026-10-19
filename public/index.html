@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Hvilke kilder siden får hente skript, stiler og data fra. Stopper skript som er lurt inn fra andre steder.
+       Firebase-skriptene kommer fra gstatic, innlogging og database går til googleapis. localhost er for lokal testing. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.googleapis.com https://www.gstatic.com http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*; frame-src 'self' blob: https://tpthk-3405f.firebaseapp.com; object-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'; base-uri 'self'; form-action 'self'">
   <title>TPTHK</title>
   <meta name="description" content="Kasserer og refusjoner for Trøndelag Politis Tjenestehundklubb">
   <meta name="theme-color" content="#151513">

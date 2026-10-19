@@ -14,10 +14,12 @@ rules_version = '2';
 //    men ikke søknadene eller brukerne (der ligger kontonumre), og kan ikke endre noe. Tilgangen kan ha en
 //    sluttdato (revisorTil), som sjekkes mot serverens klokke. Bare kassereren kan gi og fjerne den.
 //    En revisor utenfor klubben har rolle «revisor» og ser bare regnskapet, ikke møter, styret eller annet.
-//  • Administratoren bestemmer hvilke styreverv som finnes. Administrator og kasserer bestemmer hvem som har dem.
-//  • Et referat signeres av de styret velger. Når alle har signert, er referatet låst for godt.
+//  • Administratoren bestemmer hvilke styreverv som finnes. Kassereren bestemmer hvem som har dem.
+//  • Et referat signeres av de styret velger (høyst 8). Når alle har signert, er referatet låst for godt.
 //  • Administratoren (admin: true) er vanlig medlem, men får full tilgang i inntil 24 timer
 //    når kasserer eller styret ber om support. Tidspunktet sjekkes her, mot serverens klokke.
+//    Under support kan administratoren ikke gi noen kasserer-, administrator- eller revisortilgang,
+//    og ikke sette seg selv i styret, så tilgangen ikke varer etter at supporten er over.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -81,14 +83,25 @@ service cloud.firestore {
     function gyldigBelop(b) {
       return b is int && b > 0 && b < 100000000;
     }
+    function tekst(t, maks) {
+      return t is string && t.size() <= maks;
+    }
+    // En brukerprofil som ikke gir mer enn vanlig medlemstilgang.
+    function vanligMedlem(d) {
+      return d.get('rolle', 'medlem') == 'medlem' && d.get('admin', false) != true && d.get('revisor', false) != true;
+    }
 
     // Hvem som har tilgang, og med hvilken rolle. Dokument-ID er e-postadressen med små bokstaver.
     match /brukere/{e} {
       allow get: if innlogget() && (e == epost() || erKasserer());
-      // Under support kan administratoren ikke endre sin egen rolle (og dermed ikke gi seg selv varig tilgang).
+      // Under support kan administratoren ikke endre sin egen rolle, og ikke gi andre kasserer-, administrator-
+      // eller revisortilgang (som ellers kunne vart etter at supporten er over). Å ta bort slik tilgang går fint.
       allow list: if erKasserer();
-      allow create, delete: if ekteKasserer() || (supportAktiv() && e != epost());
-      allow update: if ekteKasserer() || (supportAktiv() && e != epost())
+      allow delete: if ekteKasserer() || (supportAktiv() && e != epost());
+      allow create: if ekteKasserer() || (supportAktiv() && e != epost() && vanligMedlem(request.resource.data));
+      allow update: if ekteKasserer()
+        || (supportAktiv() && e != epost() && (vanligMedlem(request.resource.data)
+            || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['rolle', 'admin', 'revisor', 'revisorTil'])))
         || (harTilgang() && e == epost()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['navn', 'kontonummer']));
     }
@@ -151,10 +164,18 @@ service cloud.firestore {
     match /soknader/{id} {
       allow read: if erStyret() || (harTilgang() && resource.data.epost == epost());
       // Kassereren kan i tillegg legge tilbake søknader fra en sikkerhetskopi.
+      // Et medlem fyller bare ut feltene i skjemaet. Resten (behandling, utbetaling) er kassererens.
       allow create: if (harTilgang()
+          && request.resource.data.keys().hasOnly(['navn', 'formaal', 'dato', 'belop', 'kontonummer', 'kvitteringIds', 'epost', 'status', 'opprettet'])
           && request.resource.data.epost == epost()
           && request.resource.data.status == 'sendt'
-          && gyldigBelop(request.resource.data.belop))
+          && gyldigBelop(request.resource.data.belop)
+          && tekst(request.resource.data.navn, 100)
+          && tekst(request.resource.data.formaal, 500)
+          && tekst(request.resource.data.dato, 10)
+          && tekst(request.resource.data.kontonummer, 20)
+          && request.resource.data.kvitteringIds is list && request.resource.data.kvitteringIds.size() <= 30
+          && request.resource.data.opprettet == request.time)
         || (erKasserer() && request.resource.data.epost is string && gyldigBelop(request.resource.data.belop));
       allow update: if erKasserer();
       allow delete: if erKasserer()
@@ -173,7 +194,8 @@ service cloud.firestore {
       // Kassereren kan i tillegg legge tilbake kvitteringer fra en sikkerhetskopi.
       allow create: if gyldigKvittering(request.resource.data)
         && ((harTilgang() && request.resource.data.eier == epost()
-            && request.resource.data.keys().hasOnly(['navn', 'type', 'data', 'eier', 'lastetOpp']))
+            && request.resource.data.keys().hasOnly(['navn', 'type', 'data', 'eier', 'lastetOpp'])
+            && tekst(request.resource.data.get('navn', ''), 300))
           || erKasserer());
       allow update: if erKasserer();
       allow delete: if erKasserer()
@@ -181,15 +203,25 @@ service cloud.firestore {
     }
 
     // Styreverv. Alle med tilgang ser hvem som sitter i styret.
-    // Administratoren bestemmer hvilke verv som finnes; kassereren kan bare endre hvem som har dem.
+    // Administratoren bestemmer hvilke verv som finnes; kassereren bestemmer hvem som har dem.
+    // Administratoren kan bare fjerne folk fra styret (når et verv fjernes), aldri legge til. Under support kan
+    // administratoren endre alt, men ikke sette seg selv i styret (det ville gitt tilgang etter supporten).
     match /innstillinger/verv {
       function gyldigVerv(d) {
         return d.liste is list && d.tildelt is map && d.styre is list && d.navn is map;
       }
+      function ikkeSegSelv(d) {
+        return !(epost() in d.styre) || (resource != null && epost() in resource.data.get('styre', []));
+      }
       allow read: if harTilgang();
-      allow create: if (erAdmin() || erKasserer()) && gyldigVerv(request.resource.data);
-      allow update: if gyldigVerv(request.resource.data) && (erAdmin() || supportAktiv()
-        || (ekteKasserer() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tildelt', 'styre', 'navn', 'endret', 'endretAv'])));
+      allow create: if gyldigVerv(request.resource.data) && (ekteKasserer()
+        || (supportAktiv() && ikkeSegSelv(request.resource.data))
+        || (erAdmin() && request.resource.data.styre.size() == 0));
+      allow update: if gyldigVerv(request.resource.data) && (
+        (ekteKasserer() && (erAdmin()
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tildelt', 'styre', 'navn', 'endret', 'endretAv'])))
+        || (supportAktiv() && ikkeSegSelv(request.resource.data))
+        || (erAdmin() && request.resource.data.styre.hasOnly(resource.data.get('styre', []))));
     }
 
     // Hvem som har innlogging, så styret kan velge hvem som skal signere et referat. Holdes oppdatert av kassereren.
@@ -202,7 +234,19 @@ service cloud.firestore {
     match /moter/{id} {
       function gyldigMote(d) {
         return d.type in ['styremote', 'medlemsmote', 'arsmote'] && d.dato is string && d.tittel is string
-          && d.referatStatus in ['ingen', 'utkast', 'signering'];
+          && d.referatStatus in ['ingen', 'utkast', 'signering']
+          && (!('signatarer' in d) || (d.signatarer is list && d.signatarer.size() <= 8));
+      }
+      function signert(e) {
+        return existsAfter(/databases/$(database)/documents/signaturer/$(id + '__' + e));
+      }
+      // Alle på lista har signert (lista har høyst 8 personer, se gyldigMote).
+      function alleHarSignert(s) {
+        return s.size() <= 8
+          && (s.size() < 1 || signert(s[0])) && (s.size() < 2 || signert(s[1]))
+          && (s.size() < 3 || signert(s[2])) && (s.size() < 4 || signert(s[3]))
+          && (s.size() < 5 || signert(s[4])) && (s.size() < 6 || signert(s[5]))
+          && (s.size() < 7 || signert(s[6])) && (s.size() < 8 || signert(s[7]));
       }
       function referatUendret() {
         return request.resource.data.get('referat', null) == resource.data.get('referat', null)
@@ -213,15 +257,16 @@ service cloud.firestore {
       allow create: if erStyret() && gyldigMote(request.resource.data) && request.resource.data.referatStatus == 'ingen';
       allow delete: if erStyret() && resource.data.referatStatus != 'godkjent';
       allow update: if
-        // Styret endrer så lenge referatet ikke er godkjent. Under signering kan ikke teksten endres
-        // (da må referatet trekkes tilbake, og signaturene slettes).
-        (erStyret() && resource.data.referatStatus != 'godkjent' && gyldigMote(request.resource.data)
-          && (resource.data.referatStatus != 'signering' || request.resource.data.referatStatus != 'signering' || referatUendret()))
-        // Den som signerer sist, markerer referatet som godkjent.
-        || (harTilgang() && resource.data.referatStatus == 'signering' && epost() in resource.data.signatarer
+        // Den som signerer sist, markerer referatet som godkjent. Da må alle på lista ha signert.
+        // (Står først, så sjekken av signaturene ikke kommer i tillegg til oppslagene for styret.)
+        (harTilgang() && resource.data.referatStatus == 'signering' && epost() in resource.data.signatarer
           && request.resource.data.referatStatus == 'godkjent'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['referatStatus', 'godkjent'])
-          && existsAfter(/databases/$(database)/documents/signaturer/$(id + '__' + epost())));
+          && alleHarSignert(resource.data.signatarer))
+        // Styret endrer så lenge referatet ikke er godkjent. Under signering kan ikke teksten endres
+        // (da må referatet trekkes tilbake, og signaturene slettes).
+        || (erStyret() && resource.data.referatStatus != 'godkjent' && gyldigMote(request.resource.data)
+          && (resource.data.referatStatus != 'signering' || request.resource.data.referatStatus != 'signering' || referatUendret()));
     }
 
     // Regelverk: vedtekter, statutter og andre regler. Alle med tilgang leser, styret legger inn og endrer.
