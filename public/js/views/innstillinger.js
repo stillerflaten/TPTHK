@@ -7,7 +7,11 @@ import { ikon } from "../ikoner.js";
 import { supportKort, kobleSupport } from "./support.js";
 import { kopiKort, kobleKopi } from "./sikkerhetskopi.js";
 import { nullstillKort, kobleNullstill } from "./nullstill.js";
-import { revisorUtloper } from "../tilgang.js";
+import { revisorUtloper, ekteKasserer } from "../tilgang.js";
+
+// Under support kan administratoren ikke gi kasserer- eller revisortilgang (se firestore.rules), bare ta den bort.
+const kanGiTilgang = (S) => ekteKasserer(S);
+const BARE_KASSERER = "Under support kan ikke administratoren gi kasserer- eller revisortilgang. Det gjør kassereren selv.";
 
 export function innstillinger(main, S) {
   const i = S.innst;
@@ -74,7 +78,7 @@ export function innstillinger(main, S) {
         ${b.id === meg && b.admin && b.rolle === "kasserer" ? raw(`<button class="knapp sekundaer liten" id="tilSupport">Bytt til tilgang bare ved support</button>`)
           : b.id === meg ? raw(`<span class="hint">Deg</span>`) : raw(html`<button class="knapp sekundaer liten" data-rolle="${b.id}" data-til="medlem">${b.admin ? "Fjern som administrator" : "Fjern som kasserer"}</button>`)}</li>`))}
       </ul>
-      ${andre.length ? raw(html`
+      ${!kanGiTilgang(S) ? raw(html`<p class="hint">${BARE_KASSERER}</p>`) : andre.length ? raw(html`
         <label>Gjør et medlem med innlogging til kasserer
           <span class="knapperad">
             <select id="nyKasserer">${andre.map((b) => raw(html`<option value="${b.id}">${b.navn || b.id} (${b.id})</option>`))}</select>
@@ -234,6 +238,7 @@ function revisorKort(S) {
         <li><span><strong>${b.navn || b.id}</strong>${b.rolle === "revisor" ? " (ikke medlem)" : ""}<br><span class="hint">${b.id} · ${status(b)}</span></span>
         <button class="knapp sekundaer liten" data-fjern-revisor="${b.id}">Fjern</button></li>`))}
       </ul>`) : ""}
+      ${!kanGiTilgang(S) ? raw(html`<p class="hint">${BARE_KASSERER}</p>`) : raw(html`
       <form id="nyRevisor" class="skjema">
         <div class="veksler" role="radiogroup" aria-label="Hvem er revisor">
           <button type="button" data-hvem="ekstern" class="valgt" aria-checked="true">Utenfor klubben</button>
@@ -250,12 +255,21 @@ function revisorKort(S) {
         </label>
         <label>Tilgang til og med (valgfritt)<input type="date" name="til" min="${iDag()}"></label>
         <div class="knapper venstre"><button class="knapp sekundaer" type="submit">Gi revisortilgang</button></div>
-      </form>
+      </form>`)}
     </section>`;
 }
 
 function kobleRevisor(main, S) {
+  main.querySelectorAll("[data-fjern-revisor]").forEach((b) => b.addEventListener("click", async () => {
+    const epost = b.dataset.fjernRevisor;
+    const ekstern = S.brukere.find((x) => x.id === epost)?.rolle === "revisor";
+    const tekst = ekstern ? `Fjerne revisortilgangen til ${epost}? Personen kommer ikke inn på nettsiden lenger.`
+      : `Fjerne revisortilgangen til ${epost}? Personen beholder innlogging som vanlig medlem.`;
+    if (!(await bekreft(tekst, { ja: "Fjern" }))) return;
+    await medKnapp(b, () => (ekstern ? slettBruker(epost) : lagreBruker(epost, { revisor: false, revisorTil: null })));
+  }));
   const skjema = main.querySelector("#nyRevisor");
+  if (!skjema) return;
   let hvem = "ekstern";
   skjema.querySelectorAll("[data-hvem]").forEach((b) => b.addEventListener("click", () => {
     hvem = b.dataset.hvem;
@@ -283,12 +297,4 @@ function kobleRevisor(main, S) {
       melding("Revisoren har fått tilgang.");
     });
   });
-  main.querySelectorAll("[data-fjern-revisor]").forEach((b) => b.addEventListener("click", async () => {
-    const epost = b.dataset.fjernRevisor;
-    const ekstern = S.brukere.find((x) => x.id === epost)?.rolle === "revisor";
-    const tekst = ekstern ? `Fjerne revisortilgangen til ${epost}? Personen kommer ikke inn på nettsiden lenger.`
-      : `Fjerne revisortilgangen til ${epost}? Personen beholder innlogging som vanlig medlem.`;
-    if (!(await bekreft(tekst, { ja: "Fjern" }))) return;
-    await medKnapp(b, () => (ekstern ? slettBruker(epost) : lagreBruker(epost, { revisor: false, revisorTil: null })));
-  }));
 }

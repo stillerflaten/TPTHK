@@ -66,7 +66,10 @@ export function lastNedCsv(filnavn, rader) {
 
 export function csvTekst(rader) {
   const celle = (v) => {
-    const s = String(v ?? "");
+    let s = String(v ?? "");
+    // Tekst som begynner med = + - @ kan Excel tolke som en formel. En apostrof foran gjør den til vanlig tekst.
+    // Tall (beløp, også negative) lar vi være.
+    if (typeof v === "string" && /^[=+\-@\t\r]/.test(s) && !/^-?\d[\d\s.,]*$/.test(s)) s = "'" + s;
     return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return "\uFEFF" + rader.map((r) => r.map(celle).join(";")).join("\r\n");

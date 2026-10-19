@@ -373,6 +373,9 @@ skjema.trenger = ["moter"];
 
 // ---------- Referat (styret) ----------
 
+// Samme grense som i firestore.rules.
+const MAKS_SIGNATARER = 8;
+
 export async function referat(main, S, id) {
   const m = S.moter.find((x) => x.id === id);
   if (!erStyret(S) || !m) return gaaTil("moter");
@@ -395,7 +398,7 @@ export async function referat(main, S, id) {
     <section class="kort">
       <h2>Hvem skal signere?</h2>
       <p class="hint">${erAapent(m) ? "Vanligvis møteleder og to protokollvitner." : "Vanligvis styremedlemmene som var til stede."}
-        Bare personer med innlogging kan velges. Mangler noen, må kassereren gi dem innlogging under Medlemmer.</p>
+        Høyst ${MAKS_SIGNATARER} kan signere. Bare personer med innlogging kan velges. Mangler noen, må kassereren gi dem innlogging under Medlemmer.</p>
       ${personer.length ? raw(html`<div class="velgliste">${personer.map((p) => raw(html`
         <label class="avkryss"><input type="checkbox" name="signatar" value="${p.epost}" ${valgt.has(p.epost) ? "checked" : ""}>
           <span>${p.navn || p.epost}${p.styre ? raw(` <span class="status">styret</span>`) : ""}</span></label>`))}</div>`)
@@ -421,6 +424,7 @@ export async function referat(main, S, id) {
     const v = verdier();
     if (!v.tekst) return melding("Referatet er tomt.", "feil");
     if (!v.signatarer.length) return melding("Velg minst én som skal signere.", "feil");
+    if (v.signatarer.length > MAKS_SIGNATARER) return melding(`Høyst ${MAKS_SIGNATARER} kan signere et referat.`, "feil");
     const navn = Object.fromEntries(v.signatarer.map((ep) => [ep, personer.find((p) => p.epost === ep)?.navn || ep]));
     if (!(await bekreft(`Sende referatet til signering hos ${Object.values(navn).join(", ")}? Teksten kan ikke endres uten at det trekkes tilbake.`, { ja: "Send" }))) return;
     await medKnapp(e.currentTarget, async () => {

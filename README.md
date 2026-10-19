@@ -28,7 +28,11 @@ Nettside (PWA) for kassereren i Trøndelag Politis Tjenestehundklubb. Kan legges
 
 - Ren HTML, CSS og JavaScript (ingen byggesteg). Alt ligger i `public/`.
 - Firebase Authentication (e-post/passord med bekreftet e-post) og Cloud Firestore.
-- Kvitteringer krympes i nettleseren og lagres i Firestore, så gratisplanen Spark holder (Firebase Storage krever betalingsplan).
+- Kvitteringer krympes i nettleseren og lagres i Firestore (ikke Firebase Storage).
+- Firebase-prosjektet (`tpthk-3405f`) er på betalingsplanen **Blaze**, fordi den gir automatisk sikkerhetskopi av databasen. For en klubb av denne størrelsen koster det i praksis ingenting, men sett gjerne et budsjettvarsel i Google Cloud.
+- Automatisk sikkerhetskopi hver natt, som tas vare på i 14 dager: se [docs/sikkerhetskopi-automatisk.md](docs/sikkerhetskopi-automatisk.md). I tillegg har kassereren en knapp for sikkerhetskopi som ZIP under Innstillinger.
+- Sikkerhetsreglene publiseres automatisk når `firestore.rules` endres på `main` (se [docs/regler-automatisk.md](docs/regler-automatisk.md)).
+- `index.html` har en Content-Security-Policy som bare lar siden hente skript fra seg selv og Firebase (gstatic). Legges det til skript eller tjenester fra andre steder, må den utvides.
 - Tilgang styres av `firestore.rules`. Samlingen `brukere` (dokument-ID = e-post) gir rollen `kasserer`, `medlem` eller `revisor` (revisor utenfor klubben, ser bare regnskapet), eventuelt med `admin: true` eller `revisor: true` (lesetilgang til regnskapet, med valgfri sluttdato `revisorTil`).
 - Publiseres til GitHub Pages med `.github/workflows/publiser.yml` ved hver endring på `main`.
 

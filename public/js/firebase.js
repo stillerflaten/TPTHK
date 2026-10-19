@@ -7,6 +7,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator,
+  terminate, clearIndexedDbPersistence,
   collection, doc, onSnapshot, getDoc, setDoc, updateDoc, deleteDoc, addDoc, writeBatch,
   query, where, serverTimestamp, deleteField, getDocsFromServer, getDocFromServer, Timestamp,
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
@@ -48,7 +49,16 @@ export const konto = {
   },
   sendBekreftelsePaaNytt: () => sendEmailVerification(auth.currentUser),
   glemtPassord: (epost) => sendPasswordResetEmail(auth, epost.trim()),
-  loggUt: () => signOut(auth),
+  // Den lokale kopien av dataene slettes, så ingen kan lese regnskapet fra nettleseren etterpå (f.eks. på en delt PC).
+  // Databasetilkoblingen kan ikke brukes etter dette, så siden lastes på nytt.
+  loggUt: async () => {
+    await signOut(auth);
+    try {
+      await terminate(db);
+      await clearIndexedDbPersistence(db);
+    } catch { /* Åpen i en annen fane: kopien slettes neste gang. */ }
+    location.reload();
+  },
   // Etter at brukeren har trykket på lenken i e-posten må vi hente ny status fra Firebase.
   oppdater: async () => {
     await auth.currentUser.reload();
@@ -190,7 +200,7 @@ export async function nullstillRegnskap({ poster, soknader, medlemmer, innst, aa
 
 export async function lagreKvittering(fil) {
   const ref = await addDoc(collection(db, "kvitteringer"), {
-    navn: fil.navn, type: fil.type, data: fil.data, eier: meg(), lastetOpp: serverTimestamp(),
+    navn: String(fil.navn || "").slice(0, 200), type: fil.type, data: fil.data, eier: meg(), lastetOpp: serverTimestamp(),
   });
   return ref.id;
 }
