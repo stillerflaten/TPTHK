@@ -78,7 +78,7 @@ export function bekreft(tekst, { ja = "Ja", nei = "Avbryt", farlig = false } = {
 
 // ---------- Kvitteringer ----------
 
-/** Åpner en lagret kvittering: bilder vises i en dialog, PDF-er i ny fane. */
+/** Åpner en lagret kvittering: bilder vises i en dialog, PDF-er åpnes i ny fane fra en knapp i dialogen. */
 export async function visKvittering(id) {
   const vindu = dialog(`<p class="dialog-tekst">Henter kvittering …</p>`, { bred: true });
   try {
@@ -86,11 +86,21 @@ export async function visKvittering(id) {
     if (!k) throw new Error("Fant ikke kvitteringen.");
     const data = String(k.data || "");
     if (k.type === "application/pdf") {
-      vindu.close();
       if (!data.startsWith("data:application/pdf;base64,")) throw new Error("Kvitteringen er ikke en gyldig PDF.");
       // Åpnes alltid som PDF, uansett hva fila selv sier at den er.
       const url = URL.createObjectURL(dataUrlTilBlob(data, "application/pdf"));
-      window.open(url, "_blank");
+      const navn = /\.pdf$/i.test(k.navn || "") ? k.navn : `${k.navn || "kvittering"}.pdf`;
+      // Safari stopper nye faner som ikke åpnes rett fra et trykk, og her har vi ventet på databasen.
+      // Derfor åpnes PDF-en først når brukeren trykker på knappen.
+      vindu.innerHTML = html`
+        <div class="dialog-topp"><strong>${k.navn}</strong><button class="ikonknapp" data-lukk aria-label="Lukk">${raw(ikon("lukk"))}</button></div>
+        <p class="dialog-tekst">Kvitteringen er en PDF.</p>
+        <div class="knapper">
+          <a class="knapp sekundaer" href="${url}" download="${navn}">Last ned</a>
+          <button class="knapp" data-apne>Åpne PDF</button>
+        </div>`;
+      vindu.querySelector("[data-apne]").addEventListener("click", () => { window.open(url, "_blank"); vindu.close(); });
+      vindu.addEventListener("close", () => setTimeout(() => URL.revokeObjectURL(url), 60_000), { once: true });
       return;
     }
     if (!data.startsWith("data:image/")) throw new Error("Kvitteringen er ikke et gyldig bilde.");
