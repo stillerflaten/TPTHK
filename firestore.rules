@@ -182,6 +182,22 @@ service cloud.firestore {
         || (harTilgang() && resource.data.epost == epost() && resource.data.status == 'sendt');
     }
 
+    // E-postvarsel til kassereren om nye søknader. Sendes av Firebase-utvidelsen «Trigger Email from Firestore»
+    // (se docs/epostvarsel.md), som leser denne samlingen. Medlemmer kan bare lage et varsel med den faste teksten,
+    // og bare til adressen kassereren har valgt under Innstillinger, så samlingen kan ikke brukes til å sende annen e-post.
+    match /mail/{id} {
+      function varselEpost() {
+        return get(/databases/$(database)/documents/innstillinger/medlemsinfo).data.get('varselEpost', '');
+      }
+      allow create: if harTilgang()
+        && request.resource.data.keys().hasOnly(['to', 'message'])
+        && varselEpost() != '' && request.resource.data.to == varselEpost()
+        && request.resource.data.message.keys().hasOnly(['subject', 'text'])
+        && request.resource.data.message.subject == 'Ny søknad om refusjon'
+        && request.resource.data.message.text == 'Det har kommet en ny søknad om refusjon av utlegg. Logg inn på https://tpthk.no for å se den.';
+      allow read, delete: if erKasserer();
+    }
+
     // Kvitteringsbilder. «laast» settes når en søknad er utbetalt, så de ikke kan slettes av medlemmet.
     match /kvitteringer/{id} {
       // Bare bilder (JPEG/PNG) og PDF, og innholdet må være av samme type som kvitteringen sier.
