@@ -12,7 +12,7 @@ Dette settes opp én gang. Alt gjøres i nettleseren og tar 15–20 minutter.
 
 ## Steg 1: Gmail-kontoen som sender e-posten
 
-Bruk en Gmail-konto som tilhører klubben (ikke din private), for eksempel `tpthk.kasserer@gmail.com`.
+Bruk klubbens Gmail-konto `tpthk.post@gmail.com` (ikke din private).
 Har klubben ingen, lag en på https://accounts.google.com/signup. Den kan også brukes som eier av Firebase-prosjektet senere.
 
 1. Logg inn på kontoen og gå til **https://myaccount.google.com/security**.
@@ -37,10 +37,10 @@ Det står en rød melding om at Firebase Extensions stenges 31. mars 2027. Den k
 | Firestore Instance ID | `(default)` |
 | Firestore Instance Location | Databasen ligger i `eur3`. I lista heter det «Multi-region (Europe …)». Ikke velg United States. |
 | Authentication Type | `Username & Password` |
-| SMTP connection URI | `smtps://tpthk.kasserer@gmail.com@smtp.gmail.com:465` (bytt til klubbens Gmail-adresse) |
-| SMTP password | Passordet på 16 bokstaver fra steg 1 (uten mellomrom) |
+| SMTP connection URI | `smtps://tpthk.post%40gmail.com:APPPASSORD@smtp.gmail.com:465` – bytt APPPASSORD med passordet på 16 bokstaver fra steg 1, uten mellomrom. `%40` erstatter den første @, og det skal være kolon før passordet. |
+| SMTP password | La stå tomt. (Passordet i dette feltet ble ikke brukt da vi satte det opp i 2026, derfor ligger det i adressen over.) |
 | Email documents collection | `mail` |
-| Default FROM address | `TPTHK <tpthk.kasserer@gmail.com>` (klubbens Gmail-adresse) |
+| Default FROM address | `TPTHK <tpthk.post@gmail.com>` |
 
 Resten kan stå som det er. Trykk **Install extension**. Det tar 3–5 minutter før den er ferdig.
 
@@ -59,6 +59,13 @@ Se også i søppelpost første gang. Trekk test-søknaden etterpå.
 
 Kommer det ingen e-post: Firebase-konsollen → **Firestore** → samlingen `mail`. Varselet står der med feltet
 `delivery`, og under `delivery.error` står det hva som gikk galt (oftest feil passord i steg 2).
+
+- «535-5.7.8 Username and Password not accepted»: app-passordet er feil, eller laget på en annen konto enn tpthk.post. Lag et nytt mens du er innlogget som tpthk.post.
+- «Missing credentials for PLAIN»: passordet mangler. Legg det inn i SMTP connection URI som vist over.
+
+Når feilen er rettet: endre `delivery.state` fra `ERROR` til `RETRY` i mail-dokumentet, så prøver utvidelsen på nytt.
+
+App-passordet ligger også i Google Cloud → Secret Manager → `firestore-send-email-SMTP_PASSWORD` (⋮ → View secret value) med kontoen som eier prosjektet.
 
 ## Bytte mottaker eller slå det av
 
