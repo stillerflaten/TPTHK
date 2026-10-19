@@ -20,6 +20,9 @@ rules_version = '2';
 //    når kasserer eller styret ber om support. Tidspunktet sjekkes her, mot serverens klokke.
 //    Under support kan administratoren ikke gi noen kasserer-, administrator- eller revisortilgang,
 //    og ikke sette seg selv i styret, så tilgangen ikke varer etter at supporten er over.
+//  • Fôrbestilling: medlemmene bestiller fôr (Royal Canin) i bestillingsrunder. Fôransvarlig (innstillinger/for)
+//    ser alle bestillingene og styrer rundene og fôrtypene. Kassereren eller administratoren velger fôransvarlig.
+//    Betalingen går ikke via klubben, så bestillingene har ingenting med regnskapet å gjøre.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -79,6 +82,23 @@ service cloud.firestore {
     // De som kan lese regnskapet: kasserer, styret og revisor.
     function seRegnskap() {
       return erStyret() || erRevisor();
+    }
+    function forSti() {
+      return /databases/$(database)/documents/innstillinger/for;
+    }
+    function forInnst() {
+      return get(forSti()).data;
+    }
+    // Fôransvarlig: står i lista «ansvarlige» i innstillinger/for. Ser alle fôrbestillingene, men ikke regnskapet.
+    function erForansvarlig() {
+      return harTilgang() && exists(forSti()) && epost() in forInnst().get('ansvarlige', []);
+    }
+    function styrerFor() {
+      return erForansvarlig() || supportAktiv();
+    }
+    // Varelinjer i en fôrbestilling: [{ vare, navn, antall }].
+    function gyldigeLinjer(l) {
+      return l is list && l.size() >= 1 && l.size() <= 20;
     }
     function gyldigBelop(b) {
       return b is int && b > 0 && b < 100000000;
@@ -182,20 +202,93 @@ service cloud.firestore {
         || (harTilgang() && resource.data.epost == epost() && resource.data.status == 'sendt');
     }
 
-    // E-postvarsel til kassereren om nye søknader. Sendes av Firebase-utvidelsen «Trigger Email from Firestore»
-    // (se docs/epostvarsel.md), som leser denne samlingen. Medlemmer kan bare lage et varsel med den faste teksten,
-    // og bare til adressen kassereren har valgt under Innstillinger, så samlingen kan ikke brukes til å sende annen e-post.
+    // E-postvarsel til kassereren om nye søknader, og til fôransvarlig og de påmeldte om fôrbestillingen.
+    // Sendes av Firebase-utvidelsen «Trigger Email from Firestore» (se docs/epostvarsel.md), som leser denne samlingen.
+    // Bare de faste tekstene kan sendes, og bare til adressene som er valgt (kassereren under Innstillinger,
+    // fôransvarlig i innstillinger/for), så samlingen kan ikke brukes til å sende annen e-post.
+    // Fôransvarlig kan i tillegg sende de to faste beskjedene om fôrbestillingen til de påmeldte.
     match /mail/{id} {
       function varselEpost() {
         return get(/databases/$(database)/documents/innstillinger/medlemsinfo).data.get('varselEpost', '');
       }
       allow create: if harTilgang()
-        && request.resource.data.keys().hasOnly(['to', 'message'])
-        && varselEpost() != '' && request.resource.data.to == varselEpost()
         && request.resource.data.message.keys().hasOnly(['subject', 'text'])
-        && request.resource.data.message.subject == 'Ny søknad om refusjon'
-        && request.resource.data.message.text == 'Det har kommet en ny søknad om refusjon av utlegg. Logg inn på https://tpthk.no for å se den.';
+        && ((request.resource.data.keys().hasOnly(['to', 'message']) && varselEpost() != '' && request.resource.data.to == varselEpost()
+            && request.resource.data.message.subject == 'Ny søknad om refusjon'
+            && request.resource.data.message.text == 'Det har kommet en ny søknad om refusjon av utlegg. Logg inn på https://tpthk.no for å se den.')
+          // Ny fôrbestilling: bare til fôransvarlig, og bare hvis varselet er slått på.
+          || (request.resource.data.keys().hasOnly(['to', 'message']) && exists(forSti()) && forInnst().get('varsel', true) == true
+            && forInnst().get('ansvarlige', []).size() > 0 && request.resource.data.to == forInnst().ansvarlige
+            && request.resource.data.message.subject == 'Ny fôrbestilling'
+            && request.resource.data.message.text == 'Det har kommet en ny bestilling av fôr. Logg inn på https://tpthk.no for å se den.')
+          // Fôransvarlig sender beskjed til dem som er påmeldt fôrordningen (som blindkopi, så ingen ser hverandres adresser).
+          || (styrerFor() && request.resource.data.keys().hasOnly(['bcc', 'message'])
+            && request.resource.data.bcc is list && request.resource.data.bcc.size() > 0 && request.resource.data.bcc.size() <= 300
+            && ((request.resource.data.message.subject == 'Fôrbestillingen er åpen'
+                && request.resource.data.message.text == 'En ny bestillingsrunde for fôr er åpnet. Logg inn på https://tpthk.no for å bestille, eller for å se over eller endre den faste bestillingen din.')
+              || (request.resource.data.message.subject == 'Påminnelse om fôrbestilling'
+                && request.resource.data.message.text == 'Husk fôrbestillingen. Runden stenges snart. Logg inn på https://tpthk.no for å bestille.'))));
       allow read, delete: if erKasserer();
+    }
+
+    // Fôrbestilling: fôrtyper, bestillingsrunden og hvem som er fôransvarlig. Alle med tilgang leser.
+    // Kassereren eller administratoren velger fôransvarlig. Fôransvarlig endrer resten, men ikke hvem som er fôransvarlig.
+    match /innstillinger/for {
+      function gyldigFor(d) {
+        return d.get('ansvarlige', []) is list && d.get('ansvarlige', []).size() <= 5
+          && d.get('navn', {}) is map && d.get('varer', []) is list && d.get('varer', []).size() <= 100
+          && tekst(d.get('info', ''), 1000) && d.get('aapen', false) is bool;
+      }
+      allow read: if harTilgang();
+      allow create: if (erKasserer() || erAdmin()) && gyldigFor(request.resource.data);
+      allow update: if gyldigFor(request.resource.data) && (erKasserer() || erAdmin()
+        || (erForansvarlig() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ansvarlige', 'navn'])));
+    }
+
+    // Fôrbestillinger. Medlemmet bestiller og kan endre eller trekke bestillingen så lenge runden er åpen.
+    // Fôransvarlig ser alle, fører pris og om Vippskravet er sendt og betalt, og stenger runden.
+    match /forbestillinger/{id} {
+      // getAfter: når fôransvarlig åpner en runde, legges de faste bestillingene inn i samme slengen.
+      function rundenErAapen(runde) {
+        return existsAfter(forSti()) && getAfter(forSti()).data.get('aapen', false) == true
+          && runde == getAfter(forSti()).data.get('runde', '');
+      }
+      function egen() {
+        return harTilgang() && resource.data.epost == epost();
+      }
+      allow read: if styrerFor() || egen();
+      // Fôransvarlig legger inn de faste bestillingene når en runde åpnes (felt «fast»).
+      allow create: if (styrerFor()
+          && request.resource.data.keys().hasOnly(['navn', 'epost', 'runde', 'linjer', 'kommentar', 'status', 'opprettet', 'fast'])
+          && request.resource.data.status == 'ny' && request.resource.data.epost is string
+          && gyldigeLinjer(request.resource.data.linjer) && rundenErAapen(request.resource.data.runde))
+        || (harTilgang()
+        && request.resource.data.keys().hasOnly(['navn', 'epost', 'runde', 'linjer', 'kommentar', 'status', 'opprettet'])
+        && request.resource.data.epost == epost()
+        && request.resource.data.status == 'ny'
+        && request.resource.data.opprettet == request.time
+        && tekst(request.resource.data.navn, 100)
+        && tekst(request.resource.data.get('kommentar', ''), 500)
+        && gyldigeLinjer(request.resource.data.linjer)
+        && rundenErAapen(request.resource.data.runde));
+      allow update: if styrerFor()
+        || (egen() && resource.data.status == 'ny' && rundenErAapen(resource.data.runde)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linjer', 'kommentar'])
+          && gyldigeLinjer(request.resource.data.linjer)
+          && tekst(request.resource.data.get('kommentar', ''), 500));
+      allow delete: if styrerFor() || (egen() && resource.data.status == 'ny' && rundenErAapen(resource.data.runde));
+    }
+
+    // Påmeldte til fôrordningen. Dokument-ID er e-postadressen. De påmeldte får e-post når en runde åpner,
+    // og en eventuell fast bestilling («fast», varelinjer) legges inn av seg selv hver runde.
+    match /forabonnenter/{e} {
+      allow read: if styrerFor() || (harTilgang() && e == epost());
+      allow create, update: if harTilgang() && e == epost()
+        && request.resource.data.keys().hasOnly(['navn', 'epost', 'fast', 'endret'])
+        && request.resource.data.epost == epost()
+        && tekst(request.resource.data.navn, 100)
+        && (request.resource.data.get('fast', null) == null || gyldigeLinjer(request.resource.data.fast));
+      allow delete: if styrerFor() || (harTilgang() && e == epost());
     }
 
     // Kvitteringsbilder. «laast» settes når en søknad er utbetalt, så de ikke kan slettes av medlemmet.

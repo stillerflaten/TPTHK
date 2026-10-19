@@ -59,3 +59,13 @@ Kommer det ingen e-post: Firebase-konsollen → **Firestore** → samlingen `mai
 
 Endre eller tøm feltet under **Innstillinger → Varsel om nye søknader**. Tomt felt betyr at ingen e-post sendes.
 Ny kasserer: husk å bytte adressen her ved overlevering.
+
+## Fôrbestilling
+
+Den samme utvidelsen sender e-post om fôrbestillingen. Det er ingenting mer å sette opp.
+
+- **Fôransvarlig** får «Ny fôrbestilling» når noen bestiller. Det kan slås av under **Fôr → Alle bestillinger → Beskjed til medlemmene og varsel**.
+- **De påmeldte** får «Fôrbestillingen er åpen» når fôransvarlig åpner en runde, og «Påminnelse om fôrbestilling» når fôransvarlig trykker
+  «Send påminnelse til påmeldte». De står i blindkopi, så ingen ser hverandres adresser.
+
+Tekstene er faste og står både i `public/js/firebase.js` og i `firestore.rules`. Skal de endres, må de endres begge steder.

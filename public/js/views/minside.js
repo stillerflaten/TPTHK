@@ -5,6 +5,7 @@ import { konto, oppdaterMinProfil } from "../firebase.js";
 import { melding, medKnapp } from "../ui.js";
 import { gyldigKontonummer } from "./soknader.js";
 import { supportKort, kobleSupport } from "./support.js";
+import { erKasserer } from "../tilgang.js";
 
 export function minside(main, S) {
   const aar = aarNaa();
@@ -23,6 +24,13 @@ export function minside(main, S) {
           ${info.betalingsinfo ? raw(html`<p class="fritekst">${info.betalingsinfo}</p>`) : ""}
           <p class="hint">Har du betalt nylig? Det kan ta litt tid før kassereren registrerer det.</p>`)}
     </section>
+
+    ${erKasserer(S) ? raw(html`
+      <section class="kort">
+        <h2>Fôrbestilling</h2>
+        <p>${S.forInnst?.aapen ? "Bestillingsrunden for fôr er åpen." : "Bestill fôr gjennom klubben, eller meld deg på den faste ordningen."}</p>
+        <div class="knapper venstre"><a class="knapp sekundaer" href="#/for">Gå til fôrbestilling</a></div>
+      </section>`) : ""}
 
     ${raw(supportKort(S))}
 

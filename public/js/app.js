@@ -2,7 +2,7 @@
 
 import {
   klar, auth, konto, lyttProfil, lyttSamling, lyttDokument, lyttMineSoknader, lyttMinForesporsel, normalEpost,
-  lagrePersonliste, lyttSupport, lagreVerv,
+  lagrePersonliste, lyttSupport, lagreVerv, lyttMineForbestillinger, lyttMittForabonnement,
 } from "./firebase.js";
 import { html, raw, esc, aarNaa } from "./util.js";
 import { medStandard, tilgjengeligeAar, nummererBilag } from "./regnskap.js";
@@ -22,8 +22,9 @@ import * as styret from "./views/styret.js";
 import * as regelverk from "./views/regelverk.js";
 import { hjelp } from "./views/hjelp.js";
 import { personvern } from "./views/personvern.js";
+import * as forbestilling from "./views/for.js";
 import { ikon } from "./ikoner.js";
-import { erKasserer as kasserer, erStyret, supportAktiv, harVerv, erAdmin, erRevisor, eksternRevisor, revisorUtloper, seRegnskap as kanSeRegnskap } from "./tilgang.js";
+import { erKasserer as kasserer, erStyret, supportAktiv, harVerv, erAdmin, erRevisor, eksternRevisor, revisorUtloper, seRegnskap as kanSeRegnskap, styrerFor } from "./tilgang.js";
 import { supportStripe, oppdaterSupportKort } from "./views/support.js";
 
 const main = document.getElementById("innhold");
@@ -39,6 +40,8 @@ export const S = {
   moter: [], signaturer: [], personer: [], regelverk: [],
   support: null,
   verv: undefined, // undefined = ikke lastet, null = ikke opprettet ennå
+  forInnst: undefined, // fôrbestilling: undefined = ikke lastet, null = ikke opprettet ennå
+  mineFor: [], forbestillinger: [], mittForabonnement: null, forabonnenter: [],
   innst: medStandard(null),
   info: {},
   mittMedlem: null,
@@ -90,11 +93,15 @@ const moteSider = {
   referat: { side: moter.referat },
   styret: { side: styret.styret },
   hjelp: { side: hjelp },
+  "for-alle": { side: forbestilling.forAlle },
 };
+// Fôrbestilling: i menyen for alle unntatt kassereren (som har så mange menypunkter). Kassereren finner den på Min side.
+const forSider = { for: { side: forbestilling.forside } };
+const forMeny = { for: { meny: "Fôr", ikon: "hund", side: forbestilling.forside } };
 // Regelverket: i menyen for alle unntatt kassereren, som har så mange menypunkter fra før. Kassereren finner det under Møter.
 const regelSider = { regelverk: { side: regelverk.liste }, regel: { side: regelverk.les }, "regel-skjema": { side: regelverk.skjema } };
 const regelMeny = { ...regelSider, regelverk: { meny: "Regelverk", ikon: "regelverk", side: regelverk.liste } };
-Object.assign(kassererSider, moteSider, regelSider);
+Object.assign(kassererSider, moteSider, regelSider, forSider);
 
 const medlemSider = {
   mine: { meny: "Mine søknader", ikon: "soknader", side: soknader.mineListe },
@@ -102,6 +109,7 @@ const medlemSider = {
   "min-soknad": { side: soknader.minDetalj },
   moter: { meny: "Møter", ikon: "moter", side: moter.liste },
   ...regelMeny,
+  ...forMeny,
   ...moteSider,
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
@@ -118,6 +126,7 @@ const styreSider = {
   "min-soknad": { side: soknader.minDetalj },
   moter: { meny: "Møter", ikon: "moter", side: moter.liste },
   ...regelMeny,
+  ...forMeny,
   ...moteSider,
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
@@ -136,6 +145,7 @@ const revisorSider = (styre) => ({
   "min-soknad": { side: soknader.minDetalj },
   moter: { meny: "Møter", ikon: "moter", side: moter.liste },
   ...regelMeny,
+  ...forMeny,
   ...moteSider,
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 });
@@ -243,7 +253,8 @@ function tegnMeny(aktiv) {
   meny.innerHTML = Object.entries(s).filter(([, v]) => v.meny).map(([k, v]) => {
     const merke = k === "soknader" ? S.soknader.filter((x) => x.status === "sendt").length
       : k === "medlemmer" ? S.foresporsler.length
-      : k === "moter" && S.lastet.has("signaturer") ? moter.venterPaaMeg(S).length : 0;
+      : k === "moter" && S.lastet.has("signaturer") ? moter.venterPaaMeg(S).length
+      : k === "for" ? forbestilling.nyeBestillinger(S) : 0;
     return html`<a href="#/${k}" class="${k === aktiv || (s[aktiv] && !s[aktiv].meny && hører(aktiv) === k) ? "aktiv" : ""}">
       ${raw(ikon(v.ikon))}<span class="meny-tekst">${v.meny}</span>${merke ? raw(`<span class="merke">${merke}</span>`) : ""}
     </a>`;
@@ -259,7 +270,7 @@ function tegnMeny(aktiv) {
 
 // Undersider markerer menypunktet de hører til.
 const hører = (navn) => ({ post: "poster", bankimport: "poster", soknad: "soknader", medlem: "medlemmer", "ny-soknad": "mine", "min-soknad": "mine",
-  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter", budsjett: "rapport", avstemming: "rapport", regel: "regelverk", "regel-skjema": "regelverk" })[navn];
+  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter", "for-alle": "for", budsjett: "rapport", avstemming: "rapport", regel: "regelverk", "regel-skjema": "regelverk" })[navn];
 
 // ---------- Data ----------
 
@@ -284,6 +295,7 @@ function startLyttere() {
   rolle = undefined;
   let stoppSupport = null;
   let stoppVerv = null;
+  let stoppFor = null;
   lyttere.push(lyttProfil((p) => {
     S.profil = p;
     // En revisor utenfor klubben har ikke tilgang til support eller styreverv.
@@ -307,10 +319,19 @@ function startLyttere() {
       stoppVerv = null;
       S.verv = undefined;
     }
+    // Hvem som er fôransvarlig, avgjør om man ser alle fôrbestillingene.
+    if (p && p.rolle !== "revisor" && !stoppFor) {
+      stoppFor = lyttDokument("innstillinger", "for", (f) => { S.forInnst = f; S.lastet.add("forInnst"); vurderRolle(); dataEndret(); }, () => { stoppFor = null; });
+    } else if ((!p || p.rolle === "revisor") && stoppFor) {
+      stoppFor();
+      stoppFor = null;
+      S.forInnst = undefined;
+    }
     vurderRolle();
     dataEndret();
   }, visFeil));
   lyttere.push(() => stoppSupport?.());
+  lyttere.push(() => stoppFor?.());
   lyttere.push(() => stoppVerv?.());
   lyttere.push(lyttMinForesporsel((f) => { S.foresporsel = f; dataEndret(); }, () => {}));
   stoppProfil = () => lyttere.forEach((f) => f());
@@ -322,7 +343,7 @@ let stoppProfil = () => {};
 let rolle;
 let supportTimer = null;
 function vurderRolle() {
-  const ny = S.profil ? `${S.profil.rolle}|${erKasserer()}|${erStyret(S)}|${erRevisor(S)}` : undefined;
+  const ny = S.profil ? `${S.profil.rolle}|${erKasserer()}|${erStyret(S)}|${erRevisor(S)}|${styrerFor(S)}` : undefined;
   if (ny !== rolle) {
     rolle = ny;
     gjeldendeSide = null; // tegn siden på nytt, menyen og sidene er annerledes nå
@@ -344,6 +365,7 @@ function startRolleLyttere() {
   S.lastet = new Set();
   const sett = (felt, navn = felt) => (data) => { S[felt] = data; S.lastet.add(navn); dataEndret(); };
   if (S.verv !== undefined) S.lastet.add("verv");
+  if (S.forInnst !== undefined) S.lastet.add("forInnst");
   if (!S.profil?.rolle) return;
   // Revisor utenfor klubben: bare regnskapet.
   if (eksternRevisor(S)) {
@@ -362,6 +384,16 @@ function startRolleLyttere() {
   } else {
     S.mittMedlem = null;
     S.lastet.add("mittMedlem");
+  }
+
+  stoppLyttere.push(lyttMineForbestillinger(sett("mineFor"), visFeil));
+  stoppLyttere.push(lyttMittForabonnement(sett("mittForabonnement"), visFeil));
+  if (styrerFor(S)) {
+    stoppLyttere.push(lyttSamling("forbestillinger", sett("forbestillinger"), visFeil));
+    stoppLyttere.push(lyttSamling("forabonnenter", sett("forabonnenter"), visFeil));
+  } else {
+    S.forbestillinger = []; S.forabonnenter = [];
+    S.lastet.add("forbestillinger"); S.lastet.add("forabonnenter");
   }
 
   stoppLyttere.push(lyttSamling("moter", sett("moter"), visFeil));
@@ -438,6 +470,7 @@ if (klar) {
       bruker, profil: undefined, foresporsel: null, poster: [], medlemmer: [], soknader: [], mineSoknader: [],
       brukere: [], foresporsler: [], innst: medStandard(null), info: {}, mittMedlem: null, lastet: new Set(),
       moter: [], signaturer: [], personer: [], regelverk: [], support: null, verv: undefined,
+      forInnst: undefined, mineFor: [], forbestillinger: [], mittForabonnement: null, forabonnenter: [],
     });
     vervOpprettet = false;
     rolle = undefined;

@@ -2,7 +2,7 @@
 // Teksten ligger her i koden, så den følger med når nettsiden endres. Husk å oppdatere den når noe nytt kommer til.
 
 import { html, raw } from "../util.js";
-import { erKasserer, erStyret, erAdmin, erRevisor } from "../tilgang.js";
+import { erKasserer, erStyret, erAdmin, erRevisor, styrerFor } from "../tilgang.js";
 
 // Hver del: tittel, hvem den gjelder for, og emner (tittel, tekst i enkel HTML som vi skriver selv, og eventuelle skjermbilder).
 // Skjermbildene ligger i public/hjelp/ og er tatt med oppdiktede testdata.
@@ -34,6 +34,16 @@ const DELER = [
         </ol>
         <p>Under «Mine søknader» ser du om søknaden er sendt, godkjent, avslått eller utbetalt. Så lenge den ikke er behandlet, kan du trekke den.
         Lagrer du kontonummeret under <a href="#/minside">Min side</a>, fylles det inn av seg selv neste gang.</p>`, ["ny-soknad", "mine-soknader"]],
+      ["Bestille fôr", `
+        <p>Klubben samler bestillinger av fôr (Royal Canin) noen ganger i året. Gå til <a href="#/for">Fôr</a> i menyen
+        (kassereren finner det under Min side).</p>
+        <ol>
+          <li>Når en bestillingsrunde er åpen, skriver du antall ved fôrtypene du vil ha og trykker «Send bestilling».</li>
+          <li>Du kan endre eller trekke bestillingen helt til fôransvarlig stenger runden.</li>
+          <li>Når regningen kommer, får du Vippskrav fra fôransvarlig. Betalingen går ikke via klubben.</li>
+        </ol>
+        <p>Trykk «Meld meg på» under «Fast ordning», så får du e-post hver gang en runde åpner. Der kan du også lage en fast bestilling.
+        Den legges inn av seg selv hver runde, og du kan endre eller trekke den før runden stenges. «Mine bestillinger» viser status og pris.</p>`],
       ["Møter og referater", `
         <p>Under <a href="#/moter">Møter</a> ligger innkallinger og referater. Medlemsmøter og årsmøter er åpne for alle medlemmer.
         Under «Styret» ser du hvem som har hvilke verv.</p>`],
@@ -160,6 +170,8 @@ const DELER = [
         Du kan også åpne et medlem med e-post og huke av for innlogging. Da kommer personen inn når hen lager konto med samme e-post.</p>`],
       ["Styreverv", `<p>Under «Møter» og «Styret» trykker du «Endre verv» for å velge hvem som har hvilket verv. Den som har et verv,
         ser oversikten og søknadene og kan legge ut møter. Vervet «Kasserer» er bare en tittel. Tilgang til regnskapet gis under Innstillinger.</p>`, ["verv"]],
+      ["Velg fôransvarlig", `<p>Gå til «Gå til fôrbestilling» under <a href="#/minside">Min side</a>, og velg personen under «Fôransvarlig» nederst.
+        Fôransvarlig ser alle fôrbestillingene, men ikke regnskapet. Administratoren kan også velge fôransvarlig.</p>`],
       ["Årsrapport", `<p><a href="#/rapport">Årsrapport</a> samler resultatregnskap, saldo på kontoene, medlemmer og bilagsliste for året.
         Er det lagt inn budsjett, vises regnskapet, budsjettet og avviket ved siden av hverandre, og budsjettet for neste år hvis det finnes.
         Trykk «Skriv ut / lagre PDF» og velg «Lagre som PDF» for å sende den til revisor eller årsmøtet. «Excel» laster ned resultatregnskapet som en fil du kan åpne i Excel.</p>`],
@@ -205,6 +217,22 @@ const DELER = [
       ["Ny kasserer", `<p>Legg den nye kassereren inn som medlem med e-post og gi vedkommende tilgang. Gjør personen til kasserer under
         Innstillinger, og fjern deg selv etterpå.</p>`],
       ["Trenger du hjelp?", `<p>Under Innstillinger kan du be om support. Da får administratoren full tilgang i 24 timer, og tilgangen stenges av seg selv.</p>`],
+    ],
+  },
+  {
+    id: "for", tittel: "For fôransvarlig", gjelder: (S) => styrerFor(S),
+    emner: [
+      ["Fôrtyper og beskjed til medlemmene", `<p>Gå til <a href="#/for-alle">Fôr og «Alle bestillinger»</a>. Under «Fôrtyper» legger du inn det medlemmene kan velge,
+        gjerne med pris. Under «Beskjed til medlemmene» kan du skrive en tekst som vises øverst på bestillingssiden, og datoen for neste planlagte runde.</p>`],
+      ["En bestillingsrunde fra start til slutt", `
+        <ol>
+          <li>Trykk «Åpne ny runde» (sett gjerne en frist). De påmeldte får e-post, og de faste bestillingene legges inn av seg selv.</li>
+          <li>Du får e-post når noen bestiller. Trykk «Send påminnelse til påmeldte» før fristen, så får de som ikke har bestilt, en påminnelse.</li>
+          <li>Trykk «Steng runden». Bruk «Samlet bestilling» og «Kopier lista» når du bestiller hos Royal Canin.</li>
+          <li>Når regningen kommer, fyll inn pris på hver bestilling (eller trykk «Regn ut pris fra fôrtypene»), send Vippskrav og huk av «Vippskrav sendt»,
+            «Betalt» og «Levert». Medlemmene ser status og pris på sin egen side.</li>
+        </ol>
+        <p>Eldre runder finner du i nedtrekkslista over «Samlet bestilling».</p>`],
     ],
   },
   {
