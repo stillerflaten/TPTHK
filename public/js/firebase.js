@@ -285,6 +285,15 @@ export async function sendSoknad(data) {
   return ref.id;
 }
 
+// Teksten må være nøyaktig den samme som i firestore.rules (match /mail).
+const VARSEL = {
+  subject: "Ny søknad om refusjon",
+  text: "Det har kommet en ny søknad om refusjon av utlegg. Logg inn på https://tpthk.no for å se den.",
+};
+
+/** Ber Firebase sende e-post til kassereren om at det har kommet en ny søknad (se docs/epostvarsel.md). */
+export const varsleOmSoknad = (til) => addDoc(collection(db, "mail"), { to: til, message: VARSEL });
+
 export async function trekkSoknad(soknad) {
   const batch = writeBatch(db);
   batch.delete(doc(db, "soknader", soknad.id));

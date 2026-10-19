@@ -13,6 +13,7 @@ Nettside (PWA) for kassereren i Trøndelag Politis Tjenestehundklubb. Kan legges
 - Føre inntekter og utgifter med bilagsnummer (foreslås automatisk) og kvittering (bilde eller PDF)
 - Egne kategorier som kan legges til og fjernes
 - Medlemsliste med kontingent per år, som kan føres rett inn som inntekt
+- E-post når det kommer en ny søknad (valgfritt, se [docs/epostvarsel.md](docs/epostvarsel.md))
 - Behandle refusjonssøknader fra medlemmene: godkjenn, avslå eller marker som utbetalt (blir en utgift i regnskapet med kvitteringene vedlagt)
 - Årsrapport til årsmøtet med resultatregnskap, saldo og valgfri bilagsliste, klar for utskrift/PDF
 - Eksport av poster og medlemmer til Excel (CSV)
@@ -31,6 +32,7 @@ Nettside (PWA) for kassereren i Trøndelag Politis Tjenestehundklubb. Kan legges
 - Kvitteringer krympes i nettleseren og lagres i Firestore (ikke Firebase Storage).
 - Firebase-prosjektet (`tpthk-3405f`) er på betalingsplanen **Blaze**, fordi den gir automatisk sikkerhetskopi av databasen. For en klubb av denne størrelsen koster det i praksis ingenting, men sett gjerne et budsjettvarsel i Google Cloud.
 - Automatisk sikkerhetskopi hver natt, som tas vare på i 14 dager: se [docs/sikkerhetskopi-automatisk.md](docs/sikkerhetskopi-automatisk.md). I tillegg har kassereren en knapp for sikkerhetskopi som ZIP under Innstillinger.
+- E-postvarsel til kassereren om nye søknader via Firebase-utvidelsen «Trigger Email from Firestore» og samlingen `mail`: se [docs/epostvarsel.md](docs/epostvarsel.md).
 - Sikkerhetsreglene publiseres automatisk når `firestore.rules` endres på `main` (se [docs/regler-automatisk.md](docs/regler-automatisk.md)).
 - `index.html` har en Content-Security-Policy som bare lar siden hente skript fra seg selv og Firebase (gstatic). Legges det til skript eller tjenester fra andre steder, må den utvides.
 - Tilgang styres av `firestore.rules`. Samlingen `brukere` (dokument-ID = e-post) gir rollen `kasserer`, `medlem` eller `revisor` (revisor utenfor klubben, ser bare regnskapet), eventuelt med `admin: true` eller `revisor: true` (lesetilgang til regnskapet, med valgfri sluttdato `revisorTil`).
@@ -49,7 +51,8 @@ Nettside (PWA) for kassereren i Trøndelag Politis Tjenestehundklubb. Kan legges
 | `regelverk` | Vedtekter og andre regler: `kategori`, `tittel`, `beskrivelse`, `dato`, `lenke` eller `fil` (`id`, `navn`, `storrelse`, `deler`) |
 | `regelverkfiler/{filId}__{nr}` | PDF-ene i regelverket som base64, delt i biter på inntil 900 000 tegn |
 | `innstillinger/klubb` | Klubbinfo, startsaldo, kategorier (bare kasserer) |
-| `innstillinger/medlemsinfo` | Kontingent og betalingsinfo (synlig for medlemmer) |
+| `innstillinger/medlemsinfo` | Kontingent og betalingsinfo (synlig for medlemmer), `varselEpost` (hvem som får e-post om nye søknader) |
+| `mail` | E-postvarsler som Firebase-utvidelsen sender (`to`, `message`, og `delivery` som utvidelsen fyller inn) |
 
 ### Teste lokalt (for den som vil)
 

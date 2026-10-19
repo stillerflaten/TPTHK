@@ -2,7 +2,7 @@
 
 import { html, raw, kr, datoTekst, iDag, tolkBelop, belopTilInput } from "../util.js";
 import { kontovalg } from "./poster.js";
-import { sendSoknad, trekkSoknad, behandleSoknad, utbetalSoknad, oppdaterMinProfil, normalEpost } from "../firebase.js";
+import { sendSoknad, trekkSoknad, behandleSoknad, utbetalSoknad, oppdaterMinProfil, normalEpost, varsleOmSoknad } from "../firebase.js";
 import { melding, medKnapp, bekreft, kvitteringslenker, kobleKvitteringslenker, kvitteringsvelger } from "../ui.js";
 import { gaaTil } from "../app.js";
 import { erKasserer } from "../tilgang.js";
@@ -263,6 +263,9 @@ export function nySoknad(main, S) {
       await sendSoknad({
         navn: f.navn.trim(), formaal: f.formaal.trim(), dato: f.dato, belop, kontonummer: konto, kvitteringIds,
       });
+      // E-post til kassereren, hvis det er valgt under Innstillinger. Søknaden er sendt uansett om varselet feiler.
+      const til = S.info.varselEpost;
+      if (til && til !== normalEpost(S.bruker.email)) await varsleOmSoknad(til).catch(() => {});
       // Husk navn og kontonummer til neste gang.
       if (f.navn.trim() !== S.profil.navn || konto !== S.profil.kontonummer) {
         await oppdaterMinProfil({ navn: f.navn.trim(), kontonummer: konto }).catch(() => {});
