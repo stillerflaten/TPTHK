@@ -26,13 +26,16 @@ Har klubben ingen, lag en på https://accounts.google.com/signup. Den kan også 
 1. Gå til **https://console.firebase.google.com/project/tpthk-3405f/extensions** (logg inn med kontoen som eier prosjektet).
 2. Trykk **Explore extensions** (eller **Install extension**), søk etter **Trigger Email from Firestore** og trykk på den.
 3. Trykk **Install in Firebase console** og velg prosjektet **tpthk-3405f**.
-4. Gå gjennom stegene. Ber den deg slå på noen tjenester (APIs), trykk **Enable** og vent.
+4. Gå gjennom stegene. Ber den deg slå på noen tjenester (Artifact Registry, Secret Manager, Compute Engine), trykk **Enable** på hver og vent til den er ferdig før du trykker på neste.
+
+Det står en rød melding om at Firebase Extensions stenges 31. mars 2027. Den kan du se bort fra nå: utvidelsen virker etter det også, men innstillingene kan ikke endres. Før den datoen bør varselet flyttes over til en egen funksjon.
 5. Fyll inn innstillingene slik:
 
 | Innstilling | Verdi |
 |---|---|
+| Cloud Functions location | `Belgium (europe-west1)`, så varselet behandles i Europa. Kan ikke endres senere. |
 | Firestore Instance ID | `(default)` |
-| Firestore Instance Location | Samme sted som databasen. Se **Firestore → Databases**, kolonnen «Location». |
+| Firestore Instance Location | Databasen ligger i `eur3`. I lista heter det «Multi-region (Europe …)». Ikke velg United States. |
 | Authentication Type | `Username & Password` |
 | SMTP connection URI | `smtps://tpthk.kasserer@gmail.com@smtp.gmail.com:465` (bytt til klubbens Gmail-adresse) |
 | SMTP password | Passordet på 16 bokstaver fra steg 1 (uten mellomrom) |
@@ -40,6 +43,8 @@ Har klubben ingen, lag en på https://accounts.google.com/signup. Den kan også 
 | Default FROM address | `TPTHK <tpthk.kasserer@gmail.com>` (klubbens Gmail-adresse) |
 
 Resten kan stå som det er. Trykk **Install extension**. Det tar 3–5 minutter før den er ferdig.
+
+Får du feilen «Permission denied while using the Eventarc Service Agent» første gang: vent 5 minutter og trykk **Retry installing** (ikke Uninstall). Google trenger litt tid på å gi den nye tjenesten tilgang.
 
 ## Steg 3: Velg hvem som skal få varselet
 
