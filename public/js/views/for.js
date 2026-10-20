@@ -64,6 +64,8 @@ export function iKategorier(varer) {
   return [...grupper.entries()].sort((a, b) => plass(a[0]) - plass(b[0]) || a[0].localeCompare(b[0], "nb"));
 }
 
+const SOKEORD = new Map(ROYAL_CANIN.map((k) => [k.id, k.sok || ""]));
+
 // Hvilke kategorier som er åpne, og hva det er søkt etter, per skjema. Siden tegnes på nytt når data endrer seg.
 const aapneGrupper = new Set();
 const sok = {};
@@ -72,7 +74,7 @@ const sok = {};
  *  Med mange fôrtyper vises de i sammenleggbare kategorier med et søkefelt øverst. */
 function antallFelter(varer, antallFor, skjema) {
   const felt = (v) => html`
-    <li data-sok="${v.navn.toLowerCase()}">
+    <li data-sok="${`${v.navn} ${v.kategori || ""} ${SOKEORD.get(v.id) || ""}`.toLowerCase()}">
       <span><strong>${v.navn}</strong>${v.pris ? raw(html`<span class="hint blokk">Ca. ${kr(v.pris)}</span>`) : ""}</span>
       <input type="number" name="${v.id}" min="0" max="${MAKS_ANTALL}" step="1" inputmode="numeric" value="${antallFor(v.id)}"
         placeholder="0" aria-label="Antall ${v.navn}">
@@ -81,7 +83,7 @@ function antallFelter(varer, antallFor, skjema) {
   if (grupper.length < 2 && varer.length <= 15) return html`<ul class="enkel-liste forvarer">${varer.map((v) => raw(felt(v)))}</ul>`;
   return html`
     <div class="forvalg" data-forvalg="${skjema}">
-      <input type="search" class="forsok" data-forsok placeholder="Søk, f.eks. Maxi, Labrador eller Gastrointestinal"
+      <input type="search" class="forsok" data-forsok placeholder="Søk, f.eks. Maxi eller Labrador"
         value="${sok[skjema] || ""}" aria-label="Søk etter fôr">
       <p class="hint" data-ingen hidden>Fant ikke noe fôr med det navnet.</p>
       ${grupper.map(([kategori, liste]) => {
