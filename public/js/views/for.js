@@ -84,6 +84,99 @@ export function gjeldendeFast(fast, varer) {
   }).filter(Boolean);
 }
 
+// ---------- Bruksanvisning ----------
+// Ligger på selve siden. Hvert emne er en sammenleggbar boks. Siden tegnes på nytt når data endrer seg,
+// så hvilke bokser som er åpne, huskes her.
+
+const BRUK_MEDLEM = [
+  ["Bestille fôr", `
+    <ol>
+      <li>Når fôransvarlig har åpnet en bestillingsrunde, står skjemaet «Ny bestilling» på denne siden.</li>
+      <li>Skriv antall ved fôrtypene du vil ha. La resten stå tomme. Prisen er omtrentlig, den endelige står på regningen.</li>
+      <li>Skriv gjerne en kommentar til fôransvarlig, og trykk «Send bestilling».</li>
+    </ol>
+    <p>Er det ingen åpen runde, står det når neste runde er planlagt. Fôransvarlig bestiller omtrent hver tredje måned.</p>`],
+  ["Endre eller trekke bestillingen", `
+    <p>Så lenge runden er åpen, ser du bestillingen din øverst. Endre antallet og trykk «Lagre endringer», eller trykk «Trekk bestillingen».
+    Når fôransvarlig har stengt runden og bestilt fra Royal Canin, kan den ikke endres her lenger. Ta da kontakt med fôransvarlig.</p>`],
+  ["Fast ordning og fast bestilling", `
+    <ol>
+      <li>Trykk «Meld meg på» under «Fast ordning». Da får du e-post hver gang en ny runde åpner.</li>
+      <li>Vil du ha det samme hver gang, trykk «Lag fast bestilling», skriv antall og trykk «Lagre fast bestilling».
+        Den legges inn av seg selv hver gang en runde åpner.</li>
+      <li>Vil du ha noe annet én gang, endrer du bare bestillingen i runden. Den faste bestillingen er den samme neste gang.</li>
+    </ol>
+    <p>«Meld meg av» sletter påmeldingen og den faste bestillingen. Du kan fortsatt bestille i åpne runder.</p>`],
+  ["Betaling", `
+    <p>Betalingen går ikke via klubbens konto. Når regningen er kommet, får du en e-post med hva du skal betale og hvilket Vipps-nummer
+    pengene skal til. Under «Mine bestillinger» ser du pris og om betalingen er registrert. Det kan ta litt tid før fôransvarlig huker av at du har betalt.</p>`],
+  ["Hva betyr statusen?", `
+    <ul>
+      <li><strong>Mottatt:</strong> bestillingen er med i runden, og du kan fortsatt endre den.</li>
+      <li><strong>Bestilt:</strong> runden er stengt og bestillingen er sendt til Royal Canin.</li>
+      <li><strong>Levert:</strong> fôret er kommet og levert ut.</li>
+    </ul>`],
+];
+
+const BRUK_ANSVARLIG = [
+  ["Første gang: fôrtyper, beskjed og Vipps-nummer", `
+    <ol>
+      <li>Under «Fôrtyper» lenger ned trykker du «+ Legg til fôrtype», skriver navnet (f.eks. «Royal Canin Maxi Adult 15 kg») og gjerne prisen.
+        Gjenta for hver fôrtype, og trykk «Lagre fôrtyper».</li>
+      <li>Under «Beskjed til medlemmene og varsel» skriver du en tekst som vises øverst på bestillingssiden, og datoen for neste planlagte runde.</li>
+      <li>Fyll inn navnet ditt og Vipps-nummeret. De står i betalingsmailen medlemmene får. Trykk «Lagre».</li>
+    </ol>
+    <p>Fôrtypene kan endres når som helst. Endringer gjelder nye bestillinger, ikke de som allerede er sendt.</p>`],
+  ["Åpne en bestillingsrunde", `
+    <ol>
+      <li>Sett gjerne en bestillingsfrist under «Bestillingsrunde», og trykk «Åpne ny runde».</li>
+      <li>Du ser hvor mange påmeldte som får e-post, og hvor mange faste bestillinger som legges inn av seg selv. Trykk «Åpne runden».</li>
+      <li>Du får e-post hver gang noen bestiller (kan slås av under «Beskjed til medlemmene og varsel»).</li>
+      <li>Før fristen kan du trykke «Send påminnelse til påmeldte». Da får de påmeldte som ikke har bestilt, en påminnelse.</li>
+    </ol>`],
+  ["Stenge runden og bestille fra Royal Canin", `
+    <ol>
+      <li>Trykk «Steng runden». Da kan ingen bestille eller endre mer, og bestillingene merkes som «Bestilt».</li>
+      <li>Under «Samlet bestilling» står totalt antall per fôrtype. Trykk «Kopier lista» og lim den inn i bestillingen til Royal Canin.</li>
+    </ol>
+    <p>Har du stengt for tidlig, trykker du «Åpne forrige runde igjen».</p>`],
+  ["Når regningen kommer: pris og betalingsmail", `
+    <ol>
+      <li>Skriv inn pris på hver bestilling, eller trykk «Regn ut pris fra fôrtypene» og sjekk tallene mot regningen.</li>
+      <li>Trykk «Send betalingsmail». Alle med pris som ikke har betalt eller fått e-post før, får en e-post med beløpet og Vipps-nummeret ditt.
+        «Vippskrav sendt» hukes av, og datoen vises ved bestillingen.</li>
+      <li>Huk av «Betalt» når pengene har kommet, og «Levert» når fôret er levert ut.</li>
+    </ol>
+    <p>Skal én person få e-posten på nytt, trykker du «Send på nytt» ved bestillingen. Medlemmene ser pris og status på sin egen side.</p>`],
+  ["Påmeldte, eldre runder og sletting", `
+    <p>«Påmeldte til ordningen» viser hvem som får e-post når en runde åpner, og hva de har som fast bestilling. Medlemmene melder seg på og av selv.</p>
+    <p>Eldre runder velger du i nedtrekkslista over «Samlet bestilling». En bestilling kan slettes med krysset øverst til høyre, for eksempel når den er betalt og levert.</p>`],
+];
+
+const aapneBokser = new Set();
+function bruksanvisning(id, tittel, emner) {
+  return html`
+    <section class="kort hjelp bruksanvisning">
+      <h2>${tittel}</h2>
+      ${emner.map(([emne, tekst], i) => raw(html`
+        <details data-bruk="${id}-${i}" ${aapneBokser.has(`${id}-${i}`) ? "open" : ""}>
+          <summary>${emne}</summary>
+          <div class="hjelp-tekst">${raw(tekst)}</div>
+        </details>`))}
+    </section>`;
+}
+function kobleBruksanvisning(main) {
+  main.querySelector("[data-tilbruk]")?.addEventListener("click", () => {
+    const boks = main.querySelector(".bruksanvisning");
+    const forste = boks.querySelector("details");
+    if (!main.querySelector(".bruksanvisning details[open]")) forste.open = true;
+    boks.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  main.querySelectorAll("[data-bruk]").forEach((d) => d.addEventListener("toggle", () => {
+    if (d.open) aapneBokser.add(d.dataset.bruk); else aapneBokser.delete(d.dataset.bruk);
+  }));
+}
+
 function betaling(b) {
   if (b.belop == null) return "";
   return html` · ${kr(b.belop)} · ${b.betalt ? "betalt" : b.vippsSendt ? "Vippskrav sendt" : "ikke betalt ennå"}`;
@@ -102,7 +195,10 @@ export function forside(main, S) {
   main.innerHTML = html`
     <div class="sidetopp">
       <h1>Fôrbestilling</h1>
-      ${styrerFor(S) ? raw(`<a class="knapp" href="#/for-alle">Alle bestillinger</a>`) : ""}
+      <div class="knapperad">
+        <button type="button" class="lenkeknapp" data-tilbruk>Slik fungerer det</button>
+        ${styrerFor(S) ? raw(`<a class="knapp" href="#/for-alle">Alle bestillinger</a>`) : ""}
+      </div>
     </div>
 
     <section class="kort">
@@ -139,7 +235,11 @@ export function forside(main, S) {
       </div></li>`))}</ul>`)
       : raw(`<div class="tom">Du har ikke bestilt noe ennå.</div>`)}
 
+    ${raw(bruksanvisning("medlem", "Slik fungerer fôrbestillingen", BRUK_MEDLEM))}
+
     ${kanVelgeForansvarlig(S) ? raw(velgAnsvarligKort(S, F)) : ""}`;
+
+  kobleBruksanvisning(main);
 
   const skjema = main.querySelector("#bestill");
   skjema?.addEventListener("submit", async (e) => {
@@ -348,7 +448,10 @@ export function forAlle(main, S) {
   main.innerHTML = html`
     <div class="sidetopp">
       <h1>Alle fôrbestillinger</h1>
-      <a class="lenkeknapp" href="#/for">Til min bestilling</a>
+      <div class="knapperad">
+        <button type="button" class="lenkeknapp" data-tilbruk>Bruksanvisning</button>
+        <a class="lenkeknapp" href="#/for">Til min bestilling</a>
+      </div>
     </div>
 
     <section class="kort uthevet">
@@ -468,8 +571,11 @@ export function forAlle(main, S) {
       <p class="hint">Brukes i betalingsmailen: «Vipps beløpet til ${F.vippsNavn || "Vegard"} på ${F.vippsNummer || "900 00 000"}.» Nummeret vises også for medlemmene på bestillingssiden.</p>
       <label class="avkryss"><input type="checkbox" name="varsel" ${F.varsel ? "checked" : ""}> Send meg e-post når noen bestiller</label>
       <div class="knapper"><button type="submit" class="knapp">Lagre</button></div>
-    </form>`;
+    </form>
 
+    ${raw(bruksanvisning("ansvarlig", "Bruksanvisning for fôransvarlig", BRUK_ANSVARLIG))}`;
+
+  kobleBruksanvisning(main);
   if (fokus) main.querySelector(`[data-felt="${fokus}"]`)?.focus();
   const tegnPaaNytt = () => forAlle(main, S);
 
