@@ -6,7 +6,7 @@
 import { html, raw, kr, datoTekst, iDag, tolkBelop, belopTilInput } from "../util.js";
 import {
   normalEpost, lagreForInnstillinger, sendForbestilling, endreForbestilling, slettForbestilling,
-  varsleOmForbestilling, stengForrunde, aapneForrunde, sendForbeskjed, lagreForabonnement, meldAvFor,
+  varsleOmForbestilling, stengForrunde, aapneForrunde, sendForbeskjed, lagreForabonnement, meldAvFor, sendBetalingsmail,
 } from "../firebase.js";
 import { melding, medKnapp, bekreft } from "../ui.js";
 import { ikon } from "../ikoner.js";
@@ -20,7 +20,7 @@ export function forData(S) {
   return {
     ansvarlige: f.ansvarlige || [], navn: f.navn || {}, varer: f.varer || [], info: f.info || "",
     varsel: f.varsel !== false, runde: f.runde || "", aapen: f.aapen === true, frist: f.frist || "", stengt: f.stengt || "",
-    neste: f.neste || "",
+    neste: f.neste || "", vippsNavn: f.vippsNavn || "", vippsNummer: f.vippsNummer || "",
   };
 }
 
@@ -106,7 +106,7 @@ export function forside(main, S) {
     </div>
 
     <section class="kort">
-      ${ansvarligNavn.length ? raw(html`<p>Fôransvarlig: <strong>${ansvarligNavn.join(", ")}</strong></p>`)
+      ${ansvarligNavn.length ? raw(html`<p>Fôransvarlig: <strong>${ansvarligNavn.join(", ")}</strong>${F.vippsNummer ? ` · Vipps ${F.vippsNummer}` : ""}</p>`)
         : raw(`<p class="hint">Det er ikke valgt noen fôransvarlig ennå.</p>`)}
       ${F.info ? raw(html`<p class="fritekst">${F.info}</p>`) : ""}
       <p class="hint">Betalingen går ikke via klubben. Når regningen kommer, får du Vippskrav fra fôransvarlig.</p>
@@ -315,6 +315,14 @@ export function beregnPris(b, varer) {
   return sum;
 }
 
+/** Mobilnummer for Vipps: 8 siffer, lagres som «900 00 000». null hvis det ikke er et gyldig nummer. */
+export function vippsNummer(tekst) {
+  const s = String(tekst || "").replace(/\D/g, "").replace(/^(0047|47)(?=\d{8}$)/, "");
+  return /^\d{8}$/.test(s) ? `${s.slice(0, 3)} ${s.slice(3, 5)} ${s.slice(5)}` : null;
+}
+const GYLDIG_VIPPSNAVN = /^[A-Za-zÆØÅæøåÄÖÜäöüÉéÈè -]{0,60}$/;
+const sendtDato = (b) => b.betalingEpost?.toDate?.().toLocaleDateString("nb-NO") || "";
+
 export function forAlle(main, S) {
   if (!styrerFor(S)) {
     main.innerHTML = `<div class="tom">Bare fôransvarlig ser alle bestillingene. <a href="#/for">Tilbake</a></div>`;
@@ -329,6 +337,8 @@ export function forAlle(main, S) {
   const medPris = iRunden.filter((b) => b.belop != null);
   const betalt = iRunden.filter((b) => b.betalt);
   const erGjeldende = valgtRunde === F.runde;
+  const kanSendeBetaling = Boolean(F.vippsNavn && F.vippsNummer);
+  const skalFaaBetalingsmail = iRunden.filter((b) => b.belop > 0 && !b.betalt && !b.betalingEpost);
   const varer = varerUtkast || F.varer.map((v) => ({ ...v }));
   const abonnenter = [...(S.forabonnenter || [])].sort((a, b) => (a.navn || a.epost).localeCompare(b.navn || b.epost, "nb"));
 
@@ -384,9 +394,14 @@ export function forAlle(main, S) {
       <section class="kort">
         <h2>Bestillinger (${iRunden.length})</h2>
         ${iRunden.length ? raw(html`
-          <p class="hint">Når regningen kommer: skriv inn hva hver skal betale, send Vippskrav og huk av. Endringene lagres med en gang.
+          <p class="hint">Når regningen kommer: skriv inn hva hver skal betale og trykk «Send betalingsmail». Da får hver enkelt en e-post med beløpet
+            og Vipps-nummeret, og «Vippskrav sendt» hukes av. Huk av «Betalt» når pengene har kommet. Endringene lagres med en gang.
             ${medPris.length ? ` Totalt ${kr(medPris.reduce((t, b) => t + b.belop, 0))}, betalt ${betalt.length} av ${iRunden.length}.` : ""}</p>
-          ${F.varer.some((v) => v.pris) ? raw(`<div class="knapper venstre"><button type="button" class="knapp sekundaer liten" id="beregn">Regn ut pris fra fôrtypene</button></div>`) : ""}
+          ${kanSendeBetaling ? "" : raw(`<div class="varsel info">Fyll inn ditt navn og Vipps-nummer under «Beskjed til medlemmene og varsel» lenger ned for å kunne sende betalingsmail.</div>`)}
+          <div class="knapper venstre">
+            ${F.varer.some((v) => v.pris) ? raw(`<button type="button" class="knapp sekundaer liten" id="beregn">Regn ut pris fra fôrtypene</button>`) : ""}
+            ${kanSendeBetaling ? raw(html`<button type="button" class="knapp liten" id="betalingsmail" ${skalFaaBetalingsmail.length ? "" : "disabled"}>${raw(ikon("send"))} Send betalingsmail${skalFaaBetalingsmail.length ? ` (${skalFaaBetalingsmail.length})` : ""}</button>`) : ""}
+          </div>
           <ul class="forbestillinger">${iRunden.map((b) => raw(html`
             <li data-id="${b.id}">
               <div class="forbestilling-topp">
@@ -401,6 +416,10 @@ export function forAlle(main, S) {
                 <label class="avkryss liten"><input type="checkbox" data-felt="vipps-${b.id}" data-merk="vippsSendt" ${b.vippsSendt ? "checked" : ""}> Vippskrav sendt</label>
                 <label class="avkryss liten"><input type="checkbox" data-felt="betalt-${b.id}" data-merk="betalt" ${b.betalt ? "checked" : ""}> Betalt</label>
               </div>
+              ${b.betalingEpost || (kanSendeBetaling && b.belop > 0 && !b.betalt) ? raw(html`<div class="forbestilling-epost hint">
+                ${b.betalingEpost ? `Betalingsmail sendt ${sendtDato(b)}.` : ""}
+                ${kanSendeBetaling && b.belop > 0 && !b.betalt ? raw(html`<button type="button" class="lenkeknapp" data-betalingsmail="${b.id}">${b.betalingEpost ? "Send på nytt" : "Send betalingsmail"}</button>`) : ""}
+              </div>`) : ""}
             </li>`))}
           </ul>`)
         : raw(`<p class="hint">Ingen bestillinger i denne runden ennå.</p>`)}
@@ -442,6 +461,11 @@ export function forAlle(main, S) {
         <input type="date" name="neste" value="${F.neste}">
         <span class="hint blokk">Vises for medlemmene når ingen runde er åpen, f.eks. de faste kvartalsdatoene.</span>
       </label>
+      <div class="to-kol">
+        <label>Ditt navn i betalingsmailen<input name="vippsNavn" value="${F.vippsNavn}" maxlength="60" placeholder="F.eks. Vegard" autocomplete="off"></label>
+        <label>Ditt Vipps-nummer<input name="vippsNummer" value="${F.vippsNummer}" inputmode="tel" placeholder="900 00 000" autocomplete="off"></label>
+      </div>
+      <p class="hint">Brukes i betalingsmailen: «Vipps beløpet til ${F.vippsNavn || "Vegard"} på ${F.vippsNummer || "900 00 000"}.» Nummeret vises også for medlemmene på bestillingssiden.</p>
       <label class="avkryss"><input type="checkbox" name="varsel" ${F.varsel ? "checked" : ""}> Send meg e-post når noen bestiller</label>
       <div class="knapper"><button type="submit" class="knapp">Lagre</button></div>
     </form>`;
@@ -548,6 +572,27 @@ export function forAlle(main, S) {
     });
   });
 
+  // Betalingsmail
+  const sendBetaling = async (knapp, liste, sporsmal) => {
+    if (!(await bekreft(sporsmal, { ja: "Send" }))) return;
+    await medKnapp(knapp, async () => {
+      await sendBetalingsmail(liste, F.vippsNavn, F.vippsNummer);
+      melding(liste.length === 1 ? "Betalingsmailen er sendt." : `Betalingsmailen er sendt til ${liste.length}.`);
+    });
+  };
+  main.querySelector("#betalingsmail")?.addEventListener("click", (e) => {
+    const utenPris = iRunden.filter((b) => !(b.belop > 0) && !b.betalt);
+    sendBetaling(e.currentTarget, skalFaaBetalingsmail, [
+      `Sende e-post til ${skalFaaBetalingsmail.length} med beløpet de skal betale og Vipps-nummeret ditt (${F.vippsNummer})?`,
+      utenPris.length ? `${utenPris.length} har ikke fått pris ennå og får ingen e-post.` : "",
+      "De som allerede har fått e-post eller har betalt, får ingen ny.",
+    ].filter(Boolean).join(" "));
+  });
+  main.querySelectorAll("[data-betalingsmail]").forEach((knapp) => knapp.addEventListener("click", () => {
+    const b = iRunden.find((x) => x.id === knapp.dataset.betalingsmail);
+    if (b) sendBetaling(knapp, [b], `Sende e-post til ${b.navn} om å betale ${kr(b.belop)}?`);
+  }));
+
   // Fôrtyper
   const utkast = () => (varerUtkast ||= F.varer.map((v) => ({ ...v })));
   main.querySelectorAll("[data-vnavn]").forEach((inp) => inp.addEventListener("input", () => {
@@ -594,9 +639,15 @@ export function forAlle(main, S) {
   innst.addEventListener("submit", async (e) => {
     e.preventDefault();
     const v = new FormData(innst);
+    const vippsNavn = String(v.get("vippsNavn") || "").trim().replace(/\s+/g, " ");
+    if (!GYLDIG_VIPPSNAVN.test(vippsNavn)) return melding("Navnet kan bare ha bokstaver, mellomrom og bindestrek.", "feil");
+    const nummerTekst = String(v.get("vippsNummer") || "").trim();
+    const nummer = nummerTekst ? vippsNummer(nummerTekst) : "";
+    if (nummer === null) return melding("Vipps-nummeret må være et mobilnummer med 8 siffer.", "feil");
     await medKnapp(e.submitter, async () => {
       await lagreForInnstillinger({
         info: String(v.get("info") || "").trim().slice(0, 1000), varsel: v.get("varsel") === "on", neste: String(v.get("neste") || ""),
+        vippsNavn, vippsNummer: nummer || "",
       });
       glemSkjema("forInnst");
       melding("Lagret.");

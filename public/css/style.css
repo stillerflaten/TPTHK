@@ -600,3 +600,4 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 .forvarer-rediger { display: grid; gap: 8px; }
 .forvare-rad { display: grid; grid-template-columns: 1fr 110px auto; gap: 8px; align-items: center; }
 .seksjonstittel { margin: 24px 0 10px; }
+.forbestilling-epost { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0; }
