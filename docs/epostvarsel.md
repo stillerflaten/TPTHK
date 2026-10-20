@@ -67,5 +67,7 @@ Den samme utvidelsen sender e-post om fôrbestillingen. Det er ingenting mer å 
 - **Fôransvarlig** får «Ny fôrbestilling» når noen bestiller. Det kan slås av under **Fôr → Alle bestillinger → Beskjed til medlemmene og varsel**.
 - **De påmeldte** får «Fôrbestillingen er åpen» når fôransvarlig åpner en runde, og «Påminnelse om fôrbestilling» når fôransvarlig trykker
   «Send påminnelse til påmeldte». De står i blindkopi, så ingen ser hverandres adresser.
+- **Hver som har bestilt** får «Betaling for fôrbestilling» når fôransvarlig trykker «Send betalingsmail». E-posten sier hva de skal betale,
+  og navnet og Vipps-nummeret fôransvarlig har fylt inn. Reglene sjekker at den bare går til den som har bestillingen.
 
 Tekstene er faste og står både i `public/js/firebase.js` og i `firestore.rules`. Skal de endres, må de endres begge steder.

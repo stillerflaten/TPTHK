@@ -52,7 +52,8 @@ export function personvern(main, S) {
       <p>Ved innkalling til møter sendes e-postadressen din til den som sender innkallingen, og den ligger i blindkopi så andre mottakere ikke ser den.</p>
       <p>Når du sender en søknad om refusjon, kan kassereren få en kort e-post om at det har kommet en ny søknad. E-posten inneholder ingen opplysninger om deg eller søknaden.</p>
       <p>Er du påmeldt fôrordningen, får du e-post når en bestillingsrunde åpner, og eventuelt en påminnelse. Du står i blindkopi, så andre mottakere ikke ser adressen din.
-      Når du bestiller, får fôransvarlig en kort e-post uten opplysninger om deg eller bestillingen.</p>
+      Når du bestiller, får fôransvarlig en kort e-post uten opplysninger om deg eller bestillingen.
+      Når regningen er kommet, kan du få en e-post fra klubben med hva du skal betale og hvilket Vipps-nummer pengene skal til.</p>
 
       <h2>Hvem som behandler opplysningene for oss</h2>
       <ul>
