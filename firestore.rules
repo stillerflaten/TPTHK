@@ -227,7 +227,18 @@ service cloud.firestore {
             && ((request.resource.data.message.subject == 'Fôrbestillingen er åpen'
                 && request.resource.data.message.text == 'En ny bestillingsrunde for fôr er åpnet. Logg inn på https://tpthk.no for å bestille, eller for å se over eller endre den faste bestillingen din.')
               || (request.resource.data.message.subject == 'Påminnelse om fôrbestilling'
-                && request.resource.data.message.text == 'Husk fôrbestillingen. Runden stenges snart. Logg inn på https://tpthk.no for å bestille.'))));
+                && request.resource.data.message.text == 'Husk fôrbestillingen. Runden stenges snart. Logg inn på https://tpthk.no for å bestille.')))
+          // Fôransvarlig ber den som har bestilt, om å betale. Bare til den som har bestillingen, og bare med beløp,
+          // og navnet og Vipps-nummeret som står i innstillingene for fôrbestilling.
+          || (styrerFor() && request.resource.data.keys().hasOnly(['to', 'message', 'forbestilling'])
+            && request.resource.data.forbestilling is string
+            && exists(/databases/$(database)/documents/forbestillinger/$(request.resource.data.forbestilling))
+            && request.resource.data.to == get(/databases/$(database)/documents/forbestillinger/$(request.resource.data.forbestilling)).data.epost
+            && forInnst().get('vippsNummer', '') != '' && forInnst().get('vippsNavn', '') != ''
+            && request.resource.data.message.subject == 'Betaling for fôrbestilling'
+            && request.resource.data.message.text.matches('Hei! Fôret du har bestilt gjennom TPTHK, koster [0-9 ]{1,12},[0-9]{2} kr\\. '
+              + 'Vipps beløpet til ' + forInnst().vippsNavn + ' på ' + forInnst().vippsNummer + '\\. '
+              + 'Logg inn på https://tpthk\\.no for å se bestillingen\\.')));
       allow read, delete: if erKasserer();
     }
 
@@ -237,7 +248,10 @@ service cloud.firestore {
       function gyldigFor(d) {
         return d.get('ansvarlige', []) is list && d.get('ansvarlige', []).size() <= 5
           && d.get('navn', {}) is map && d.get('varer', []) is list && d.get('varer', []).size() <= 100
-          && tekst(d.get('info', ''), 1000) && d.get('aapen', false) is bool;
+          && tekst(d.get('info', ''), 1000) && d.get('aapen', false) is bool
+          // Navn og nummer i betalingsmailen. Bare bokstaver og sifre, så de kan brukes i sjekken av teksten (match /mail).
+          && d.get('vippsNavn', '') is string && d.get('vippsNavn', '').matches('[A-Za-zÆØÅæøåÄÖÜäöüÉéÈè -]{0,60}')
+          && d.get('vippsNummer', '') is string && d.get('vippsNummer', '').matches('([0-9]{3} [0-9]{2} [0-9]{3})?');
       }
       allow read: if harTilgang();
       allow create: if (erKasserer() || erAdmin()) && gyldigFor(request.resource.data);

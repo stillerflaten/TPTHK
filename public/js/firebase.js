@@ -359,6 +359,29 @@ const FORBESKJED = {
 /** Sender beskjed til de påmeldte som blindkopi, så ingen ser hverandres adresser. */
 export const sendForbeskjed = (type, adresser) => addDoc(collection(db, "mail"), { bcc: adresser, message: FORBESKJED[type] });
 
+/** Beløp som tekst i betalingsmailen, f.eks. «2 298,00». Vanlige mellomrom, så teksten stemmer med sjekken i firestore.rules. */
+export const belopIEpost = (oere) => {
+  const kroner = String(Math.floor(oere / 100)).replace(/\B(?=(\d{3})+$)/g, " ");
+  return `${kroner},${String(oere % 100).padStart(2, "0")}`;
+};
+/** Teksten i betalingsmailen. Må stemme med firestore.rules (match /mail). */
+export const betalingstekst = (oere, vippsNavn, vippsNummer) =>
+  `Hei! Fôret du har bestilt gjennom TPTHK, koster ${belopIEpost(oere)} kr. Vipps beløpet til ${vippsNavn} på ${vippsNummer}. `
+  + "Logg inn på https://tpthk.no for å se bestillingen.";
+
+/** Sender hver bestilling en e-post om hva de skal betale og hvor, og merker at Vippskravet er sendt. */
+export async function sendBetalingsmail(bestillinger, vippsNavn, vippsNummer) {
+  const batch = writeBatch(db);
+  for (const b of bestillinger) {
+    batch.set(doc(collection(db, "mail")), {
+      to: b.epost, forbestilling: b.id,
+      message: { subject: "Betaling for fôrbestilling", text: betalingstekst(b.belop, vippsNavn, vippsNummer) },
+    });
+    batch.update(doc(db, "forbestillinger", b.id), { vippsSendt: true, betalingEpost: serverTimestamp() });
+  }
+  await batch.commit();
+}
+
 /** Åpner en ny runde og legger inn de faste bestillingene til de påmeldte i samme slengen. */
 export async function aapneForrunde(innst, faste) {
   const batch = writeBatch(db);
