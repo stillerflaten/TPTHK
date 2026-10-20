@@ -598,6 +598,20 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 }
 .forbestilling-felt input:not([type=checkbox]) { width: 110px; margin-left: 6px; }
 .forvarer-rediger { display: grid; gap: 8px; }
-.forvare-rad { display: grid; grid-template-columns: 1fr 110px auto; gap: 8px; align-items: center; }
+.forvare-rad { display: grid; grid-template-columns: 1fr 190px 100px auto; gap: 8px; align-items: center; }
+@media (max-width: 600px) {
+  .forvare-rad { grid-template-columns: 1fr 90px auto; padding-bottom: 8px; border-bottom: 1px solid var(--linje); }
+  .forvare-rad [data-vnavn] { grid-column: 1 / -1; }
+}
+.forvalg { margin: 4px 0 14px; }
+.forsok { width: 100%; min-height: 42px; padding: 8px 12px; margin-bottom: 8px; border: 1px solid var(--linje-sterk); border-radius: var(--radius-liten); font: inherit; background: var(--kort); }
+.forgruppe { border-top: 1px solid var(--linje); }
+.forgruppe:last-child { border-bottom: 1px solid var(--linje); }
+.forgruppe > summary { cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 12px 2px; font-weight: 600; color: var(--blekk); list-style: none; }
+.forgruppe > summary::-webkit-details-marker { display: none; }
+.forgruppe > summary::before { content: "▸"; color: var(--svak); transition: transform .15s; }
+.forgruppe[open] > summary::before { transform: rotate(90deg); }
+.forgruppe-antall { margin-left: auto; font-weight: 500; font-size: .82rem; color: var(--dempet); }
+.forgruppe > .forvarer, .forgruppe > .forvarer-rediger { margin-bottom: 12px; }
 .seksjonstittel { margin: 24px 0 10px; }
 .forbestilling-epost { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0; }
