@@ -615,3 +615,9 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 .forgruppe > .forvarer, .forgruppe > .forvarer-rediger { margin-bottom: 12px; }
 .seksjonstittel { margin: 24px 0 10px; }
 .forbestilling-epost { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0; }
+
+/* Tallet for nye fôrbestillinger på Fôr-lenken øverst (kassereren) */
+.utlogg .topp-merke, a.utlogg span.topp-merke {
+  display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; margin-left: 2px;
+  border-radius: 9px; background: var(--minus); color: #fff; font-size: .62rem; font-weight: 700;
+}
