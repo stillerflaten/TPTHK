@@ -28,6 +28,9 @@ export const revisorUtloper = (p) => p?.revisorTil?.toMillis?.() ?? null;
 export const erRevisor = (S) => S.profil?.revisor === true
   && (revisorUtloper(S.profil) == null || revisorUtloper(S.profil) > Date.now());
 
+/** Støttemedlem som bare kan bestille fôr (rolle «for»). Ser bare fôrsiden. */
+export const bareFor = (S) => S.profil?.rolle === "for";
+
 /** Revisor som ikke er medlem av klubben. Ser bare regnskapet. */
 export const eksternRevisor = (S) => S.profil?.rolle === "revisor";
 

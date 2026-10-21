@@ -24,7 +24,7 @@ import { hjelp } from "./views/hjelp.js";
 import { personvern } from "./views/personvern.js";
 import * as forbestilling from "./views/for.js";
 import { ikon } from "./ikoner.js";
-import { erKasserer as kasserer, erStyret, supportAktiv, harVerv, erAdmin, erRevisor, eksternRevisor, revisorUtloper, seRegnskap as kanSeRegnskap, styrerFor } from "./tilgang.js";
+import { erKasserer as kasserer, erStyret, supportAktiv, harVerv, erAdmin, erRevisor, eksternRevisor, bareFor, revisorUtloper, seRegnskap as kanSeRegnskap, styrerFor } from "./tilgang.js";
 import { supportStripe, oppdaterSupportKort } from "./views/support.js";
 
 const main = document.getElementById("innhold");
@@ -160,11 +160,17 @@ const eksternRevisorSider = {
   hjelp: { side: hjelp },
 };
 
+// Støttemedlem som bare kan bestille fôr: bare fôrsiden og hjelp.
+const bareForSider = {
+  for: { meny: "Fôr", ikon: "hund", side: forbestilling.forside },
+  hjelp: { meny: "Hjelp", ikon: "hjelp", side: hjelp },
+};
+
 const erKasserer = () => kasserer(S);
 const seRegnskap = () => kanSeRegnskap(S);
-const sider = () => (eksternRevisor(S) ? (erRevisor(S) ? eksternRevisorSider : {})
+const sider = () => (bareFor(S) ? bareForSider : eksternRevisor(S) ? (erRevisor(S) ? eksternRevisorSider : {})
   : erKasserer() ? kassererSider : erRevisor(S) ? revisorSider(erStyret(S)) : erStyret(S) ? styreSider : medlemSider);
-const startside = () => (seRegnskap() ? "oversikt" : "mine");
+const startside = () => (bareFor(S) ? "for" : seRegnskap() ? "oversikt" : "mine");
 
 export function gaaTil(sti) {
   if (location.hash === `#/${sti}`) tegn();
@@ -240,7 +246,7 @@ const utloggKnapp = () =>
   html`<button class="utlogg" id="loggut" title="Logg ut ${S.bruker.email}">${raw(ikon("utlogg"))}<span>Logg ut</span></button>`;
 
 function tegnMeny(aktiv) {
-  document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? (supportAktiv(S) ? "support" : "admin") : erKasserer() ? "kasserer" : harVerv(S) ? "styret" : erRevisor(S) ? "revisor" : "medlem") : "";
+  document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? (supportAktiv(S) ? "support" : "admin") : erKasserer() ? "kasserer" : harVerv(S) ? "styret" : erRevisor(S) ? "revisor" : bareFor(S) ? "støttemedlem" : "medlem") : "";
   if (!S.bruker || !S.profil || !Object.keys(sider()).length) {
     meny.innerHTML = "";
     topp.innerHTML = S.bruker ? utloggKnapp() : "";
@@ -266,7 +272,7 @@ function tegnMeny(aktiv) {
     ? html`<label class="aarvalg"><span class="skjult">Regnskapsår</span><select id="aar">${tilgjengeligeAar(S.poster, [S.aar, ...Object.keys(S.innst.budsjett || {}).map(Number)]).map((a) => raw(html`<option ${a === S.aar ? "selected" : ""}>${a}</option>`))}</select></label>`
     : "";
   topp.innerHTML = aarValg + (s.for && !s.for.meny ? forLenke(forbestilling.nyeBestillinger(S)) : "")
-    + (s.minside && !s.minside.meny ? minSideLenke() : "") + hjelpLenke() + utloggKnapp();
+    + (s.minside && !s.minside.meny ? minSideLenke() : "") + (s.hjelp?.meny ? "" : hjelpLenke()) + utloggKnapp();
   topp.querySelector("#loggut").addEventListener("click", () => konto.loggUt());
   topp.querySelector("#aar")?.addEventListener("change", (e) => { S.aar = Number(e.target.value); tegn(); });
 }
@@ -302,7 +308,9 @@ function startLyttere() {
   lyttere.push(lyttProfil((p) => {
     S.profil = p;
     // En revisor utenfor klubben har ikke tilgang til support eller styreverv.
-    if (p?.rolle === "revisor") {
+    // Det samme gjelder støttemedlemmer som bare kan bestille fôr (rolle «for»).
+    const utenforKlubben = p?.rolle === "revisor" || p?.rolle === "for";
+    if (utenforKlubben) {
       stoppSupport?.(); stoppSupport = null; S.support = null;
       stoppVerv?.(); stoppVerv = null; S.verv = null;
     } else if (p && !stoppSupport) {
@@ -313,7 +321,7 @@ function startLyttere() {
       S.support = null;
     }
     // Styrevervene avgjør hvem som er i styret, så de lyttes på sammen med profilen.
-    if (p?.rolle === "revisor") {
+    if (utenforKlubben) {
       // se over
     } else if (p && !stoppVerv) {
       stoppVerv = lyttDokument("innstillinger", "verv", (v) => { S.verv = v; S.lastet.add("verv"); vurderRolle(); dataEndret(); }, () => { stoppVerv = null; });
@@ -370,6 +378,14 @@ function startRolleLyttere() {
   if (S.verv !== undefined) S.lastet.add("verv");
   if (S.forInnst !== undefined) S.lastet.add("forInnst");
   if (!S.profil?.rolle) return;
+  // Støttemedlem: bare egne fôrbestillinger og påmeldingen til fôrordningen.
+  if (bareFor(S)) {
+    for (const n of ["soknader", "foresporsler", "verv", "personer", "mineSoknader", "mittMedlem", "info", "forbestillinger", "forabonnenter"]) S.lastet.add(n);
+    S.forbestillinger = []; S.forabonnenter = []; S.personer = [];
+    stoppLyttere.push(lyttMineForbestillinger(sett("mineFor"), visFeil));
+    stoppLyttere.push(lyttMittForabonnement(sett("mittForabonnement"), visFeil));
+    return;
+  }
   // Revisor utenfor klubben: bare regnskapet.
   if (eksternRevisor(S)) {
     S.lastet.add("soknader"); S.lastet.add("foresporsler"); S.lastet.add("verv");

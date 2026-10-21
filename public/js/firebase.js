@@ -263,7 +263,7 @@ export async function registrerPaminnelse(medlemIder, aar, dato) {
 }
 
 /** Godkjenner en tilgangsforespørsel: oppretter medlem (om nødvendig) og gir tilgang. */
-export async function godkjennForesporsel(f, eksisterendeMedlemId) {
+export async function godkjennForesporsel(f, eksisterendeMedlemId, rolle = "medlem") {
   const batch = writeBatch(db);
   let medlemId = eksisterendeMedlemId;
   if (!medlemId) {
@@ -271,7 +271,7 @@ export async function godkjennForesporsel(f, eksisterendeMedlemId) {
     medlemId = ref.id;
     batch.set(ref, { navn: f.navn, epost: f.epost, telefon: "", merknad: "", aktiv: true, kontingent: {}, opprettet: serverTimestamp() });
   }
-  batch.set(doc(db, "brukere", f.epost), { rolle: "medlem", navn: f.navn, medlemId }, { merge: true });
+  batch.set(doc(db, "brukere", f.epost), { rolle, navn: f.navn, medlemId }, { merge: true });
   batch.delete(doc(db, "foresporsler", f.epost));
   await batch.commit();
 }

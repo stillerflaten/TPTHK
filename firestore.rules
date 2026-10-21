@@ -23,6 +23,8 @@ rules_version = '2';
 //  • Fôrbestilling: medlemmene bestiller fôr (Royal Canin) i bestillingsrunder. Fôransvarlig (innstillinger/for)
 //    ser alle bestillingene og styrer rundene og fôrtypene. Kassereren eller administratoren velger fôransvarlig.
 //    Betalingen går ikke via klubben, så bestillingene har ingenting med regnskapet å gjøre.
+//  • Støttemedlemmer med rolle «for» (bare fôrbestilling) kan bare bestille fôr og melde seg på fôrordningen.
+//    De har ikke vanlig tilgang (harTilgang), så de ser ingen søknader, møter, regelverk eller annet.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -39,9 +41,14 @@ service cloud.firestore {
     function profil() {
       return get(profilSti()).data;
     }
-    // Vanlig tilgang (medlem, styret, kasserer). En revisor utenfor klubben (rolle «revisor») har det ikke.
+    // Vanlig tilgang (medlem, styret, kasserer). En revisor utenfor klubben (rolle «revisor») og
+    // støttemedlemmer som bare kan bestille fôr (rolle «for»), har det ikke.
     function harTilgang() {
-      return innlogget() && exists(profilSti()) && profil().get('rolle', '') != 'revisor';
+      return innlogget() && exists(profilSti()) && !(profil().get('rolle', '') in ['revisor', 'for']);
+    }
+    // Tilgang til fôrbestillingen: alle med vanlig tilgang, og støttemedlemmer med rolle «for».
+    function harForTilgang() {
+      return harTilgang() || (innlogget() && exists(profilSti()) && profil().get('rolle', '') == 'for');
     }
     // «Ekte» roller, uten support. Bare disse kan be om (og forlenge) support.
     function ekteKasserer() {
@@ -108,7 +115,7 @@ service cloud.firestore {
     }
     // En brukerprofil som ikke gir mer enn vanlig medlemstilgang.
     function vanligMedlem(d) {
-      return d.get('rolle', 'medlem') == 'medlem' && d.get('admin', false) != true && d.get('revisor', false) != true;
+      return d.get('rolle', 'medlem') in ['medlem', 'for'] && d.get('admin', false) != true && d.get('revisor', false) != true;
     }
 
     // Hvem som har tilgang, og med hvilken rolle. Dokument-ID er e-postadressen med små bokstaver.
@@ -122,7 +129,7 @@ service cloud.firestore {
       allow update: if ekteKasserer()
         || (supportAktiv() && e != epost() && (vanligMedlem(request.resource.data)
             || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['rolle', 'admin', 'revisor', 'revisorTil'])))
-        || (harTilgang() && e == epost()
+        || (harForTilgang() && e == epost()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['navn', 'kontonummer']));
     }
 
@@ -211,9 +218,9 @@ service cloud.firestore {
       function varselEpost() {
         return get(/databases/$(database)/documents/innstillinger/medlemsinfo).data.get('varselEpost', '');
       }
-      allow create: if harTilgang()
+      allow create: if harForTilgang()
         && request.resource.data.message.keys().hasOnly(['subject', 'text'])
-        && ((request.resource.data.keys().hasOnly(['to', 'message']) && varselEpost() != '' && request.resource.data.to == varselEpost()
+        && ((harTilgang() && request.resource.data.keys().hasOnly(['to', 'message']) && varselEpost() != '' && request.resource.data.to == varselEpost()
             && request.resource.data.message.subject == 'Ny søknad om refusjon'
             && request.resource.data.message.text == 'Det har kommet en ny søknad om refusjon av utlegg. Logg inn på https://tpthk.no for å se den.')
           // Ny fôrbestilling: bare til fôransvarlig, og bare hvis varselet er slått på.
@@ -253,7 +260,7 @@ service cloud.firestore {
           && d.get('vippsNavn', '') is string && d.get('vippsNavn', '').matches('[A-Za-zÆØÅæøåÄÖÜäöüÉéÈè -]{0,60}')
           && d.get('vippsNummer', '') is string && d.get('vippsNummer', '').matches('([0-9]{3} [0-9]{2} [0-9]{3})?');
       }
-      allow read: if harTilgang();
+      allow read: if harForTilgang();
       allow create: if (erKasserer() || erAdmin()) && gyldigFor(request.resource.data);
       allow update: if gyldigFor(request.resource.data) && (erKasserer() || erAdmin()
         || (erForansvarlig() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ansvarlige', 'navn'])));
@@ -268,7 +275,7 @@ service cloud.firestore {
           && runde == getAfter(forSti()).data.get('runde', '');
       }
       function egen() {
-        return harTilgang() && resource.data.epost == epost();
+        return harForTilgang() && resource.data.epost == epost();
       }
       allow read: if styrerFor() || egen();
       // Fôransvarlig legger inn de faste bestillingene når en runde åpnes (felt «fast»).
@@ -276,7 +283,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['navn', 'epost', 'runde', 'linjer', 'kommentar', 'status', 'opprettet', 'fast'])
           && request.resource.data.status == 'ny' && request.resource.data.epost is string
           && gyldigeLinjer(request.resource.data.linjer) && rundenErAapen(request.resource.data.runde))
-        || (harTilgang()
+        || (harForTilgang()
         && request.resource.data.keys().hasOnly(['navn', 'epost', 'runde', 'linjer', 'kommentar', 'status', 'opprettet'])
         && request.resource.data.epost == epost()
         && request.resource.data.status == 'ny'
@@ -296,13 +303,13 @@ service cloud.firestore {
     // Påmeldte til fôrordningen. Dokument-ID er e-postadressen. De påmeldte får e-post når en runde åpner,
     // og en eventuell fast bestilling («fast», varelinjer) legges inn av seg selv hver runde.
     match /forabonnenter/{e} {
-      allow read: if styrerFor() || (harTilgang() && e == epost());
-      allow create, update: if harTilgang() && e == epost()
+      allow read: if styrerFor() || (harForTilgang() && e == epost());
+      allow create, update: if harForTilgang() && e == epost()
         && request.resource.data.keys().hasOnly(['navn', 'epost', 'fast', 'endret'])
         && request.resource.data.epost == epost()
         && tekst(request.resource.data.navn, 100)
         && (request.resource.data.get('fast', null) == null || gyldigeLinjer(request.resource.data.fast));
-      allow delete: if styrerFor() || (harTilgang() && e == epost());
+      allow delete: if styrerFor() || (harForTilgang() && e == epost());
     }
 
     // Kvitteringsbilder. «laast» settes når en søknad er utbetalt, så de ikke kan slettes av medlemmet.

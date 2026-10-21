@@ -3,7 +3,7 @@
 
 import { html, raw, esc } from "../util.js";
 
-const OPPDATERT = "19. oktober 2026";
+const OPPDATERT = "21. oktober 2026";
 const KONTAKT = "Mona Melvold (kasserer)";
 
 export function personvern(main, S) {
@@ -47,6 +47,7 @@ export function personvern(main, S) {
           Revisor kan ikke endre noe, og tilgangen gis bare for revisjonen. Revisor trenger ikke være medlem av klubben.</li>
         <li><strong>Fôransvarlig</strong> ser alle fôrbestillingene og hvem som er påmeldt ordningen, men ikke regnskapet.</li>
         <li><strong>Vanlige medlemmer</strong> ser bare sine egne søknader, møteinnkallinger, referater og hvem som sitter i styret.</li>
+        <li><strong>Støttemedlemmer</strong> som bare har tilgang til fôrbestillingen, ser bare sine egne fôrbestillinger og sin egen påmelding.</li>
         <li><strong>Administratoren</strong> (Tillerflaten Digital) ser regnskapet bare når klubben ber om hjelp, og da i høyst 24 timer om gangen.</li>
       </ul>
       <p>Ved innkalling til møter sendes e-postadressen din til den som sender innkallingen, og den ligger i blindkopi så andre mottakere ikke ser den.</p>
