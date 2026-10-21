@@ -151,7 +151,8 @@ const DELER = [
         </ol>`, ["behandle-soknad"]],
       ["Medlemmer og kontingent", `<p>Under <a href="#/medlemmer">Medlemmer</a> legger du inn medlemmene med navn, e-post og telefon.
         Trykk på et medlem for å registrere betalt kontingent. Da føres den også i regnskapet. Har dere fått ett samlet beløp (f.eks. fra Vipps),
-        kan du fjerne haken og føre totalen som én post selv. «Excel» laster ned medlemslisten.</p>`, ["medlemmer"]],
+        kan du fjerne haken og føre totalen som én post selv. «Excel» laster ned medlemslisten.
+        Sletter du et medlem, slettes også innloggingen, så personen ikke kan logge inn igjen. Er personen bare utmeldt, fjern heller haken for «Aktivt medlem».</p>`, ["medlemmer"]],
       ["Påminnelse om kontingent", `
         <ol>
           <li>Under <a href="#/medlemmer">Medlemmer</a> velger du «Ikke betalt» i listen over medlemmene. Da ser du hvem som mangler, og når de sist fikk påminnelse.</li>
