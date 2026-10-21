@@ -353,7 +353,8 @@ export function skjema(main, S, id) {
 
   main.querySelector("#slett")?.addEventListener("click", async (e) => {
     if (erMeg) return melding("Du kan ikke slette deg selv.", "feil");
-    if (!(await bekreft(`Slette ${m.navn}? Tips: Er personen bare utmeldt, fjern heller haken for «Aktivt medlem» så historikken beholdes.`, { ja: "Slett", farlig: true }))) return;
+    const innlogging = m.epost && tilgang?.rolle !== "kasserer" ? " Innloggingen til personen slettes også." : "";
+    if (!(await bekreft(`Slette ${m.navn}?${innlogging} Tips: Er personen bare utmeldt, fjern heller haken for «Aktivt medlem» så historikken beholdes.`, { ja: "Slett", farlig: true }))) return;
     await medKnapp(e.currentTarget, async () => {
       await slettMedlem(m, tilgang && tilgang.rolle !== "kasserer");
       melding("Medlemmet er slettet.");

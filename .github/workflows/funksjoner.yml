@@ -1,0 +1,48 @@
+# Publiserer skyfunksjonene i functions/ til Firebase når de endres på main.
+# Krever hemmeligheten FIREBASE_SERVICE_ACCOUNT, og at nøkkelen har fått noen ekstra roller i Google Cloud,
+# se docs/funksjoner-automatisk.md.
+name: Publiser skyfunksjonene
+
+on:
+  push:
+    branches: [main]
+    paths: [functions/**, firebase.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: funksjoner
+  cancel-in-progress: false
+
+jobs:
+  funksjoner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Installer pakkene til funksjonene
+        run: npm ci --prefix functions
+      - name: Legg nøkkelen i en midlertidig fil
+        env:
+          NOKKEL: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$NOKKEL" ]; then
+            echo "::error::Hemmeligheten FIREBASE_SERVICE_ACCOUNT mangler, se docs/regler-automatisk.md."
+            exit 1
+          fi
+          printf '%s' "$NOKKEL" > "$RUNNER_TEMP/nokkel.json"
+      - name: Publiser funksjonene
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/nokkel.json
+        run: |
+          if ! npx --yes firebase-tools@15.34.0 deploy --only functions --project tpthk-3405f --force --non-interactive; then
+            echo "::error::Publiseringen feilet. Mangler nøkkelen en rolle, står det «Permission» eller «denied» over. Se docs/funksjoner-automatisk.md."
+            exit 1
+          fi
+      - name: Slett den midlertidige nøkkelen
+        if: always()
+        run: rm -f "$RUNNER_TEMP/nokkel.json"
