@@ -170,7 +170,7 @@ const DELER = [
         Du kan også åpne et medlem med e-post og huke av for innlogging. Da kommer personen inn når hen lager konto med samme e-post.</p>`],
       ["Styreverv", `<p>Under «Møter» og «Styret» trykker du «Endre verv» for å velge hvem som har hvilket verv. Den som har et verv,
         ser oversikten og søknadene og kan legge ut møter. Vervet «Kasserer» er bare en tittel. Tilgang til regnskapet gis under Innstillinger.</p>`, ["verv"]],
-      ["Velg fôransvarlig", `<p>Gå til «Gå til fôrbestilling» under <a href="#/minside">Min side</a>, og velg personen under «Fôransvarlig» nederst.
+      ["Velg fôransvarlig", `<p>Trykk <a href="#/for">Fôr</a> øverst på siden (ved siden av Min side), og velg personen under «Fôransvarlig» nederst.
         Fôransvarlig ser alle fôrbestillingene, men ikke regnskapet. Administratoren kan også velge fôransvarlig.</p>`],
       ["Årsrapport", `<p><a href="#/rapport">Årsrapport</a> samler resultatregnskap, saldo på kontoene, medlemmer og bilagsliste for året.
         Er det lagt inn budsjett, vises regnskapet, budsjettet og avviket ved siden av hverandre, og budsjettet for neste år hvis det finnes.

@@ -95,7 +95,7 @@ const moteSider = {
   hjelp: { side: hjelp },
   "for-alle": { side: forbestilling.forAlle },
 };
-// Fôrbestilling: i menyen for alle unntatt kassereren (som har så mange menypunkter). Kassereren finner den på Min side.
+// Fôrbestilling: i menyen for alle unntatt kassereren (som har så mange menypunkter). Kassereren har den øverst, ved Min side.
 const forSider = { for: { side: forbestilling.forside } };
 const forMeny = { for: { meny: "Fôr", ikon: "hund", side: forbestilling.forside } };
 // Regelverket: i menyen for alle unntatt kassereren, som har så mange menypunkter fra før. Kassereren finner det under Møter.
@@ -233,6 +233,8 @@ function venter() {
 }
 
 const minSideLenke = () => `<a class="utlogg" href="#/minside" title="Min side" aria-label="Min side">${ikon("person")}<span>Min side</span></a>`;
+// Kassereren har ikke Fôr i menyen, så den ligger øverst ved siden av Min side.
+const forLenke = (n) => `<a class="utlogg" href="#/for" title="Fôrbestilling" aria-label="Fôrbestilling">${ikon("hund")}<span>Fôr</span>${n ? `<span class="topp-merke">${n}</span>` : ""}</a>`;
 const hjelpLenke = () => `<a class="utlogg" href="#/hjelp" title="Hjelp" aria-label="Hjelp">${ikon("hjelp")}<span>Hjelp</span></a>`;
 const utloggKnapp = () =>
   html`<button class="utlogg" id="loggut" title="Logg ut ${S.bruker.email}">${raw(ikon("utlogg"))}<span>Logg ut</span></button>`;
@@ -263,7 +265,8 @@ function tegnMeny(aktiv) {
   const aarValg = seRegnskap()
     ? html`<label class="aarvalg"><span class="skjult">Regnskapsår</span><select id="aar">${tilgjengeligeAar(S.poster, [S.aar, ...Object.keys(S.innst.budsjett || {}).map(Number)]).map((a) => raw(html`<option ${a === S.aar ? "selected" : ""}>${a}</option>`))}</select></label>`
     : "";
-  topp.innerHTML = aarValg + (s.minside && !s.minside.meny ? minSideLenke() : "") + hjelpLenke() + utloggKnapp();
+  topp.innerHTML = aarValg + (s.for && !s.for.meny ? forLenke(forbestilling.nyeBestillinger(S)) : "")
+    + (s.minside && !s.minside.meny ? minSideLenke() : "") + hjelpLenke() + utloggKnapp();
   topp.querySelector("#loggut").addEventListener("click", () => konto.loggUt());
   topp.querySelector("#aar")?.addEventListener("change", (e) => { S.aar = Number(e.target.value); tegn(); });
 }

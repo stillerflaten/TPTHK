@@ -11,6 +11,7 @@ import {
 import { melding, medKnapp, bekreft } from "../ui.js";
 import { ikon } from "../ikoner.js";
 import { styrerFor, kanVelgeForansvarlig } from "../tilgang.js";
+import { ROYAL_CANIN, KATEGORIER } from "../forkatalog.js";
 
 const MAKS_ANTALL = 99;
 
@@ -51,15 +52,96 @@ function huskSkjema(main, id, nokkel) {
 }
 const glemSkjema = (id) => { delete skjemaUtkast[id]; };
 
-/** Antall-feltene for hver fôrtype, brukt både i bestillingen og i den faste bestillingen. */
-function antallFelter(varer, antallFor) {
-  return html`<ul class="enkel-liste forvarer">${varer.map((v) => raw(html`
-    <li>
+/** Fôrtypene gruppert etter kategori, i fast rekkefølge. Fôrtyper uten kategori havner under «Andre». */
+export function iKategorier(varer) {
+  const grupper = new Map();
+  for (const v of varer) {
+    const k = (v.kategori || "").trim() || "Andre";
+    if (!grupper.has(k)) grupper.set(k, []);
+    grupper.get(k).push(v);
+  }
+  const plass = (k) => (KATEGORIER.includes(k) ? KATEGORIER.indexOf(k) : k === "Andre" ? 1e9 : 1e6);
+  return [...grupper.entries()].sort((a, b) => plass(a[0]) - plass(b[0]) || a[0].localeCompare(b[0], "nb"));
+}
+
+const SOKEORD = new Map(ROYAL_CANIN.map((k) => [k.id, k.sok || ""]));
+
+// Hvilke kategorier som er åpne, og hva det er søkt etter, per skjema. Siden tegnes på nytt når data endrer seg.
+const aapneGrupper = new Set();
+const sok = {};
+
+/** Antall-feltene for hver fôrtype, brukt både i bestillingen og i den faste bestillingen.
+ *  Med mange fôrtyper vises de i sammenleggbare kategorier med et søkefelt øverst. */
+function antallFelter(varer, antallFor, skjema) {
+  const felt = (v) => html`
+    <li data-sok="${`${v.navn} ${v.kategori || ""} ${SOKEORD.get(v.id) || ""}`.toLowerCase()}">
       <span><strong>${v.navn}</strong>${v.pris ? raw(html`<span class="hint blokk">Ca. ${kr(v.pris)}</span>`) : ""}</span>
       <input type="number" name="${v.id}" min="0" max="${MAKS_ANTALL}" step="1" inputmode="numeric" value="${antallFor(v.id)}"
         placeholder="0" aria-label="Antall ${v.navn}">
-    </li>`))}
-  </ul>`;
+    </li>`;
+  const grupper = iKategorier(varer);
+  if (grupper.length < 2 && varer.length <= 15) return html`<ul class="enkel-liste forvarer">${varer.map((v) => raw(felt(v)))}</ul>`;
+  return html`
+    <div class="forvalg" data-forvalg="${skjema}">
+      <input type="search" class="forsok" data-forsok placeholder="Søk, f.eks. Maxi eller Labrador"
+        value="${sok[skjema] || ""}" aria-label="Søk etter fôr">
+      <p class="hint" data-ingen hidden>Fant ikke noe fôr med det navnet.</p>
+      ${grupper.map(([kategori, liste]) => {
+        const valgt = liste.filter((v) => Number(antallFor(v.id)) > 0).length;
+        return raw(html`
+          <details class="forgruppe" data-gruppe="${kategori}" ${valgt || aapneGrupper.has(`${skjema}|${kategori}`) ? "open" : ""}>
+            <summary><span>${kategori}</span><span class="forgruppe-antall" data-valgt>${valgt ? `${valgt} valgt` : `${liste.length}`}</span></summary>
+            <ul class="enkel-liste forvarer">${liste.map((v) => raw(felt(v)))}</ul>
+          </details>`);
+      })}
+    </div>`;
+}
+
+/** Søk, åpne kategorier og «n valgt» i antall-feltene. */
+function kobleAntallFelter(main) {
+  main.querySelectorAll("[data-forvalg]").forEach((boks) => {
+    const skjema = boks.dataset.forvalg;
+    const grupper = [...boks.querySelectorAll("details.forgruppe")];
+    const tellValgt = (d) => {
+      const n = [...d.querySelectorAll("input[type=number]")].filter((i) => Number(i.value) > 0).length;
+      d.querySelector("[data-valgt]").textContent = n ? `${n} valgt` : String(d.querySelectorAll("li").length);
+    };
+    grupper.forEach((d) => {
+      d.addEventListener("toggle", () => {
+        if (boks.querySelector("[data-forsok]").value.trim()) return;
+        if (d.open) aapneGrupper.add(`${skjema}|${d.dataset.gruppe}`); else aapneGrupper.delete(`${skjema}|${d.dataset.gruppe}`);
+      });
+      d.addEventListener("input", () => tellValgt(d));
+    });
+    const sokefelt = boks.querySelector("[data-forsok]");
+    const filtrer = () => {
+      const ord = sokefelt.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      sok[skjema] = sokefelt.value;
+      let treff = 0;
+      for (const d of grupper) {
+        let iGruppen = 0;
+        d.querySelectorAll("li").forEach((li) => {
+          const vis = ord.every((o) => li.dataset.sok.includes(o));
+          li.hidden = !vis;
+          if (vis) iGruppen++;
+        });
+        treff += iGruppen;
+        d.hidden = ord.length > 0 && !iGruppen;
+        if (ord.length) d.open = iGruppen > 0;
+        else d.open = aapneGrupper.has(`${skjema}|${d.dataset.gruppe}`) || [...d.querySelectorAll("input[type=number]")].some((i) => Number(i.value) > 0);
+      }
+      boks.querySelector("[data-ingen]").hidden = !ord.length || treff > 0;
+    };
+    sokefelt.addEventListener("input", filtrer);
+    // Enter i søkefeltet skal ikke sende bestillingen.
+    sokefelt.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
+    // Antall som er hentet tilbake fra et utkast, skal også telle og holde kategorien åpen.
+    grupper.forEach((d) => {
+      tellValgt(d);
+      if ([...d.querySelectorAll("input[type=number]")].some((i) => Number(i.value) > 0)) d.open = true;
+    });
+    if (sokefelt.value.trim()) filtrer();
+  });
 }
 
 /** Leser antall-feltene. Gir varelinjene, eller null (med feilmelding) hvis noe er feil. */
@@ -92,7 +174,9 @@ const BRUK_MEDLEM = [
   ["Bestille fôr", `
     <ol>
       <li>Når fôransvarlig har åpnet en bestillingsrunde, står skjemaet «Ny bestilling» på denne siden.</li>
-      <li>Skriv antall ved fôrtypene du vil ha. La resten stå tomme. Prisen er omtrentlig, den endelige står på regningen.</li>
+      <li>Fôret er delt i kategorier, for eksempel «Tørrfôr: Valp» og «Våtfôr: Veterinærfôr». Trykk på en kategori for å åpne den,
+        eller skriv i søkefeltet, for eksempel «Maxi», «Labrador» eller «Gastrointestinal».</li>
+      <li>Skriv antall ved fôrtypene du vil ha. La resten stå tomme. Står det en pris, er den omtrentlig. Den endelige står på regningen.</li>
       <li>Skriv gjerne en kommentar til fôransvarlig, og trykk «Send bestilling».</li>
     </ol>
     <p>Er det ingen åpen runde, står det når neste runde er planlagt. Fôransvarlig bestiller omtrent hver tredje måned.</p>`],
@@ -121,8 +205,9 @@ const BRUK_MEDLEM = [
 const BRUK_ANSVARLIG = [
   ["Første gang: fôrtyper, beskjed og Vipps-nummer", `
     <ol>
-      <li>Under «Fôrtyper» lenger ned trykker du «+ Legg til fôrtype», skriver navnet (f.eks. «Royal Canin Maxi Adult 15 kg») og gjerne prisen.
-        Gjenta for hver fôrtype, og trykk «Lagre fôrtyper».</li>
+      <li>Under «Fôrtyper» lenger ned trykker du «Legg inn Royal Canins utvalg». Da kommer hele utvalget av tørr- og våtfôr for hund inn,
+        sortert i kategorier. Fjern det klubben ikke vil tilby, og trykk «Lagre fôrtyper».</li>
+      <li>Mangler noe, trykker du «+ Legg til fôrtype», skriver navnet (f.eks. «Royal Canin Maxi Adult»), velger kategori og skriver gjerne prisen.</li>
       <li>Under «Beskjed til medlemmene og varsel» skriver du en tekst som vises øverst på bestillingssiden, og datoen for neste planlagte runde.</li>
       <li>Fyll inn navnet ditt og Vipps-nummeret. De står i betalingsmailen medlemmene får. Trykk «Lagre».</li>
     </ol>
@@ -215,7 +300,7 @@ export function forside(main, S) {
       <form id="bestill" class="skjema kort uthevet">
         <h2>${iRunden ? (iRunden.fast ? "Din bestilling (fra den faste bestillingen)" : "Din bestilling") : "Ny bestilling"}</h2>
         <p class="hint">${F.frist ? `Bestillingsfrist ${datoTekst(F.frist)}. ` : ""}Skriv antall ved det du vil ha. ${iRunden ? "Du kan endre bestillingen helt til runden stenges." : ""}</p>
-        ${raw(antallFelter(F.varer, antallFor))}
+        ${raw(antallFelter(F.varer, antallFor, "bestill"))}
         <label>Kommentar til fôransvarlig (valgfritt)<textarea name="kommentar" rows="2" maxlength="500">${iRunden?.kommentar || ""}</textarea></label>
         <div class="knapper">
           ${iRunden ? raw(`<button type="button" class="knapp farlig sekundaer" id="trekk">Trekk bestillingen</button>`) : ""}
@@ -274,6 +359,7 @@ export function forside(main, S) {
   });
   huskSkjema(main, "bestill", `${F.runde}|${iRunden?.id || ""}`);
   huskSkjema(main, "fast", "fast");
+  kobleAntallFelter(main);
   kobleOrdning(main, S, F);
   kobleVelgAnsvarlig(main, S, F);
 }
@@ -304,7 +390,7 @@ function ordningKort(S, F) {
       ${redigerFast ? raw(html`
         <form id="fast" class="skjema">
           <p class="hint">Skriv antall ved det du vil ha hver gang. La alt stå tomt hvis du ikke vil ha fast bestilling.</p>
-          ${raw(antallFelter(F.varer, (id) => fast.find((l) => l.vare === id)?.antall || ""))}
+          ${raw(antallFelter(F.varer, (id) => fast.find((l) => l.vare === id)?.antall || "", "fast"))}
           <div class="knapper">
             <button type="button" class="knapp sekundaer" id="avbrytFast">Avbryt</button>
             <button type="submit" class="knapp">Lagre fast bestilling</button>
@@ -393,6 +479,32 @@ function kobleVelgAnsvarlig(main, S, F) {
 
 let valgtRunde = null;
 let varerUtkast = null; // fôrtypene mens de redigeres
+
+const likNavn = (navn) => navn.trim().toLowerCase().replace(/\s+/g, " ");
+/** Hvor mange fôrtyper fra Royal Canins utvalg som ikke er lagt inn ennå. */
+const nyeFraKatalog = (varer) => {
+  const finnes = new Set(varer.map((v) => likNavn(v.navn)));
+  return ROYAL_CANIN.filter((k) => !finnes.has(likNavn(k.navn))).length;
+};
+
+/** Redigering av fôrtypene, gruppert i kategorier når det er mange. */
+function redigerVarer(varer) {
+  const rad = ({ v, i }) => html`
+    <div class="forvare-rad">
+      <input data-vnavn="${i}" data-felt="vnavn-${i}" value="${v.navn}" placeholder="F.eks. Royal Canin Maxi Adult" maxlength="100" aria-label="Fôrtype">
+      <input data-vkat="${i}" data-felt="vkat-${i}" value="${v.kategori || ""}" list="forkategorier" placeholder="Kategori" maxlength="60" aria-label="Kategori">
+      <input data-vpris="${i}" data-felt="vpris-${i}" value="${v.prisTekst ?? belopTilInput(v.pris)}" placeholder="Pris" inputmode="decimal" aria-label="Pris i kroner">
+      <button type="button" class="ikonknapp" data-vfjern="${i}" aria-label="Fjern ${v.navn || "fôrtypen"}">${raw(ikon("lukk"))}</button>
+    </div>`;
+  const medPlass = varer.map((v, i) => ({ ...v, v, i }));
+  const grupper = iKategorier(medPlass);
+  if (grupper.length < 2 && varer.length <= 15) return html`<div class="forvarer-rediger">${medPlass.map((x) => raw(rad(x)))}</div>`;
+  return html`<div class="forvalg">${grupper.map(([kategori, liste]) => raw(html`
+    <details class="forgruppe" data-redgruppe="${kategori}" ${aapneGrupper.has(`rediger|${kategori}`) ? "open" : ""}>
+      <summary><span>${kategori}</span><span class="forgruppe-antall">${liste.length}</span></summary>
+      <div class="forvarer-rediger">${liste.map((x) => raw(rad(x)))}</div>
+    </details>`))}</div>`;
+}
 
 /** Summerer antall per fôrtype i en runde. */
 export function samleliste(bestillinger) {
@@ -540,14 +652,14 @@ export function forAlle(main, S) {
 
     <section class="kort">
       <h2>Fôrtyper</h2>
-      <p class="hint">Dette er lista medlemmene velger fra. Pris er valgfritt og vises som «ca. pris». Endringer gjelder nye bestillinger, ikke de som er sendt.</p>
-      <div class="forvarer-rediger">${varer.map((v, i) => raw(html`
-        <div class="forvare-rad">
-          <input data-vnavn="${i}" data-felt="vnavn-${i}" value="${v.navn}" placeholder="F.eks. Royal Canin Maxi Adult 15 kg" maxlength="100" aria-label="Fôrtype">
-          <input data-vpris="${i}" data-felt="vpris-${i}" value="${belopTilInput(v.pris)}" placeholder="Pris" inputmode="decimal" aria-label="Pris i kroner">
-          <button type="button" class="ikonknapp" data-vfjern="${i}" aria-label="Fjern ${v.navn || "fôrtypen"}">${raw(ikon("lukk"))}</button>
-        </div>`))}
-      </div>
+      <p class="hint">Dette er lista medlemmene velger fra. Kategorien bestemmer hvor fôrtypen står i lista. Pris er valgfritt og vises som «ca. pris».
+        Endringer gjelder nye bestillinger, ikke de som er sendt.</p>
+      ${nyeFraKatalog(varer) ? raw(html`
+        <div class="knapper venstre">
+          <button type="button" class="knapp sekundaer" id="hentKatalog">Legg inn Royal Canins utvalg (${nyeFraKatalog(varer)} fôrtyper)</button>
+        </div>`) : ""}
+      <datalist id="forkategorier">${[...new Set([...KATEGORIER, ...varer.map((v) => v.kategori).filter(Boolean)])].map((k) => raw(html`<option value="${k}">`))}</datalist>
+      ${raw(redigerVarer(varer))}
       <div class="knapper">
         <button type="button" class="knapp sekundaer" id="nyVare">+ Legg til fôrtype</button>
         ${varerUtkast ? raw(`<button type="button" class="knapp sekundaer" id="avbrytVarer">Avbryt</button>`) : ""}
@@ -709,13 +821,36 @@ export function forAlle(main, S) {
     const u = utkast(); u[Number(inp.dataset.vpris)].prisTekst = inp.value;
     main.querySelector("#lagreVarer").disabled = false;
   }));
+  main.querySelectorAll("[data-vkat]").forEach((inp) => inp.addEventListener("input", () => {
+    const u = utkast(); u[Number(inp.dataset.vkat)].kategori = inp.value;
+    main.querySelector("#lagreVarer").disabled = false;
+  }));
+  main.querySelectorAll("[data-redgruppe]").forEach((d) => d.addEventListener("toggle", () => {
+    if (d.open) aapneGrupper.add(`rediger|${d.dataset.redgruppe}`); else aapneGrupper.delete(`rediger|${d.dataset.redgruppe}`);
+  }));
+  main.querySelector("#hentKatalog")?.addEventListener("click", () => {
+    const u = utkast();
+    const finnes = new Map(u.map((v) => [likNavn(v.navn), v]));
+    const ider = new Set(u.map((v) => v.id));
+    let nye = 0;
+    for (const k of ROYAL_CANIN) {
+      const lik = finnes.get(likNavn(k.navn));
+      if (lik) { if (!lik.kategori) lik.kategori = k.kategori; continue; }
+      if (ider.has(k.id)) continue;
+      u.push({ id: k.id, navn: k.navn, kategori: k.kategori, pris: null });
+      nye++;
+    }
+    melding(`${nye} fôrtyper er lagt til i lista. Se over, fjern det klubben ikke vil tilby, og trykk «Lagre fôrtyper».`);
+    tegnPaaNytt();
+  });
   main.querySelectorAll("[data-vfjern]").forEach((b) => b.addEventListener("click", () => {
     utkast().splice(Number(b.dataset.vfjern), 1);
     tegnPaaNytt();
   }));
   main.querySelector("#nyVare").addEventListener("click", () => {
     const u = utkast();
-    u.push({ id: `fortype-${Date.now().toString(36)}`, navn: "", pris: null });
+    u.push({ id: `fortype-${Date.now().toString(36)}`, navn: "", kategori: "", pris: null });
+    aapneGrupper.add("rediger|Andre");
     tegnPaaNytt();
     main.querySelector(`[data-vnavn="${u.length - 1}"]`)?.focus();
   });
@@ -729,7 +864,8 @@ export function forAlle(main, S) {
       const prisTekst = v.prisTekst ?? belopTilInput(v.pris);
       const pris = prisTekst.trim() ? tolkBelop(prisTekst) : null;
       if (prisTekst.trim() && (pris == null || pris <= 0)) return melding(`Prisen for ${navn} ser ikke riktig ut.`, "feil");
-      ferdig.push({ id: v.id, navn, pris });
+      const kategori = String(v.kategori || "").trim().slice(0, 60);
+      ferdig.push({ id: v.id, navn, pris, ...(kategori ? { kategori } : {}) });
     }
     await medKnapp(e.currentTarget, async () => {
       await lagreForInnstillinger({ varer: ferdig });

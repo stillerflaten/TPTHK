@@ -247,7 +247,7 @@ service cloud.firestore {
     match /innstillinger/for {
       function gyldigFor(d) {
         return d.get('ansvarlige', []) is list && d.get('ansvarlige', []).size() <= 5
-          && d.get('navn', {}) is map && d.get('varer', []) is list && d.get('varer', []).size() <= 100
+          && d.get('navn', {}) is map && d.get('varer', []) is list && d.get('varer', []).size() <= 400
           && tekst(d.get('info', ''), 1000) && d.get('aapen', false) is bool
           // Navn og nummer i betalingsmailen. Bare bokstaver og sifre, så de kan brukes i sjekken av teksten (match /mail).
           && d.get('vippsNavn', '') is string && d.get('vippsNavn', '').matches('[A-Za-zÆØÅæøåÄÖÜäöüÉéÈè -]{0,60}')
