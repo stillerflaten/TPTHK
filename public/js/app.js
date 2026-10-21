@@ -24,6 +24,7 @@ import { hjelp } from "./views/hjelp.js";
 import { personvern } from "./views/personvern.js";
 import * as forbestilling from "./views/for.js";
 import { ikon } from "./ikoner.js";
+import { startNedtrekk } from "./nedtrekk.js";
 import { erKasserer as kasserer, erStyret, supportAktiv, harVerv, erAdmin, erRevisor, eksternRevisor, bareFor, revisorUtloper, seRegnskap as kanSeRegnskap, styrerFor } from "./tilgang.js";
 import { supportStripe, oppdaterSupportKort } from "./views/support.js";
 
@@ -507,6 +508,8 @@ export function startPaaNytt() {
   if (S.bruker?.emailVerified) startLyttere();
   tegn();
 }
+
+startNedtrekk();
 
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});

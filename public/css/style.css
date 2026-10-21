@@ -268,6 +268,24 @@ body.ute .sentrert { margin-top: 96px; }
 label:has(> .knapperad) { display: block; font-weight: 600; font-size: .84rem; }
 label > .knapperad { margin-top: 6px; }
 .brikker select { min-height: 32px; padding: 4px 30px 4px 12px; border-radius: 16px; font-size: .84rem; background-position: right 9px center; background-size: 14px; }
+/* Lista som åpner seg fra en nedtrekksmeny på PC (nedtrekk.js), i stedet for nettleserens grå systemmeny. */
+select[aria-expanded] { border-color: var(--blekk) !important; box-shadow: 0 0 0 3px rgb(228 180 25 / 35%); }
+.nedtrekk-liste {
+  position: fixed; z-index: 1000; overflow-y: auto; overscroll-behavior: contain; padding: 6px;
+  background: var(--kort); border: 1px solid var(--linje); border-radius: 12px; box-shadow: var(--skygge-hoy);
+  font: 400 .95rem/1.35 var(--sans); color: var(--tekst); animation: nedtrekk-inn .12s ease-out;
+}
+.nedtrekk-liste.oppover { animation-name: nedtrekk-opp; }
+@keyframes nedtrekk-inn { from { opacity: 0; transform: translateY(-4px); } }
+@keyframes nedtrekk-opp { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .nedtrekk-liste { animation: none; } }
+.nedtrekk-valg { display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 8px; border-radius: 8px; cursor: pointer; }
+.nedtrekk-valg svg { width: 16px; height: 16px; flex: none; color: var(--gull-dyp); visibility: hidden; }
+.nedtrekk-valg[aria-selected] { font-weight: 600; color: var(--blekk); }
+.nedtrekk-valg[aria-selected] svg { visibility: visible; }
+.nedtrekk-valg.aktiv { background: var(--gull-lys); }
+.nedtrekk-valg[aria-disabled] { color: var(--svak); cursor: default; }
+.nedtrekk-gruppe { padding: 10px 12px 4px; font-size: .74rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dempet); }
 input::placeholder, textarea::placeholder { color: var(--svak); }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blekk) !important; box-shadow: 0 0 0 3px rgb(228 180 25 / 35%); }
 .skjema label.avkryss, label.avkryss { display: flex; align-items: center; gap: 10px; font-weight: 400; font-size: .93rem; }
