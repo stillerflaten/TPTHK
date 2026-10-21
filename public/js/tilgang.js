@@ -15,6 +15,12 @@ export const harVerv = (S) => Boolean(S.bruker) && (S.verv?.styre || []).include
 export const ekteStyret = (S) => ekteKasserer(S) || harVerv(S);
 export const erAdmin = (S) => S.profil?.admin === true;
 
+/**
+ * Leser og svarer på meldingene til styret: bare de som faktisk sitter i styret, og kasserere.
+ * Ikke administratoren, heller ikke under support, fordi medlemmer kan skrive om personlige ting.
+ */
+export const seMeldinger = (S) => ekteStyret(S);
+
 /** Kan be om support: kasserer eller styret, men ikke administratoren selv. */
 export const kanBeOmSupport = (S) => ekteStyret(S) && S.profil?.admin !== true;
 

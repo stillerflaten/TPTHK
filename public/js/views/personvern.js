@@ -27,6 +27,7 @@ export function personvern(main, S) {
         <li><strong>Regnskapet:</strong> poster som kan nevne deg, for eksempel kontingent eller refusjon til deg.</li>
         <li><strong>Møter:</strong> styreverv, og når du har signert et referat (navn, tidspunkt og en kontrollsum av teksten).</li>
         <li><strong>Fôrbestilling:</strong> hva du har bestilt, pris, om du har betalt, og om du er påmeldt den faste ordningen (med eventuell fast bestilling).</li>
+        <li><strong>Meldinger til styret:</strong> navnet ditt, e-postadressen, det du skriver, eventuelle vedlegg, svarene fra styret og når meldingene ble sendt.</li>
       </ul>
 
       <h2>Hvorfor vi lagrer det</h2>
@@ -36,22 +37,26 @@ export function personvern(main, S) {
         <li>For å føre regnskap, som klubben er pålagt.</li>
         <li>For å kalle inn til møter og godkjenne referater.</li>
         <li>For å samle fôrbestillinger til én bestilling, og holde oversikt over hvem som har betalt.</li>
+        <li>For at styret skal kunne svare på spørsmål og henvendelser fra medlemmene.</li>
       </ul>
       <p>Grunnlaget er medlemskapet ditt i klubben, klubbens plikt til å føre regnskap, og klubbens berettigede interesse i å drive foreningen.</p>
 
       <h2>Hvem som ser opplysningene</h2>
       <ul>
         <li><strong>Kassereren</strong> ser alt.</li>
-        <li><strong>Styret</strong> ser oversikten over regnskapet, søknader om refusjon og medlemslisten.</li>
+        <li><strong>Styret</strong> ser oversikten over regnskapet, søknader om refusjon, medlemslisten og meldingene medlemmene sender til styret.</li>
         <li><strong>Revisor</strong> ser regnskapet med kvitteringer og medlemslisten når klubben gir tilgang, men ikke søknadene eller kontonummeret ditt.
           Revisor kan ikke endre noe, og tilgangen gis bare for revisjonen. Revisor trenger ikke være medlem av klubben.</li>
         <li><strong>Fôransvarlig</strong> ser alle fôrbestillingene og hvem som er påmeldt ordningen, men ikke regnskapet.</li>
-        <li><strong>Vanlige medlemmer</strong> ser bare sine egne søknader, møteinnkallinger, referater og hvem som sitter i styret.</li>
+        <li><strong>Vanlige medlemmer</strong> ser bare sine egne søknader og meldinger, møteinnkallinger, referater og hvem som sitter i styret.</li>
         <li><strong>Støttemedlemmer</strong> som bare har tilgang til fôrbestillingen, ser bare sine egne fôrbestillinger og sin egen påmelding.</li>
-        <li><strong>Administratoren</strong> (Tillerflaten Digital) ser regnskapet bare når klubben ber om hjelp, og da i høyst 24 timer om gangen.</li>
+        <li><strong>Administratoren</strong> (Tillerflaten Digital) ser regnskapet bare når klubben ber om hjelp, og da i høyst 24 timer om gangen.
+          Meldinger til styret ser administratoren aldri, heller ikke da.</li>
       </ul>
       <p>Ved innkalling til møter sendes e-postadressen din til den som sender innkallingen, og den ligger i blindkopi så andre mottakere ikke ser den.</p>
       <p>Når du sender en søknad om refusjon, kan kassereren få en kort e-post om at det har kommet en ny søknad. E-posten inneholder ingen opplysninger om deg eller søknaden.</p>
+      <p>Når du sender en melding til styret, får de i styret en kort e-post om at det har kommet en ny melding, og du får en tilsvarende e-post når styret har svart.
+      E-postene inneholder ingenting av det du har skrevet.</p>
       <p>Er du påmeldt fôrordningen, får du e-post når en bestillingsrunde åpner, og eventuelt en påminnelse. Du står i blindkopi, så andre mottakere ikke ser adressen din.
       Når du bestiller, får fôransvarlig en kort e-post uten opplysninger om deg eller bestillingen.
       Når regningen er kommet, kan du få en e-post fra klubben med hva du skal betale og hvilket Vipps-nummer pengene skal til.</p>
@@ -69,6 +74,7 @@ export function personvern(main, S) {
         <li>Søknader som er avslått eller trukket, kan slettes når de er ferdig behandlet.</li>
         <li>Når du melder deg ut, slettes innloggingen din, og opplysningene i medlemslisten slettes eller anonymiseres. Det som må beholdes i regnskapet, beholdes til fristen er ute.</li>
         <li>Fôrbestillinger kan slettes av fôransvarlig når de er betalt og levert. Melder du deg av ordningen, slettes påmeldingen med en gang.</li>
+        <li>Meldinger til styret, med svar og vedlegg, lagres til styret sletter dem. Du kan når som helst be styret slette meldingene dine.</li>
         <li>Godkjente møtereferater og signaturer er en del av klubbens historikk og beholdes.</li>
         <li>Kassereren tar en sikkerhetskopi av alt minst hvert kvartal, så ingenting går tapt. Kopiene oppbevares trygt av klubben,
           og eldre kopier slettes når nyere finnes.</li>

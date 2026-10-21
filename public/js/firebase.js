@@ -9,7 +9,7 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator,
   terminate, clearIndexedDbPersistence,
   collection, doc, onSnapshot, getDoc, setDoc, updateDoc, deleteDoc, addDoc, writeBatch,
-  query, where, serverTimestamp, deleteField, getDocsFromServer, getDocFromServer, Timestamp,
+  query, where, serverTimestamp, deleteField, arrayUnion, getDocsFromServer, getDocFromServer, Timestamp,
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
@@ -319,6 +319,84 @@ export async function utbetalSoknad(soknad, post) {
   await batch.commit();
   return ref.id;
 }
+
+// ---------- Meldinger til styret ----------
+// En sak i «meldinger», og tekstene i samtalen i «meldingsinnlegg». Vedlegg i «meldingsvedlegg».
+
+export const lyttMineMeldinger = (cb, feil) =>
+  onSnapshot(query(collection(db, "meldinger"), where("epost", "==", meg())), (s) => cb(medId(s)), feil);
+export const lyttMineMeldingsinnlegg = (cb, feil) =>
+  onSnapshot(query(collection(db, "meldingsinnlegg"), where("epost", "==", meg())), (s) => cb(medId(s)), feil);
+
+async function lagreVedlegg(filer, eier) {
+  const ids = [];
+  for (const f of filer) {
+    const ref = await addDoc(collection(db, "meldingsvedlegg"), {
+      navn: String(f.navn || "").slice(0, 200), type: f.type, data: f.data, epost: eier, lastetOpp: serverTimestamp(),
+    });
+    ids.push(ref.id);
+  }
+  return ids;
+}
+
+export async function hentMeldingsvedlegg(id) {
+  const d = await getDoc(doc(db, "meldingsvedlegg", id));
+  return d.exists() ? d.data() : null;
+}
+
+/** Medlemmet sender en ny melding til styret. Gir tilbake ID-en til saken. */
+export async function sendMelding({ navn, emne, tekst, filer = [] }) {
+  const vedlegg = await lagreVedlegg(filer, meg());
+  const sak = doc(collection(db, "meldinger"));
+  const batch = writeBatch(db);
+  batch.set(sak, {
+    epost: meg(), navn, emne, status: "apen", opprettet: serverTimestamp(), sist: serverTimestamp(), sistFra: "medlem", lestAv: [meg()],
+  });
+  batch.set(doc(collection(db, "meldingsinnlegg")), {
+    meldingId: sak.id, epost: meg(), fra: "medlem", navn, tekst, tid: serverTimestamp(), vedlegg,
+  });
+  await batch.commit();
+  return sak.id;
+}
+
+/** Svar i en sak, fra medlemmet eller fra styret. Et nytt innlegg gjør saken ulest for de andre, og åpner den igjen. */
+export async function svarPaaMelding(sak, { fra, navn, tekst, filer = [] }) {
+  const vedlegg = await lagreVedlegg(filer, sak.epost);
+  const batch = writeBatch(db);
+  batch.set(doc(collection(db, "meldingsinnlegg")), {
+    meldingId: sak.id, epost: sak.epost, fra, navn, tekst, tid: serverTimestamp(), vedlegg,
+  });
+  batch.update(doc(db, "meldinger", sak.id), { sist: serverTimestamp(), sistFra: fra, lestAv: [meg()], status: "apen" });
+  await batch.commit();
+}
+
+export const merkMeldingLest = (sak) => updateDoc(doc(db, "meldinger", sak.id), { lestAv: arrayUnion(meg()) });
+export const settMeldingStatus = (sak, status) => updateDoc(doc(db, "meldinger", sak.id), { status });
+
+/** Sletter saken med alle innlegg og vedlegg. */
+export async function slettMelding(sak, innlegg) {
+  const batch = writeBatch(db);
+  for (const i of innlegg) {
+    batch.delete(doc(db, "meldingsinnlegg", i.id));
+    for (const v of i.vedlegg || []) batch.delete(doc(db, "meldingsvedlegg", v));
+  }
+  batch.delete(doc(db, "meldinger", sak.id));
+  await batch.commit();
+}
+
+// Tekstene må være nøyaktig de samme som i firestore.rules (match /mail).
+const MELDINGSVARSEL = {
+  subject: "Ny melding til styret",
+  text: "Det har kommet en ny melding til styret. Logg inn på https://tpthk.no for å lese den.",
+};
+const SVARVARSEL = {
+  subject: "Svar fra styret",
+  text: "Styret har svart på meldingen din. Logg inn på https://tpthk.no for å lese svaret.",
+};
+/** E-post til styret (blindkopi) om at det har kommet en ny melding. Ingenting fra meldingen står i e-posten. */
+export const varsleStyretOmMelding = (adresser) => addDoc(collection(db, "mail"), { bcc: adresser, message: MELDINGSVARSEL });
+/** E-post til medlemmet om at styret har svart. */
+export const varsleOmSvar = (sak) => addDoc(collection(db, "mail"), { to: sak.epost, message: SVARVARSEL, melding: sak.id });
 
 // ---------- Fôrbestilling ----------
 
