@@ -395,6 +395,14 @@ export async function aapneForrunde(innst, faste) {
 }
 
 /** Stenger runden: ingen kan bestille mer, og bestillingene i runden merkes som bestilt hos leverandøren. */
+/** Sletter alle bestillingene i en runde. Er det den siste runden, glemmes den også, så den ikke kan åpnes igjen. */
+export async function slettForrunde(bestillinger, erSiste) {
+  const batch = writeBatch(db);
+  for (const b of bestillinger) batch.delete(doc(db, "forbestillinger", b.id));
+  if (erSiste) batch.set(doc(db, "innstillinger", "for"), { aapen: false, runde: "", frist: "", stengt: "" }, { merge: true });
+  await batch.commit();
+}
+
 export async function stengForrunde(bestillinger, dato) {
   const batch = writeBatch(db);
   batch.set(doc(db, "innstillinger", "for"), { aapen: false, stengt: dato }, { merge: true });

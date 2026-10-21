@@ -5,7 +5,7 @@
 
 import { html, raw, kr, datoTekst, iDag, tolkBelop, belopTilInput } from "../util.js";
 import {
-  normalEpost, lagreForInnstillinger, sendForbestilling, endreForbestilling, slettForbestilling,
+  normalEpost, lagreForInnstillinger, sendForbestilling, endreForbestilling, slettForbestilling, slettForrunde,
   varsleOmForbestilling, stengForrunde, aapneForrunde, sendForbeskjed, lagreForabonnement, meldAvFor, sendBetalingsmail,
 } from "../firebase.js";
 import { melding, medKnapp, bekreft } from "../ui.js";
@@ -235,7 +235,8 @@ const BRUK_ANSVARLIG = [
     <p>Skal én person få e-posten på nytt, trykker du «Send på nytt» ved bestillingen. Medlemmene ser pris og status på sin egen side.</p>`],
   ["Påmeldte, eldre runder og sletting", `
     <p>«Påmeldte til ordningen» viser hvem som får e-post når en runde åpner, og hva de har som fast bestilling. Medlemmene melder seg på og av selv.</p>
-    <p>Eldre runder velger du i nedtrekkslista over «Samlet bestilling». En bestilling kan slettes med krysset øverst til høyre, for eksempel når den er betalt og levert.</p>`],
+    <p>Eldre runder velger du i nedtrekkslista over «Samlet bestilling». En bestilling kan slettes med krysset øverst til høyre, for eksempel når den er betalt og levert.</p>
+    <p>En hel runde, for eksempel en testrunde, sletter du ved å velge den i nedtrekkslista og trykke «Slett runden». Da slettes alle bestillingene i runden.</p>`],
 ];
 
 const aapneBokser = new Set();
@@ -596,6 +597,7 @@ export function forAlle(main, S) {
         <label class="liten"><span class="skjult">Velg runde</span>
           <select id="velgRunde">${runder.map((r) => raw(html`<option value="${r}" ${r === valgtRunde ? "selected" : ""}>${rundeTekst(r)}${r === F.runde && F.aapen ? " (åpen)" : ""}</option>`))}</select>
         </label>
+        <button type="button" class="knapp farlig sekundaer liten" id="slettRunde">Slett runden</button>
       </div>
 
       <section class="kort">
@@ -745,6 +747,19 @@ export function forAlle(main, S) {
     melding("Runden er åpen igjen. Bestillinger som var merket som bestilt, kan ikke endres av medlemmene.");
   }));
   main.querySelector("#velgRunde")?.addEventListener("change", (e) => { valgtRunde = e.target.value; tegnPaaNytt(); });
+  main.querySelector("#slettRunde")?.addEventListener("click", async (e) => {
+    const n = iRunden.length;
+    const tekst = `Slette ${rundeTekst(valgtRunde).toLowerCase()}${erGjeldende && F.aapen ? " (den er åpen nå)" : ""}?`
+      + (n ? ` ${n === 1 ? "Den ene bestillingen" : `Alle ${n} bestillingene`} i runden slettes, også for medlemmene.` : "")
+      + (erGjeldende && F.aapen ? " Runden stenges, så ingen kan bestille i den mer." : "")
+      + " E-post som alt er sendt, kan ikke hentes tilbake. Dette kan ikke angres.";
+    if (!(await bekreft(tekst, { ja: "Slett runden", farlig: true }))) return;
+    await medKnapp(e.currentTarget, async () => {
+      await slettForrunde(iRunden, erGjeldende);
+      valgtRunde = null;
+      melding("Runden er slettet.");
+    });
+  });
 
   // Samlet bestilling
   main.querySelector("#kopier")?.addEventListener("click", async () => {
