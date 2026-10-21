@@ -209,6 +209,68 @@ service cloud.firestore {
         || (harTilgang() && resource.data.epost == epost() && resource.data.status == 'sendt');
     }
 
+    // Meldinger til styret. Et medlem ser bare sine egne. Bare de som faktisk sitter i styret (og kasserere) leser alle.
+    // Administratoren ser dem ikke, heller ikke under support, fordi medlemmer kan skrive om personlige ting.
+    // «meldinger» er saken (emne, status, hvem som har lest), «meldingsinnlegg» er selve tekstene i samtalen.
+    function meldingSti(id) {
+      return /databases/$(database)/documents/meldinger/$(id);
+    }
+    function gyldigLestAv(d) {
+      return d.lestAv is list && d.lestAv.size() <= 50;
+    }
+    match /meldinger/{id} {
+      allow read: if ekteStyret() || (harTilgang() && resource.data.epost == epost());
+      allow create: if harTilgang()
+        && request.resource.data.keys().hasOnly(['epost', 'navn', 'emne', 'status', 'opprettet', 'sist', 'sistFra', 'lestAv'])
+        && request.resource.data.epost == epost()
+        && tekst(request.resource.data.navn, 100)
+        && tekst(request.resource.data.emne, 150) && request.resource.data.emne.size() > 0
+        && request.resource.data.status == 'apen' && request.resource.data.sistFra == 'medlem'
+        && request.resource.data.opprettet == request.time && request.resource.data.sist == request.time
+        && request.resource.data.lestAv == [epost()];
+      // Styret svarer, merker saken som ferdig og holder styr på hvem som har lest.
+      // Medlemmet kan svare (saken åpnes igjen) og merke svaret som lest.
+      allow update: if gyldigLestAv(request.resource.data) && (
+        (ekteStyret()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'sist', 'sistFra', 'lestAv'])
+          && request.resource.data.status in ['apen', 'ferdig'] && request.resource.data.sistFra in ['medlem', 'styret'])
+        || (harTilgang() && resource.data.epost == epost()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'sist', 'sistFra', 'lestAv'])
+          && (request.resource.data.status == 'apen' || request.resource.data.status == resource.data.status)
+          && (request.resource.data.sistFra == 'medlem' || request.resource.data.sistFra == resource.data.sistFra)));
+      allow delete: if ekteStyret();
+    }
+    match /meldingsinnlegg/{id} {
+      allow read: if ekteStyret() || (harTilgang() && resource.data.epost == epost());
+      // «epost» er alltid medlemmet som eier saken, så medlemmet kan hente alle innleggene i sine egne saker.
+      allow create: if request.resource.data.keys().hasOnly(['meldingId', 'epost', 'fra', 'navn', 'tekst', 'tid', 'vedlegg'])
+        && request.resource.data.tid == request.time
+        && tekst(request.resource.data.navn, 100)
+        && tekst(request.resource.data.tekst, 5000) && request.resource.data.tekst.size() > 0
+        && request.resource.data.vedlegg is list && request.resource.data.vedlegg.size() <= 5
+        && request.resource.data.meldingId is string
+        && existsAfter(meldingSti(request.resource.data.meldingId))
+        && getAfter(meldingSti(request.resource.data.meldingId)).data.epost == request.resource.data.epost
+        && ((request.resource.data.fra == 'medlem' && harTilgang() && request.resource.data.epost == epost())
+          || (request.resource.data.fra == 'styret' && ekteStyret()));
+      allow delete: if ekteStyret();
+    }
+    // Vedlegg (bilde eller PDF) til meldinger. Egen samling, så revisor (som leser kvitteringene) ikke ser dem.
+    match /meldingsvedlegg/{id} {
+      function gyldigVedlegg(d) {
+        return d.data is string && d.data.size() < 1000000
+          && d.type in ['image/jpeg', 'image/png', 'application/pdf']
+          && d.data.matches('data:' + d.type + ';base64,[A-Za-z0-9+/=]+');
+      }
+      allow get: if ekteStyret() || (harTilgang() && resource.data.epost == epost());
+      allow create: if gyldigVedlegg(request.resource.data)
+        && request.resource.data.keys().hasOnly(['navn', 'type', 'data', 'epost', 'lastetOpp'])
+        && tekst(request.resource.data.navn, 300)
+        && request.resource.data.epost is string
+        && ((harTilgang() && request.resource.data.epost == epost()) || ekteStyret());
+      allow delete: if ekteStyret();
+    }
+
     // E-postvarsel til kassereren om nye søknader, og til fôransvarlig og de påmeldte om fôrbestillingen.
     // Sendes av Firebase-utvidelsen «Trigger Email from Firestore» (se docs/epostvarsel.md), som leser denne samlingen.
     // Bare de faste tekstene kan sendes, og bare til adressene som er valgt (kassereren under Innstillinger,
@@ -223,6 +285,18 @@ service cloud.firestore {
         && ((harTilgang() && request.resource.data.keys().hasOnly(['to', 'message']) && varselEpost() != '' && request.resource.data.to == varselEpost()
             && request.resource.data.message.subject == 'Ny søknad om refusjon'
             && request.resource.data.message.text == 'Det har kommet en ny søknad om refusjon av utlegg. Logg inn på https://tpthk.no for å se den.')
+          // Ny melding til styret: bare til dem som sitter i styret (som blindkopi). Ingenting fra meldingen står i e-posten.
+          || (harTilgang() && request.resource.data.keys().hasOnly(['bcc', 'message'])
+            && request.resource.data.bcc is list && request.resource.data.bcc.size() > 0
+            && exists(vervSti()) && request.resource.data.bcc.hasOnly(get(vervSti()).data.get('styre', []))
+            && request.resource.data.message.subject == 'Ny melding til styret'
+            && request.resource.data.message.text == 'Det har kommet en ny melding til styret. Logg inn på https://tpthk.no for å lese den.')
+          // Styret har svart: bare til medlemmet som eier saken.
+          || (ekteStyret() && request.resource.data.keys().hasOnly(['to', 'message', 'melding'])
+            && request.resource.data.melding is string && exists(meldingSti(request.resource.data.melding))
+            && request.resource.data.to == get(meldingSti(request.resource.data.melding)).data.epost
+            && request.resource.data.message.subject == 'Svar fra styret'
+            && request.resource.data.message.text == 'Styret har svart på meldingen din. Logg inn på https://tpthk.no for å lese svaret.')
           // Ny fôrbestilling: bare til fôransvarlig, og bare hvis varselet er slått på.
           || (request.resource.data.keys().hasOnly(['to', 'message']) && exists(forSti()) && forInnst().get('varsel', true) == true
             && forInnst().get('ansvarlige', []).size() > 0 && request.resource.data.to == forInnst().ansvarlige

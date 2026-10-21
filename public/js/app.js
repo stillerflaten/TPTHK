@@ -3,6 +3,7 @@
 import {
   klar, auth, konto, lyttProfil, lyttSamling, lyttDokument, lyttMineSoknader, lyttMinForesporsel, normalEpost,
   lagrePersonliste, lyttSupport, lagreVerv, lyttMineForbestillinger, lyttMittForabonnement,
+  lyttMineMeldinger, lyttMineMeldingsinnlegg,
 } from "./firebase.js";
 import { html, raw, esc, aarNaa } from "./util.js";
 import { medStandard, tilgjengeligeAar, nummererBilag } from "./regnskap.js";
@@ -23,9 +24,10 @@ import * as regelverk from "./views/regelverk.js";
 import { hjelp } from "./views/hjelp.js";
 import { personvern } from "./views/personvern.js";
 import * as forbestilling from "./views/for.js";
+import * as meldinger from "./views/meldinger.js";
 import { ikon } from "./ikoner.js";
 import { startNedtrekk } from "./nedtrekk.js";
-import { erKasserer as kasserer, erStyret, supportAktiv, harVerv, erAdmin, erRevisor, eksternRevisor, bareFor, revisorUtloper, seRegnskap as kanSeRegnskap, styrerFor } from "./tilgang.js";
+import { erKasserer as kasserer, erStyret, supportAktiv, harVerv, erAdmin, erRevisor, eksternRevisor, bareFor, revisorUtloper, seRegnskap as kanSeRegnskap, styrerFor, seMeldinger } from "./tilgang.js";
 import { supportStripe, oppdaterSupportKort } from "./views/support.js";
 
 const main = document.getElementById("innhold");
@@ -43,6 +45,7 @@ export const S = {
   verv: undefined, // undefined = ikke lastet, null = ikke opprettet ennå
   forInnst: undefined, // fôrbestilling: undefined = ikke lastet, null = ikke opprettet ennå
   mineFor: [], forbestillinger: [], mittForabonnement: null, forabonnenter: [],
+  meldinger: [], meldingsinnlegg: [],
   innst: medStandard(null),
   info: {},
   mittMedlem: null,
@@ -95,14 +98,19 @@ const moteSider = {
   styret: { side: styret.styret },
   hjelp: { side: hjelp },
   "for-alle": { side: forbestilling.forAlle },
+  melding: { side: meldinger.detalj },
+  "ny-melding": { side: meldinger.ny },
 };
+// Meldinger til styret: i menyen for vanlige medlemmer. De andre har så mange menypunkter at den ligger øverst, ved Min side.
+const meldingSider = { meldinger: { side: meldinger.liste } };
+const meldingMeny = { meldinger: { meny: "Meldinger", ikon: "melding", side: meldinger.liste } };
 // Fôrbestilling: i menyen for alle unntatt kassereren (som har så mange menypunkter). Kassereren har den øverst, ved Min side.
 const forSider = { for: { side: forbestilling.forside } };
 const forMeny = { for: { meny: "Fôr", ikon: "hund", side: forbestilling.forside } };
 // Regelverket: i menyen for alle unntatt kassereren, som har så mange menypunkter fra før. Kassereren finner det under Møter.
 const regelSider = { regelverk: { side: regelverk.liste }, regel: { side: regelverk.les }, "regel-skjema": { side: regelverk.skjema } };
 const regelMeny = { ...regelSider, regelverk: { meny: "Regelverk", ikon: "regelverk", side: regelverk.liste } };
-Object.assign(kassererSider, moteSider, regelSider, forSider);
+Object.assign(kassererSider, moteSider, regelSider, forSider, meldingSider);
 
 const medlemSider = {
   mine: { meny: "Mine søknader", ikon: "soknader", side: soknader.mineListe },
@@ -111,6 +119,7 @@ const medlemSider = {
   moter: { meny: "Møter", ikon: "moter", side: moter.liste },
   ...regelMeny,
   ...forMeny,
+  ...meldingMeny,
   ...moteSider,
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
@@ -129,6 +138,7 @@ const styreSider = {
   ...regelMeny,
   ...forMeny,
   ...moteSider,
+  ...meldingSider,
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
 
@@ -148,6 +158,7 @@ const revisorSider = (styre) => ({
   ...regelMeny,
   ...forMeny,
   ...moteSider,
+  ...meldingSider,
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 });
 
@@ -242,6 +253,7 @@ function venter() {
 const minSideLenke = () => `<a class="utlogg" href="#/minside" title="Min side" aria-label="Min side">${ikon("person")}<span>Min side</span></a>`;
 // Kassereren har ikke Fôr i menyen, så den ligger øverst ved siden av Min side.
 const forLenke = (n) => `<a class="utlogg" href="#/for" title="Fôrbestilling" aria-label="Fôrbestilling">${ikon("hund")}<span>Fôr</span>${n ? `<span class="topp-merke">${n}</span>` : ""}</a>`;
+const meldingLenke = (n) => `<a class="utlogg" href="#/meldinger" title="Meldinger" aria-label="Meldinger">${ikon("melding")}<span>Meldinger</span>${n ? `<span class="topp-merke">${n}</span>` : ""}</a>`;
 const hjelpLenke = () => `<a class="utlogg" href="#/hjelp" title="Hjelp" aria-label="Hjelp">${ikon("hjelp")}<span>Hjelp</span></a>`;
 const utloggKnapp = () =>
   html`<button class="utlogg" id="loggut" title="Logg ut ${S.bruker.email}">${raw(ikon("utlogg"))}<span>Logg ut</span></button>`;
@@ -263,7 +275,8 @@ function tegnMeny(aktiv) {
     const merke = k === "soknader" ? S.soknader.filter((x) => x.status === "sendt").length
       : k === "medlemmer" ? S.foresporsler.length
       : k === "moter" && S.lastet.has("signaturer") ? moter.venterPaaMeg(S).length
-      : k === "for" ? forbestilling.nyeBestillinger(S) : 0;
+      : k === "for" ? forbestilling.nyeBestillinger(S)
+      : k === "meldinger" ? meldinger.uleste(S) : 0;
     return html`<a href="#/${k}" class="${k === aktiv || (s[aktiv] && !s[aktiv].meny && hører(aktiv) === k) ? "aktiv" : ""}">
       ${raw(ikon(v.ikon))}<span class="meny-tekst">${v.meny}</span>${merke ? raw(`<span class="merke">${merke}</span>`) : ""}
     </a>`;
@@ -273,6 +286,7 @@ function tegnMeny(aktiv) {
     ? html`<label class="aarvalg"><span class="skjult">Regnskapsår</span><select id="aar">${tilgjengeligeAar(S.poster, [S.aar, ...Object.keys(S.innst.budsjett || {}).map(Number)]).map((a) => raw(html`<option ${a === S.aar ? "selected" : ""}>${a}</option>`))}</select></label>`
     : "";
   topp.innerHTML = aarValg + (s.for && !s.for.meny ? forLenke(forbestilling.nyeBestillinger(S)) : "")
+    + (s.meldinger && !s.meldinger.meny ? meldingLenke(meldinger.uleste(S)) : "")
     + (s.minside && !s.minside.meny ? minSideLenke() : "") + (s.hjelp?.meny ? "" : hjelpLenke()) + utloggKnapp();
   topp.querySelector("#loggut").addEventListener("click", () => konto.loggUt());
   topp.querySelector("#aar")?.addEventListener("change", (e) => { S.aar = Number(e.target.value); tegn(); });
@@ -280,7 +294,7 @@ function tegnMeny(aktiv) {
 
 // Undersider markerer menypunktet de hører til.
 const hører = (navn) => ({ post: "poster", bankimport: "poster", soknad: "soknader", medlem: "medlemmer", "ny-soknad": "mine", "min-soknad": "mine",
-  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter", "for-alle": "for", budsjett: "rapport", avstemming: "rapport", regel: "regelverk", "regel-skjema": "regelverk" })[navn];
+  mote: "moter", "mote-skjema": "moter", referat: "moter", styret: "moter", "for-alle": "for", melding: "meldinger", "ny-melding": "meldinger", budsjett: "rapport", avstemming: "rapport", regel: "regelverk", "regel-skjema": "regelverk" })[navn];
 
 // ---------- Data ----------
 
@@ -355,7 +369,7 @@ let stoppProfil = () => {};
 let rolle;
 let supportTimer = null;
 function vurderRolle() {
-  const ny = S.profil ? `${S.profil.rolle}|${erKasserer()}|${erStyret(S)}|${erRevisor(S)}|${styrerFor(S)}` : undefined;
+  const ny = S.profil ? `${S.profil.rolle}|${erKasserer()}|${erStyret(S)}|${erRevisor(S)}|${styrerFor(S)}|${seMeldinger(S)}` : undefined;
   if (ny !== rolle) {
     rolle = ny;
     gjeldendeSide = null; // tegn siden på nytt, menyen og sidene er annerledes nå
@@ -414,6 +428,15 @@ function startRolleLyttere() {
   } else {
     S.forbestillinger = []; S.forabonnenter = [];
     S.lastet.add("forbestillinger"); S.lastet.add("forabonnenter");
+  }
+
+  // Meldinger til styret: styret ser alle, andre bare sine egne.
+  if (seMeldinger(S)) {
+    stoppLyttere.push(lyttSamling("meldinger", sett("meldinger"), visFeil));
+    stoppLyttere.push(lyttSamling("meldingsinnlegg", sett("meldingsinnlegg"), visFeil));
+  } else {
+    stoppLyttere.push(lyttMineMeldinger(sett("meldinger"), visFeil));
+    stoppLyttere.push(lyttMineMeldingsinnlegg(sett("meldingsinnlegg"), visFeil));
   }
 
   stoppLyttere.push(lyttSamling("moter", sett("moter"), visFeil));
@@ -491,6 +514,7 @@ if (klar) {
       brukere: [], foresporsler: [], innst: medStandard(null), info: {}, mittMedlem: null, lastet: new Set(),
       moter: [], signaturer: [], personer: [], regelverk: [], support: null, verv: undefined,
       forInnst: undefined, mineFor: [], forbestillinger: [], mittForabonnement: null, forabonnenter: [],
+      meldinger: [], meldingsinnlegg: [],
     });
     vervOpprettet = false;
     rolle = undefined;

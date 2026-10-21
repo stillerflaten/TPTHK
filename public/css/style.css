@@ -639,3 +639,13 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
   display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; margin-left: 2px;
   border-radius: 9px; background: var(--minus); color: #fff; font-size: .62rem; font-weight: 700;
 }
+
+/* Meldinger til styret */
+.meldingsliste a.ulest .post-tekst > span:first-child { font-weight: 700; }
+.samtale { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
+.innlegg { background: var(--kort); border: 1px solid var(--linje); border-radius: var(--radius); box-shadow: var(--skygge); padding: 14px 18px; max-width: 760px; }
+.innlegg.fra-styret { border-left: 3px solid var(--gull); margin-left: auto; width: min(100%, 760px); }
+.innlegg.fra-medlem { width: min(100%, 760px); }
+.innlegg-topp { display: flex; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; font-size: .84rem; margin-bottom: 6px; }
+.innlegg-topp span { color: var(--dempet); }
+.innlegg .brikker { margin-top: 10px; }

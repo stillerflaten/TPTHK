@@ -79,14 +79,16 @@ export function bekreft(tekst, { ja = "Ja", nei = "Avbryt", farlig = false } = {
 // ---------- Kvitteringer ----------
 
 /** Åpner en lagret kvittering: bilder vises i en dialog, PDF-er åpnes i ny fane fra en knapp i dialogen. */
-export async function visKvittering(id) {
-  const vindu = dialog(`<p class="dialog-tekst">Henter kvittering …</p>`, { bred: true });
+/** «hva» er ordet som brukes i teksten (kvitteringen, vedlegget). */
+export async function visKvittering(id, { hent = hentKvittering, hva = "kvitteringen" } = {}) {
+  const Hva = hva[0].toUpperCase() + hva.slice(1);
+  const vindu = dialog(html`<p class="dialog-tekst">Henter ${hva} …</p>`, { bred: true });
   try {
-    const k = await hentKvittering(id);
-    if (!k) throw new Error("Fant ikke kvitteringen.");
+    const k = await hent(id);
+    if (!k) throw new Error(`Fant ikke ${hva}.`);
     const data = String(k.data || "");
     if (k.type === "application/pdf") {
-      if (!data.startsWith("data:application/pdf;base64,")) throw new Error("Kvitteringen er ikke en gyldig PDF.");
+      if (!data.startsWith("data:application/pdf;base64,")) throw new Error(`${Hva} er ikke en gyldig PDF.`);
       // Åpnes alltid som PDF, uansett hva fila selv sier at den er.
       const url = URL.createObjectURL(dataUrlTilBlob(data, "application/pdf"));
       const navn = /\.pdf$/i.test(k.navn || "") ? k.navn : `${k.navn || "kvittering"}.pdf`;
@@ -94,7 +96,7 @@ export async function visKvittering(id) {
       // Derfor åpnes PDF-en først når brukeren trykker på knappen.
       vindu.innerHTML = html`
         <div class="dialog-topp"><strong>${k.navn}</strong><button class="ikonknapp" data-lukk aria-label="Lukk">${raw(ikon("lukk"))}</button></div>
-        <p class="dialog-tekst">Kvitteringen er en PDF.</p>
+        <p class="dialog-tekst">${Hva} er en PDF.</p>
         <div class="knapper">
           <a class="knapp sekundaer" href="${url}" download="${navn}">Last ned</a>
           <button class="knapp" data-apne>Åpne PDF</button>
@@ -103,10 +105,10 @@ export async function visKvittering(id) {
       vindu.addEventListener("close", () => setTimeout(() => URL.revokeObjectURL(url), 60_000), { once: true });
       return;
     }
-    if (!data.startsWith("data:image/")) throw new Error("Kvitteringen er ikke et gyldig bilde.");
+    if (!data.startsWith("data:image/")) throw new Error(`${Hva} er ikke et gyldig bilde.`);
     vindu.innerHTML = html`
       <div class="dialog-topp"><strong>${k.navn}</strong><button class="ikonknapp" data-lukk aria-label="Lukk">${raw(ikon("lukk"))}</button></div>
-      <img class="kvittering-stor" src="${k.data}" alt="Kvittering ${k.navn}">
+      <img class="kvittering-stor" src="${k.data}" alt="${Hva}: ${k.navn}">
       <div class="knapper"><a class="knapp sekundaer" href="${k.data}" download="${k.navn}">Last ned</a></div>`;
   } catch (e) {
     vindu.close();
@@ -128,7 +130,7 @@ export function kobleKvitteringslenker(rot) {
  * Felt for å legge til kvitteringer (kamera eller fil). Filene komprimeres med en gang,
  * men lagres først når skjemaet sendes, via lagreNye().
  */
-export function kvitteringsvelger(beholder, { eksisterende = [], kanFjerne = true } = {}) {
+export function kvitteringsvelger(beholder, { eksisterende = [], kanFjerne = true, knapp = "Legg til kvittering" } = {}) {
   let beholdte = [...eksisterende];
   const nye = [];
   const fjernet = [];
@@ -136,7 +138,7 @@ export function kvitteringsvelger(beholder, { eksisterende = [], kanFjerne = tru
   beholder.innerHTML = html`
     <div class="kvitteringer"></div>
     <label class="knapp sekundaer filknapp">
-      ${raw(ikon("kamera"))} Legg til kvittering
+      ${raw(ikon("kamera"))} ${knapp}
       <input type="file" accept="image/*,application/pdf" multiple hidden>
     </label>
     <p class="hint">Ta bilde med mobilen eller velg en fil (bilde eller PDF).</p>`;
@@ -185,6 +187,8 @@ export function kvitteringsvelger(beholder, { eksisterende = [], kanFjerne = tru
   return {
     antall: () => beholdte.length + nye.length,
     fjernet: () => [...fjernet],
+    /** De nye filene, ikke lagret (brukes når de skal lagres et annet sted enn blant kvitteringene). */
+    nye: () => [...nye],
     /** Lagrer nye filer og gir tilbake den komplette listen med id-er. */
     async lagreNye() {
       const ids = [...beholdte];
