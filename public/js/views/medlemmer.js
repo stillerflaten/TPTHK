@@ -41,6 +41,7 @@ export function liste(main, S) {
             <span><strong>${f.navn}</strong><br><span class="hint">${f.epost}</span></span>
             <span class="knapperad">
               <button class="knapp sekundaer liten" data-avvis="${f.id}">Avvis</button>
+              <button class="knapp sekundaer liten" data-godkjenn="${f.id}" data-rolle="for" title="Støttemedlem: kan bare bestille fôr">Bare fôr</button>
               <button class="knapp liten" data-godkjenn="${f.id}">Gi tilgang</button>
             </span>
           </li>`))}</ul>
@@ -104,8 +105,9 @@ export function liste(main, S) {
   main.querySelectorAll("[data-godkjenn]").forEach((b) => b.addEventListener("click", () => medKnapp(b, async () => {
     const f = S.foresporsler.find((x) => x.id === b.dataset.godkjenn);
     const finnes = S.medlemmer.find((m) => normalEpost(m.epost) === f.epost);
-    await godkjennForesporsel(f, finnes?.id);
-    melding(`${f.navn} har fått tilgang${finnes ? " og er koblet til medlemmet med samme e-post" : " og er lagt til i medlemslisten"}.`);
+    const rolle = b.dataset.rolle === "for" ? "for" : "medlem";
+    await godkjennForesporsel(f, finnes?.id, rolle);
+    melding(`${f.navn} har fått ${rolle === "for" ? "tilgang til fôrbestillingen" : "tilgang"}${finnes ? " og er koblet til medlemmet med samme e-post" : " og er lagt til i medlemslisten"}.`);
   })));
   main.querySelectorAll("[data-avvis]").forEach((b) => b.addEventListener("click", async () => {
     if (!(await bekreft("Avvise forespørselen? Personen kan spørre på nytt senere.", { ja: "Avvis" }))) return;
@@ -118,7 +120,7 @@ liste.tittel = "Medlemmer";
 // Styreverv først; tilgangsrollen vises bare når den ikke allerede står som verv (kasserer er både verv og tilgang).
 function roller(S, t) {
   const verv = vervFor(S, t.id).map((v) => v.toLowerCase());
-  const tilgang = t.admin ? "administrator" : t.rolle === "kasserer" ? "kasserer" : "";
+  const tilgang = t.admin ? "administrator" : t.rolle === "kasserer" ? "kasserer" : t.rolle === "for" ? "bare fôr" : "";
   return tilgang && !verv.includes(tilgang) ? [...verv, tilgang] : verv;
 }
 liste.trenger = ["medlemmer", "brukere", "foresporsler", "poster", "innst", "info", "verv"];
@@ -298,9 +300,14 @@ export function skjema(main, S, id) {
       </div>
       <label>Merknad<textarea name="merknad" rows="2">${m.merknad || ""}</textarea></label>
       <label class="avkryss"><input type="checkbox" name="aktiv" ${m.aktiv !== false ? "checked" : ""}> Aktivt medlem</label>
-      <label class="avkryss"><input type="checkbox" name="tilgang" ${tilgang ? "checked" : ""} ${erMeg ? "disabled" : ""}>
-        Kan logge inn og sende søknader om refusjon</label>
-      ${tilgang ? raw(html`<p class="hint">Styreverv: ${vervFor(S, tilgang.id).join(", ") || "ingen"}. <a href="#/styret">Endre under Styret</a></p>`) : ""}
+      <label>Innlogging
+        <select name="tilgang" ${erMeg || tilgang?.rolle === "kasserer" ? "disabled" : ""}>
+          <option value="" ${!tilgang ? "selected" : ""}>Kan ikke logge inn</option>
+          <option value="medlem" ${tilgang && tilgang.rolle !== "for" ? "selected" : ""}>${tilgang?.rolle === "kasserer" ? "Kasserer" : "Medlem: søknader om refusjon, møter, regelverk og fôr"}</option>
+          <option value="for" ${tilgang?.rolle === "for" ? "selected" : ""}>Bare fôrbestilling (støttemedlem)</option>
+        </select>
+      </label>
+      ${tilgang && tilgang.rolle !== "for" ? raw(html`<p class="hint">Styreverv: ${vervFor(S, tilgang.id).join(", ") || "ingen"}. <a href="#/styret">Endre under Styret</a></p>`) : ""}
       <p class="hint">Personen oppretter selv konto på nettsiden med samme e-post. ${tilgang?.rolle === "kasserer" ? "Denne personen er kasserer (endres under Innstillinger)." : ""}</p>
       <div class="knapper">
         ${ny ? "" : raw(`<button type="button" class="knapp farlig sekundaer" id="slett">Slett</button>`)}
@@ -319,7 +326,9 @@ export function skjema(main, S, id) {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(f));
     const epost = normalEpost(v.epost);
-    const vilHaTilgang = erMeg || Boolean(v.tilgang);
+    // Valget er låst for deg selv og for kassereren, så da beholdes tilgangen som den er.
+    const laast = erMeg || tilgang?.rolle === "kasserer";
+    const vilHaTilgang = laast || Boolean(v.tilgang);
     if (vilHaTilgang && !epost) return melding("Skriv inn e-post for å gi tilgang.", "feil");
     if (epost && S.medlemmer.some((x) => x.id !== m.id && normalEpost(x.epost) === epost)) {
       return melding("Et annet medlem har allerede denne e-postadressen.", "feil");
@@ -331,7 +340,10 @@ export function skjema(main, S, id) {
       // Flytt eller fjern tilgang når e-posten endres eller haken fjernes.
       if (tilgang && tilgang.rolle !== "kasserer" && (gammelEpost !== epost || !vilHaTilgang)) await slettBruker(gammelEpost);
       if (vilHaTilgang) {
-        const rolle = (gammelEpost === epost && tilgang?.rolle) || S.brukere.find((b) => b.id === epost)?.rolle || "medlem";
+        const tidligere = (gammelEpost === epost && tilgang?.rolle) || S.brukere.find((b) => b.id === epost)?.rolle;
+        const rolle = laast ? tidligere || "medlem"
+          : v.tilgang === "for" ? "for"
+          : tidligere && tidligere !== "for" ? tidligere : "medlem";
         await lagreBruker(epost, { rolle, navn: v.navn.trim(), medlemId });
       }
       melding(ny ? "Medlemmet er lagt til." : "Endringene er lagret.");

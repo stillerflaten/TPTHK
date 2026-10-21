@@ -8,7 +8,7 @@ import { erKasserer, erStyret, erAdmin, erRevisor, styrerFor } from "../tilgang.
 // Skjermbildene ligger i public/hjelp/ og er tatt med oppdiktede testdata.
 const DELER = [
   {
-    id: "medlem", tittel: "For alle medlemmer", gjelder: (S) => S.profil?.rolle !== "revisor",
+    id: "medlem", tittel: "For alle medlemmer", gjelder: (S) => !["revisor", "for"].includes(S.profil?.rolle),
     emner: [
       ["Første gang: lag konto og få tilgang", `
         <ol>
@@ -36,7 +36,7 @@ const DELER = [
         Lagrer du kontonummeret under <a href="#/minside">Min side</a>, fylles det inn av seg selv neste gang.</p>`, ["ny-soknad", "mine-soknader"]],
       ["Bestille fôr", `
         <p>Klubben samler bestillinger av fôr (Royal Canin) noen ganger i året. Gå til <a href="#/for">Fôr</a> i menyen
-        (kassereren finner det under Min side).</p>
+        (kassereren har det øverst på siden).</p>
         <ol>
           <li>Når en bestillingsrunde er åpen, skriver du antall ved fôrtypene du vil ha og trykker «Send bestilling».</li>
           <li>Du kan endre eller trekke bestillingen helt til fôransvarlig stenger runden.</li>
@@ -238,6 +238,10 @@ const DELER = [
     ],
   },
   {
+    // Støttemedlemmer som bare kan bestille fôr, ser bare emnene som gjelder dem (hentes fra delen for medlemmer under).
+    id: "stotte", tittel: "For støttemedlemmer", gjelder: (S) => S.profil?.rolle === "for", emner: [],
+  },
+  {
     id: "admin", tittel: "For administratoren", gjelder: (S) => erAdmin(S),
     emner: [
       ["Hva administratoren kan", `<p>Administratoren bestemmer hvilke styreverv som finnes (under «Styret» og «Endre verv»), og kan gi verv.
@@ -248,6 +252,9 @@ const DELER = [
     ],
   },
 ];
+
+const STOTTE_EMNER = ["Første gang: lag konto og få tilgang", "Glemt passord", "Legg siden på hjemskjermen", "Bestille fôr", "Personvern"];
+DELER.find((d) => d.id === "stotte").emner = DELER.find((d) => d.id === "medlem").emner.filter(([t]) => STOTTE_EMNER.includes(t));
 
 export function hjelp(main, S) {
   const mine = DELER.filter((d) => d.gjelder(S));
