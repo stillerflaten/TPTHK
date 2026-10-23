@@ -492,6 +492,21 @@ service cloud.firestore {
       allow delete: if erStyret();
     }
 
+    // Innkalling på e-post. Styret ber om utsendelsen her, og skyfunksjonen «sendInnkalling» finner mottakerne
+    // selv og sender e-posten (functions/index.js). Bare funksjonen kan endre en utsendelse etterpå.
+    match /utsendelser/{id} {
+      allow read: if erStyret();
+      allow create: if erStyret()
+        && request.resource.data.keys().hasOnly(['moteId', 'hvem', 'bestiltAv', 'bestilt', 'status'])
+        && request.resource.data.moteId is string
+        && exists(/databases/$(database)/documents/moter/$(request.resource.data.moteId))
+        && request.resource.data.hvem in ['styret', 'alle', 'aktive']
+        && request.resource.data.bestiltAv == epost()
+        && request.resource.data.bestilt == request.time
+        && request.resource.data.status == 'venter';
+      allow delete: if erStyret();
+    }
+
     // Referatet mens styret skriver på det. Bare styret ser utkast.
     match /referatutkast/{id} {
       allow read, write: if erStyret();

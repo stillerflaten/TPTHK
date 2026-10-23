@@ -53,7 +53,7 @@ export function personvern(main, S) {
         <li><strong>Administratoren</strong> (Tillerflaten Digital) ser regnskapet bare når klubben ber om hjelp, og da i høyst 24 timer om gangen.
           Meldinger til styret ser administratoren aldri, heller ikke da.</li>
       </ul>
-      <p>Ved innkalling til møter sendes e-postadressen din til den som sender innkallingen, og den ligger i blindkopi så andre mottakere ikke ser den.</p>
+      <p>Innkallinger til møter sendes på e-post fra klubbens e-postadresse. Adressen din ligger i blindkopi, så andre mottakere ikke ser den.</p>
       <p>Når du sender en søknad om refusjon, kan kassereren få en kort e-post om at det har kommet en ny søknad. E-posten inneholder ingen opplysninger om deg eller søknaden.</p>
       <p>Når du sender en melding til styret, får de i styret en kort e-post om at det har kommet en ny melding, og du får en tilsvarende e-post når styret har svart.
       E-postene inneholder ingenting av det du har skrevet.</p>

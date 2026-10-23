@@ -40,7 +40,7 @@ export const S = {
   profil: undefined, // undefined = ikke lastet, null = finnes ikke (ingen tilgang)
   foresporsel: null,
   poster: [], medlemmer: [], soknader: [], brukere: [], foresporsler: [],
-  moter: [], signaturer: [], personer: [], regelverk: [],
+  moter: [], signaturer: [], personer: [], regelverk: [], utsendelser: [],
   support: null,
   verv: undefined, // undefined = ikke lastet, null = ikke opprettet ennå
   forInnst: undefined, // fôrbestilling: undefined = ikke lastet, null = ikke opprettet ennå
@@ -448,6 +448,13 @@ function startRolleLyttere() {
     S.personer = [];
     S.lastet.add("personer");
   }
+  // Innkallinger sendt på e-post: bare styret ser når og til hvor mange.
+  if (moter.erStyret(S)) {
+    stoppLyttere.push(lyttSamling("utsendelser", sett("utsendelser"), visFeil));
+  } else {
+    S.utsendelser = [];
+    S.lastet.add("utsendelser");
+  }
 
   if (seRegnskap()) {
     stoppLyttere.push(lyttSamling("poster", (p) => sett("poster")(nummererBilag(p)), visFeil));
@@ -512,7 +519,7 @@ if (klar) {
     Object.assign(S, {
       bruker, profil: undefined, foresporsel: null, poster: [], medlemmer: [], soknader: [], mineSoknader: [],
       brukere: [], foresporsler: [], innst: medStandard(null), info: {}, mittMedlem: null, lastet: new Set(),
-      moter: [], signaturer: [], personer: [], regelverk: [], support: null, verv: undefined,
+      moter: [], signaturer: [], personer: [], regelverk: [], utsendelser: [], support: null, verv: undefined,
       forInnst: undefined, mineFor: [], forbestillinger: [], mittForabonnement: null, forabonnenter: [],
       meldinger: [], meldingsinnlegg: [],
     });
