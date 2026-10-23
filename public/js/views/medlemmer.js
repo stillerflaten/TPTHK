@@ -1,4 +1,5 @@
 // Medlemsliste med kontingent, tilgang og forespørsler fra nye brukere.
+// Kassereren endrer. Resten av styret ser lista (med kontingent), men kan ikke endre noe.
 
 import { html, raw, kr, iDag, tolkBelop, belopTilInput, datoTekst, lastNedCsv } from "../util.js";
 import { kontovalg } from "./poster.js";
@@ -10,6 +11,7 @@ import { melding, medKnapp, bekreft, dialog } from "../ui.js";
 import { gaaTil } from "../app.js";
 import { ikon } from "../ikoner.js";
 import { vervFor } from "./styret.js";
+import { erKasserer } from "../tilgang.js";
 
 const filter = { sok: "", vis: "aktive" };
 
@@ -23,15 +25,17 @@ export function liste(main, S) {
       || (filter.vis === "ubetalt" && m.aktiv !== false && !m.kontingent?.[aar]?.betalt))
     && (!sok || `${m.navn} ${m.epost} ${m.telefon}`.toLowerCase().includes(sok)));
   const ubetalte = ikkeBetalt(S, aar);
+  const kanEndre = erKasserer(S);
 
   main.innerHTML = html`
     <div class="sidetopp">
       <h1>Medlemmer</h1>
       <div class="knapperad">
         <button class="knapp sekundaer" id="eksport">${raw(ikon("lastned"))} Excel</button>
-        <a class="knapp" href="#/medlem/ny">+ Nytt medlem</a>
+        ${kanEndre ? raw(`<a class="knapp" href="#/medlem/ny">+ Nytt medlem</a>`) : ""}
       </div>
     </div>
+    ${kanEndre ? "" : raw(`<p class="hint">Bare kassereren kan endre medlemslista og føre kontingent.</p>`)}
 
     ${S.foresporsler.length ? raw(html`
       <section class="kort uthevet">
@@ -56,14 +60,14 @@ export function liste(main, S) {
       </select>
     </div>
 
-    ${ubetalte.length && filter.vis === "ubetalt" ? raw(html`
+    ${kanEndre && ubetalte.length && filter.vis === "ubetalt" ? raw(html`
       <section class="kort uthevet paminnelse">
         <p><strong>${ubetalte.length}</strong> aktive medlemmer har ikke betalt kontingent for ${aar}.
           ${sistPaminnet(ubetalte, aar) ? `Sist påminnet ${datoTekst(sistPaminnet(ubetalte, aar))}.` : ""}</p>
         <div class="knapperad">
           <button class="knapp liten" id="paminnelse">${raw(ikon("send"))} Send påminnelse</button>
         </div>
-      </section>`) : ubetalte.length && filter.vis === "aktive" && !sok ? raw(html`
+      </section>`) : kanEndre && ubetalte.length && filter.vis === "aktive" && !sok ? raw(html`
       <p class="hint">${ubetalte.length} har ikke betalt for ${aar}. <a href="#/medlemmer" id="visUbetalte">Vis dem og send påminnelse</a></p>`) : ""}
 
     ${synlige.length ? raw(html`<ul class="medlemsliste">${synlige.map((m) => {
@@ -71,16 +75,21 @@ export function liste(main, S) {
       const t = m.epost ? tilgang.get(normalEpost(m.epost)) : null;
       return raw(html`
         <li class="${m.aktiv === false ? "utmeldt" : ""}">
-          <a href="#/medlem/${m.id}" class="medlem-info">
+          ${kanEndre ? raw(html`<a href="#/medlem/${m.id}" class="medlem-info">
             <strong>${m.navn}</strong>
             <span class="hint">${[filter.vis === "ubetalt" && !m.epost && "mangler e-post", m.epost, t && (roller(S, t).join(", ") || "medlem"), m.aktiv === false && "utmeldt",
               filter.vis === "ubetalt" && m.paminnet?.[aar] && `påminnet ${datoTekst(m.paminnet[aar])}`].filter(Boolean).join(" · ")}</span>
           </a>
           <button class="kontingent ${betalt ? "betalt" : ""}" data-kontingent="${m.id}" title="Kontingent ${aar}">
             ${betalt ? `✓ Betalt ${aar}` : `Ikke betalt ${aar}`}
-          </button>
+          </button>`)
+          : raw(html`<div class="medlem-info">
+            <strong>${m.navn}</strong>
+            <span class="hint">${[m.epost, m.telefon, m.aktiv === false && "utmeldt"].filter(Boolean).join(" · ")}</span>
+          </div>
+          <span class="kontingent ${betalt ? "betalt" : ""}" title="Kontingent ${aar}">${betalt ? `✓ Betalt ${aar}` : `Ikke betalt ${aar}`}</span>`)}
         </li>`);
-    })}</ul>`) : raw(`<div class="tom">${S.medlemmer.length ? "Ingen medlemmer passer filteret." : "Ingen medlemmer ennå. Legg dem til med «+ Nytt medlem», eller be dem opprette konto selv, så dukker de opp her."}</div>`)}`;
+    })}</ul>`) : raw(`<div class="tom">${S.medlemmer.length ? "Ingen medlemmer passer filteret." : kanEndre ? "Ingen medlemmer ennå. Legg dem til med «+ Nytt medlem», eller be dem opprette konto selv, så dukker de opp her." : "Ingen medlemmer ennå."}</div>`)}`;
 
   const sokefelt = main.querySelector("#sok");
   sokefelt.addEventListener("input", () => {

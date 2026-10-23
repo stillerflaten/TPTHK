@@ -64,7 +64,8 @@ const DELER = [
     id: "styret", tittel: "For styret", gjelder: (S) => erStyret(S),
     emner: [
       ["Hva styret kan se", `<p>Alle som har et styreverv, ser <strong>Oversikt</strong> med nøkkeltallene, <strong>Årsrapport</strong> med budsjett og avvik,
-        og alle <strong>Søknader</strong> som kommer inn. Styret kan lese, men ikke endre regnskapet, budsjettet eller behandle søknader. Det gjør kassereren.</p>`, ["oversikt"]],
+        alle <strong>Søknader</strong> som kommer inn, og <strong>Medlemmer</strong> med e-post, telefon og om kontingenten er betalt.
+        Styret kan lese, men ikke endre regnskapet, budsjettet eller medlemslista, og ikke behandle søknader. Det gjør kassereren.</p>`, ["oversikt"]],
       ["Legg ut en innkalling", `
         <ol>
           <li>Gå til «Møter» og trykk «+ Ny innkalling».</li>
@@ -75,7 +76,7 @@ const DELER = [
         <p>Åpne møtet. Under innkallingen står «Send innkallingen på e-post».</p>
         <ol>
           <li>Ved medlemsmøter og årsmøter velger du hvem som skal få den: <strong>Alle medlemmer</strong> (også støttemedlemmer som bare bestiller fôr)
-            eller <strong>Bare aktive medlemmer</strong> (uten støttemedlemmer). Utmeldte får den aldri. Ved styremøter går den til styret.</li>
+            eller <strong>Bare aktive medlemmer</strong> (uten støttemedlemmer). «Bare aktive» er valgt fra start. Utmeldte får den aldri. Ved styremøter går den til styret.</li>
           <li>Trykk <strong>Send innkallingen</strong> og bekreft. E-posten går ut med en gang, som blindkopi, med tid, sted, hele sakslista og en lenke til møtet.</li>
           <li>På møtesiden ser du når den ble sendt og til hvor mange. Har du endret innkallingen, kan du trykke <strong>Send oppdatert innkalling</strong>.</li>
         </ol>
@@ -87,7 +88,7 @@ const DELER = [
           <li><strong>Del PDF</strong> (på telefon) sender fila rett til Mail eller Outlook og kopierer adressene, så du kan lime dem inn i Bcc.</li>
           <li><strong>Kopier adressene</strong> hvis du heller vil skrive e-posten selv.</li>
         </ul>
-        <p>Bare kassereren kan se medlemslista, så for medlemsmøter og årsmøter er det bare kassereren som får opp adressene her.</p>`, ["send-pdf"]],
+`, ["send-pdf"]],
       ["Skriv referat og send til signering", `
         <ol>
           <li>Åpne møtet og trykk «Skriv referat». Trykk «Lagre utkast» underveis. Bare styret ser utkastet.</li>

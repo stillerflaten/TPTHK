@@ -659,3 +659,4 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 .utsendelser .feiltekst { color: var(--minus); }
 .andre-maater { margin-top: 16px; }
 .andre-maater summary { cursor: pointer; font-weight: 600; color: var(--blekk); padding: 4px 0 10px; }
+span.kontingent { cursor: default; pointer-events: none; }

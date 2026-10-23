@@ -109,20 +109,23 @@ const hvemTekst = {
 };
 // Valget huskes per møte mens siden er åpen, fordi siden tegnes på nytt når noe endres.
 const valgtHvem = {};
-const hvemFor = (m) => (erAapent(m) ? valgtHvem[m.id] || "alle" : "styret");
+const hvemFor = (m) => (erAapent(m) ? valgtHvem[m.id] || "aktive" : "styret");
 let visAndreMaater = false;
 
 /**
- * Hvem som skal ha innkallingen, regnet ut på nettsiden. Bare kassereren kan se medlemslista, og bare til
- * PDF-knappene og antallet i bekreftelsen. Samme regel som i skyfunksjonen.
+ * Hvem som skal ha innkallingen, regnet ut på nettsiden for PDF-knappene og antallet i bekreftelsen.
+ * Samme regel som i skyfunksjonen. Støttemedlemmene finnes i «brukere» (bare kassereren) eller personlista (styret).
  */
 function mottakere(S, m, hvem = hvemFor(m)) {
   if (hvem === "styret") return [...new Set((S.personer || []).filter((p) => p.styre).map((p) => p.epost))];
-  const stotte = new Set(hvem === "aktive" ? S.brukere.filter((b) => b.rolle === "for").map((b) => b.id) : []);
+  const stotte = new Set(hvem !== "aktive" ? []
+    : erKasserer(S) ? S.brukere.filter((b) => b.rolle === "for").map((b) => b.id)
+    : (S.personer || []).filter((p) => p.stotte).map((p) => p.epost));
   return [...new Set(S.medlemmer.filter((x) => x.aktiv !== false && x.epost).map((x) => normalEpost(x.epost)))]
     .filter((e) => !stotte.has(e));
 }
-const kjennerMottakere = (S, m) => (erAapent(m) ? erKasserer(S) && S.lastet.has("medlemmer") && S.lastet.has("brukere") : S.lastet.has("personer"));
+const kjennerMottakere = (S, m) => S.lastet.has("personer")
+  && (!erAapent(m) || (S.lastet.has("medlemmer") && S.lastet.has("brukere")));
 
 const kanDeleFil = () => {
   try {
@@ -170,9 +173,8 @@ function epostboks(S, m) {
 
       <details class="andre-maater" ${visAndreMaater ? "open" : ""}>
         <summary>Last ned PDF, eller send fra eget e-postprogram</summary>
-        <p class="hint">${!erAapent(m) && !klar ? "Henter mottakerne …"
+        <p class="hint">${!klar ? "Henter mottakerne …"
           : antall ? `PDF med logo, emne, tid, sted og saksliste. «Send fra e-postprogrammet» laster ned PDF-en og åpner e-postprogrammet med de ${antall} adressene som blindkopi (Bcc). Legg ved PDF-en før du sender.${kanDeleFil() ? " «Del PDF» sender fila rett til e-postappen og kopierer adressene, så du kan lime dem inn." : ""}`
-          : erAapent(m) && !erKasserer(S) ? "Bare kassereren kan se medlemslista. Du kan likevel laste ned PDF-en."
           : "Fant ingen mottakere med e-post. Du kan likevel laste ned PDF-en."}</p>
         <div class="knapperad">
           <button type="button" class="knapp sekundaer liten" id="lastNedPdf">${raw(ikon("lastned"))} Last ned PDF</button>
