@@ -193,7 +193,7 @@ service cloud.firestore {
       // Kassereren kan i tillegg legge tilbake søknader fra en sikkerhetskopi.
       // Et medlem fyller bare ut feltene i skjemaet. Resten (behandling, utbetaling) er kassererens.
       allow create: if (harTilgang()
-          && request.resource.data.keys().hasOnly(['navn', 'formaal', 'dato', 'belop', 'kontonummer', 'kvitteringIds', 'epost', 'status', 'opprettet'])
+          && request.resource.data.keys().hasOnly(['navn', 'formaal', 'dato', 'belop', 'kontonummer', 'kvitteringIds', 'epost', 'status', 'opprettet', 'linjer', 'bekreftet'])
           && request.resource.data.epost == epost()
           && request.resource.data.status == 'sendt'
           && gyldigBelop(request.resource.data.belop)
@@ -202,6 +202,9 @@ service cloud.firestore {
           && tekst(request.resource.data.dato, 10)
           && tekst(request.resource.data.kontonummer, 20)
           && request.resource.data.kvitteringIds is list && request.resource.data.kvitteringIds.size() <= 30
+          // Spesifiseringen (valgfri) og bekreftelsen som er søkerens signatur på regningen.
+          && (!('linjer' in request.resource.data) || (request.resource.data.linjer is list && request.resource.data.linjer.size() <= 20))
+          && (!('bekreftet' in request.resource.data) || request.resource.data.bekreftet == true)
           && request.resource.data.opprettet == request.time)
         || (erKasserer() && request.resource.data.epost is string && gyldigBelop(request.resource.data.belop));
       allow update: if erKasserer();

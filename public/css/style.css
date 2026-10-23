@@ -682,3 +682,11 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 .andre-maater { margin-top: 16px; }
 .andre-maater summary { cursor: pointer; font-weight: 600; color: var(--blekk); padding: 4px 0 10px; }
 span.kontingent { cursor: default; pointer-events: none; }
+
+/* Spesifisering av en refusjonssøknad: tekst, beløp og fjern-knapp på én linje */
+.spes-linje { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.skjema .spes-linje input[data-tekst] { flex: 1; min-width: 0; }
+.skjema .spes-linje input[data-belop] { flex: 0 0 110px; width: 110px; text-align: right; }
+.skjema input[readonly] { background: var(--papir); }
+.skjema label.avkryss.lang { align-items: flex-start; }
+.skjema label.avkryss.lang input { margin-top: 2px; flex: 0 0 auto; }

@@ -46,7 +46,7 @@ async function skrivUt(S, soknader, periode) {
   const { lagSoknaderPdf } = await import("../soknadPdf.js");
   const oppslag = bilagsoppslag(S);
   const { blob, filnavn } = await lagSoknaderPdf(soknader, {
-    klubbnavn: S.innst.klubbnavn, statusTekst, bilag: oppslag.tekst, periode, hent: hentKvittering,
+    klubbnavn: S.innst?.klubbnavn || S.info?.klubbnavn || "Trøndelag Politis Tjenestehundklubb", statusTekst, bilag: oppslag.tekst, periode, hent: hentKvittering,
   });
   lastNed(filnavn, blob);
 }
@@ -113,10 +113,13 @@ function soknadsinfo(s) {
     <dl class="info">
       <dt>Søker</dt><dd>${s.navn} <span class="hint">(${s.epost})</span></dd>
       <dt>Gjelder</dt><dd class="fritekst">${s.formaal}</dd>
+      ${s.linjer?.length ? raw(html`<dt>Spesifisering</dt><dd>${raw(s.linjer.map((l) => html`${l.tekst}: ${kr(l.belop)}`).join("<br>"))}</dd>`) : ""}
       <dt>Dato for utlegg</dt><dd>${datoTekst(s.dato)}</dd>
       <dt>Beløp</dt><dd><strong>${kr(s.belop)}</strong></dd>
       <dt>Kontonummer</dt><dd>${visKonto(s.kontonummer)}</dd>
       <dt>Status</dt><dd>${raw(statusMerke(s))}${s.utbetaltDato ? ` ${datoTekst(s.utbetaltDato)}` : ""}</dd>
+      ${s.godkjentAv ? raw(html`<dt>Godkjent</dt><dd>${datoTekst(s.godkjentDato)} av ${s.godkjentAv}</dd>`) : ""}
+      ${s.vedtak ? raw(html`<dt>Vedtak</dt><dd>${s.vedtak}</dd>`) : ""}
       ${s.kommentar ? raw(html`<dt>Kommentar fra kasserer</dt><dd class="fritekst">${s.kommentar}</dd>`) : ""}
     </dl>
     <div class="brikker">${raw(kvitteringslenker(s.kvitteringIds))}</div>`;
@@ -172,6 +175,11 @@ export function kassererDetalj(main, S, id) {
     ${kasserer && s.status !== "utbetalt" ? raw(html`
       <section class="kort">
         <h2>Behandle</h2>
+        <label>Vedtak utbetalingen bygger på (valgfritt)
+          <input id="vedtak" list="vedtaksliste" maxlength="200" value="${s.vedtak || ""}" placeholder="F.eks. Årsmøtet 2026, sak 5, eller Styrevedtak 12.03.2026">
+        </label>
+        <datalist id="vedtaksliste">${[...new Set(S.soknader.map((x) => x.vedtak).filter(Boolean))].map((v) => raw(html`<option value="${v}">`))}</datalist>
+        <p class="hint">Vedtaket, navnet ditt og datoen kommer med på regningen når du skriver den ut.</p>
         <label>Kommentar til søkeren (valgfritt, men påkrevd ved avslag)
           <textarea id="kommentar" rows="2">${s.kommentar || ""}</textarea>
         </label>
@@ -207,9 +215,12 @@ export function kassererDetalj(main, S, id) {
   kobleKvitteringslenker(main);
   main.querySelector("#skrivUt").addEventListener("click", (e) => medKnapp(e.currentTarget, () => skrivUt(S, [s])));
   const kommentar = () => main.querySelector("#kommentar")?.value.trim() || "";
+  const vedtak = () => main.querySelector("#vedtak")?.value.trim() || "";
+  // Attestasjonen: hvem som godkjente og når. Settes første gang, også om søknaden betales ut uten å godkjennes først.
+  const attest = () => (s.godkjentAv ? {} : { godkjentAv: S.profil.navn || S.bruker.email, godkjentDato: iDag() });
 
   main.querySelector("#godkjenn")?.addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
-    await behandleSoknad(s.id, { status: "godkjent", kommentar: kommentar() });
+    await behandleSoknad(s.id, { status: "godkjent", kommentar: kommentar(), vedtak: vedtak(), ...attest() });
     melding("Søknaden er godkjent.");
   }));
   main.querySelector("#avslaa")?.addEventListener("click", async (e) => {
@@ -243,7 +254,7 @@ export function kassererDetalj(main, S, id) {
       if (!belop || belop <= 0) return melding("Skriv et gyldig beløp.", "feil");
       await medKnapp(e.submitter, async () => {
         const kom = kommentar();
-        if (kom !== (s.kommentar || "")) await behandleSoknad(s.id, { status: s.status, kommentar: kom });
+        await behandleSoknad(s.id, { status: s.status, kommentar: kom, vedtak: vedtak(), ...attest() });
         await utbetalSoknad(s, {
           type: "utgift", dato: f.dato, belop, kategori: f.kategori,
           beskrivelse: f.beskrivelse.trim(), konto: f.konto || S.innst.kontoer[0].id,
@@ -281,10 +292,14 @@ export function minDetalj(main, S, id) {
     return;
   }
   main.innerHTML = html`
-    <div class="sidetopp"><h1>Søknad</h1><a class="lenkeknapp" href="#/mine">Tilbake</a></div>
+    <div class="sidetopp"><h1>Søknad</h1>
+      <div class="knapperad"><button class="knapp sekundaer" id="skrivUt">${raw(ikon("skriver"))} Skriv ut regning</button><a class="lenkeknapp" href="#/mine">Tilbake</a></div>
+    </div>
+    <div class="varsel info">Revisorene krever signatur. Trykk «Skriv ut regning», skriv den ut, signer med penn og gi den til kassereren, eller send et bilde eller en skann av den.</div>
     <section class="kort">${raw(soknadsinfo(s))}</section>
     ${s.status === "sendt" ? raw(`<div class="knapper venstre"><button class="knapp farlig sekundaer" id="trekk">Trekk søknaden</button></div>`) : ""}`;
   kobleKvitteringslenker(main);
+  main.querySelector("#skrivUt").addEventListener("click", (e) => medKnapp(e.currentTarget, () => skrivUt(S, [s])));
   main.querySelector("#trekk")?.addEventListener("click", async (e) => {
     if (!(await bekreft("Trekke søknaden? Den og kvitteringene slettes.", { ja: "Trekk", farlig: true }))) return;
     await medKnapp(e.currentTarget, async () => {
@@ -306,6 +321,12 @@ export function nySoknad(main, S) {
       <label>Hva har du lagt ut for?
         <textarea name="formaal" rows="3" required maxlength="500" placeholder="F.eks. Kjøpte premier til klubbmesterskapet"></textarea>
       </label>
+      <fieldset>
+        <legend>Spesifisering (valgfritt)</legend>
+        <p class="hint">Består utlegget av flere ting, for eksempel fly, hotell og kostpenger? Før dem opp hver for seg, så regnes summen ut for deg.</p>
+        <div id="linjer"></div>
+        <button type="button" class="knapp sekundaer" id="nyLinje">+ Legg til linje</button>
+      </fieldset>
       <div class="to-kol">
         <label>Dato for utlegget<input type="date" name="dato" value="${iDag()}" max="${iDag()}" required></label>
         <label>Beløp (kr)<input name="belop" inputmode="decimal" placeholder="0,00" required autocomplete="off"></label>
@@ -317,11 +338,38 @@ export function nySoknad(main, S) {
         <legend>Kvitteringer</legend>
         <div id="kvitteringer"></div>
       </fieldset>
+      <label class="avkryss lang"><input type="checkbox" name="bekreftet" required>
+        Jeg bekrefter at opplysningene stemmer, og at utlegget ikke er dekket på annen måte.</label>
       <div class="knapper"><button class="knapp" type="submit">Send søknad</button></div>
     </form>`;
 
   const skjemaEl = main.querySelector("#skjema");
   const velger = kvitteringsvelger(main.querySelector("#kvitteringer"));
+
+  // Linjene i spesifiseringen. Når det finnes linjer med beløp, er beløpsfeltet summen av dem.
+  const linjeboks = main.querySelector("#linjer");
+  const belopFelt = skjemaEl.elements.belop;
+  const lesLinjer = () => [...linjeboks.querySelectorAll(".spes-linje")].map((r) => ({
+    tekst: r.querySelector("[data-tekst]").value.trim(), belop: tolkBelop(r.querySelector("[data-belop]").value),
+  })).filter((l) => l.tekst || l.belop);
+  const oppdaterSum = () => {
+    const linjer = lesLinjer();
+    belopFelt.readOnly = linjer.length > 0;
+    if (linjer.length) belopFelt.value = belopTilInput(linjer.reduce((t, l) => t + (l.belop || 0), 0));
+  };
+  main.querySelector("#nyLinje").addEventListener("click", () => {
+    if (linjeboks.children.length >= 20) return melding("Du kan ha opptil 20 linjer.", "feil");
+    const rad = document.createElement("div");
+    rad.className = "spes-linje";
+    rad.innerHTML = html`
+      <input data-tekst maxlength="100" placeholder="F.eks. Fly tur-retur Værnes–Alta" aria-label="Hva">
+      <input data-belop inputmode="decimal" placeholder="0,00" autocomplete="off" aria-label="Beløp">
+      <button type="button" class="ikonknapp" aria-label="Fjern linjen">${raw(ikon("lukk"))}</button>`;
+    rad.querySelector("button").addEventListener("click", () => { rad.remove(); oppdaterSum(); });
+    rad.addEventListener("input", oppdaterSum);
+    linjeboks.append(rad);
+    rad.querySelector("input").focus();
+  });
 
   skjemaEl.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -332,11 +380,14 @@ export function nySoknad(main, S) {
     if (konto.length !== 11) return melding(`Kontonummeret skal ha 11 siffer, du har skrevet ${konto.length}.`, "feil");
     if (!gyldigKontonummer(konto)) return melding("Kontonummeret finnes ikke (kontrollsifferet stemmer ikke). Sjekk at du har skrevet riktig.", "feil");
     if (!velger.antall()) return melding("Legg ved minst én kvittering.", "feil");
+    const linjer = lesLinjer();
+    if (linjer.some((l) => !l.tekst || !l.belop || l.belop <= 0)) return melding("Hver linje i spesifiseringen trenger både tekst og beløp.", "feil");
 
     await medKnapp(e.submitter, async () => {
       const kvitteringIds = await velger.lagreNye();
       await sendSoknad({
         navn: f.navn.trim(), formaal: f.formaal.trim(), dato: f.dato, belop, kontonummer: konto, kvitteringIds,
+        ...(linjer.length ? { linjer } : {}), bekreftet: true,
       });
       // E-post til kassereren, hvis det er valgt under Innstillinger. Søknaden er sendt uansett om varselet feiler.
       const til = S.info.varselEpost;
@@ -345,7 +396,7 @@ export function nySoknad(main, S) {
       if (f.navn.trim() !== S.profil.navn || konto !== S.profil.kontonummer) {
         await oppdaterMinProfil({ navn: f.navn.trim(), kontonummer: konto }).catch(() => {});
       }
-      melding("Søknaden er sendt til kassereren.");
+      melding("Søknaden er sendt. Husk å skrive ut regningen og signere den.");
       gaaTil("mine");
     });
   });
