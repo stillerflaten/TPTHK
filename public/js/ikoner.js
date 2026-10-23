@@ -46,6 +46,8 @@ const STI = {
   hund: `<path d="M5.5 9.5 4 4l4 2.2"/><path d="M14 6.2 18 4l-1.5 5.5"/><path d="M8 6.2h6l2.5 3.3c.6.8.9 1.7.9 2.7 0 3.6-2.5 7.3-5.4 7.3S6.6 15.8 6.6 12.2c0-1 .3-1.9.9-2.7z"/><path d="M11 16.5h2l-1 1.2z"/>`,
   // Mer: tre prikker
   mer: `<circle cx="5.5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="18.5" cy="12" r="1.3" fill="currentColor"/>`,
+  // Kopier: to ark oppå hverandre
+  kopier: `<rect x="8.5" y="8.5" width="11.5" height="12.5" rx="1.8"/><path d="M15.5 8.5V5A1.8 1.8 0 0 0 13.7 3.2H5.8A1.8 1.8 0 0 0 4 5v9.7a1.8 1.8 0 0 0 1.8 1.8h2.7"/>`,
   lukk: `<path d="M6 6l12 12"/><path d="M18 6 6 18"/>`,
   sjekk: `<path d="m5 12.5 4.5 4.5L19 7.5"/>`,
   stjerne: `<path d="m12 3 2.6 5.5 6 .7-4.4 4.1 1.1 5.9L12 16.3 6.7 19.2l1.1-5.9-4.4-4.1 6-.7z"/>`,
