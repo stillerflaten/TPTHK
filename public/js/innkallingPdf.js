@@ -11,7 +11,7 @@ import { nyPdf, rens, tegnTopp, tegnBunn, A4 } from "./pdf.js";
  * @returns { blob, filnavn }
  */
 export async function lagInnkallingPdf(m, valg) {
-  const { doc, logo, leverandor } = await nyPdf();
+  const { doc, logo } = await nyPdf();
   const { B, H, marg } = A4, bredde = B - marg * 2;
   const type = valg.typeTekst.toLowerCase();
   doc.setProperties({ title: `Innkalling til ${type}`, subject: rens(m.tittel || ""), author: rens(valg.klubbnavn), creator: "TPTHK" });
@@ -60,7 +60,7 @@ export async function lagInnkallingPdf(m, valg) {
   }
 
   // Bunntekst på hver side
-  tegnBunn(doc, leverandor, valg.lenke ? { tekst: "Innkallingen ligger også på nettsiden, der du logger inn.", url: valg.lenke } : null);
+  tegnBunn(doc, valg.lenke ? { tekst: "Innkallingen ligger også på nettsiden, der du logger inn.", url: valg.lenke } : null);
 
   const filnavn = `Innkalling ${type} ${m.dato}.pdf`;
   return { blob: doc.output("blob"), filnavn };

@@ -39,12 +39,10 @@ export const rens = (t) => String(t ?? "")
   .replace(/[‘’]/g, "'").replace(/[“”]/g, "\"")
   .replace(/[^\n\t\x20-\x7E -ÿ–—•…€]/gu, "");
 
-/** Henter jsPDF, logoen og leverandørikonet og lager et tomt A4-dokument. */
+/** Henter jsPDF og logoen og lager et tomt A4-dokument. */
 export async function nyPdf() {
-  const [JsPDF, logo, leverandor] = await Promise.all([
-    hentJsPdf(), hentBilde("icons/logo.svg", 480, 478), hentBilde("icons/tillerflaten-digital.png", 96, 96),
-  ]);
-  return { doc: new JsPDF({ unit: "mm", format: "a4" }), logo, leverandor };
+  const [JsPDF, logo] = await Promise.all([hentJsPdf(), hentBilde("icons/logo.svg", 480, 478)]);
+  return { doc: new JsPDF({ unit: "mm", format: "a4" }), logo };
 }
 
 export const A4 = { B: 210, H: 297, marg: 22 };
@@ -63,8 +61,8 @@ export function tegnTopp(doc, logo, klubbnavn) {
   return y;
 }
 
-/** Bunnteksten på hver side: valgfri lenketekst til venstre, sidetall til høyre og «Levert av» i midten. */
-export function tegnBunn(doc, leverandor, lenke) {
+/** Bunnteksten på hver side: valgfri lenketekst til venstre og sidetall til høyre. */
+export function tegnBunn(doc, lenke) {
   const { B, H, marg } = A4;
   const sider = doc.getNumberOfPages();
   for (let i = 1; i <= sider; i++) {
@@ -72,9 +70,5 @@ export function tegnBunn(doc, leverandor, lenke) {
     doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(120);
     if (lenke) doc.textWithLink(lenke.tekst, marg, H - 12, { url: lenke.url });
     doc.text(`Side ${i} av ${sider}`, B - marg, H - 12, { align: "right" });
-    const levert = "Levert av Silje Langtind Tillerflaten";
-    const x = (B - doc.getTextWidth(levert) - (leverandor ? 5 : 0)) / 2;
-    if (leverandor) doc.addImage(leverandor, "JPEG", x, H - 8.6, 3.6, 3.6);
-    doc.text(levert, x + (leverandor ? 5 : 0), H - 5.8);
   }
 }
