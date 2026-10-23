@@ -251,13 +251,38 @@ function venter() {
   main.innerHTML = `<div class="laster"><div class="spinner"></div></div>`;
 }
 
-const minSideLenke = () => `<a class="utlogg" href="#/minside" title="Min side" aria-label="Min side">${ikon("person")}<span>Min side</span></a>`;
-// Kassereren har ikke Fôr i menyen, så den ligger øverst ved siden av Min side.
-const forLenke = (n) => `<a class="utlogg" href="#/for" title="Fôrbestilling" aria-label="Fôrbestilling">${ikon("hund")}<span>Fôr</span>${n ? `<span class="topp-merke">${n}</span>` : ""}</a>`;
-const meldingLenke = (n) => `<a class="utlogg" href="#/meldinger" title="Meldinger" aria-label="Meldinger">${ikon("melding")}<span>Meldinger</span>${n ? `<span class="topp-merke">${n}</span>` : ""}</a>`;
-const hjelpLenke = () => `<a class="utlogg" href="#/hjelp" title="Hjelp" aria-label="Hjelp">${ikon("hjelp")}<span>Hjelp</span></a>`;
+// Lenkene øverst til høyre samles under «…», så bare årsvalget og menyknappen ligger fremme.
+const toppValg = (href, ikonNavn, tekst, n = 0) =>
+  `<a class="topp-valg" role="menuitem" href="${href}">${ikon(ikonNavn)}<span>${tekst}</span>${n ? `<span class="topp-merke">${n}</span>` : ""}</a>`;
 const utloggKnapp = () =>
   html`<button class="utlogg" id="loggut" title="Logg ut ${S.bruker.email}">${raw(ikon("utlogg"))}<span>Logg ut</span></button>`;
+let toppMenyApen = false;
+
+function toppMeny(valg, merker) {
+  return html`<div class="topp-meny">
+    <button class="topp-mer" id="topp-mer" aria-haspopup="menu" aria-expanded="${toppMenyApen}" aria-controls="topp-liste" title="Mer" aria-label="Mer${merker ? `, ${merker} nye` : ""}">
+      ${raw(ikon("mer"))}${merker ? raw(`<span class="topp-merke">${merker}</span>`) : ""}
+    </button>
+    <div class="topp-liste" id="topp-liste" role="menu" ${toppMenyApen ? "" : raw("hidden")}>
+      <div class="topp-epost">${S.bruker.email}</div>
+      ${raw(valg)}
+      <button class="topp-valg" role="menuitem" id="loggut">${raw(ikon("utlogg"))}<span>Logg ut</span></button>
+    </div>
+  </div>`;
+}
+
+function settToppMeny(apen) {
+  toppMenyApen = apen;
+  const knapp = topp.querySelector("#topp-mer");
+  if (!knapp) return;
+  knapp.setAttribute("aria-expanded", apen);
+  topp.querySelector("#topp-liste").hidden = !apen;
+}
+document.addEventListener("click", (e) => { if (toppMenyApen && !e.target.closest(".topp-meny")) settToppMeny(false); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && toppMenyApen) { settToppMeny(false); topp.querySelector("#topp-mer")?.focus(); }
+});
+addEventListener("hashchange", () => settToppMeny(false));
 
 function tegnMeny(aktiv) {
   document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? (supportAktiv(S) ? "support" : "admin") : erKasserer() ? "kasserer" : harVerv(S) ? "styret" : erRevisor(S) ? "revisor" : bareFor(S) ? "støttemedlem" : "medlem") : "";
@@ -286,10 +311,16 @@ function tegnMeny(aktiv) {
   const aarValg = seRegnskap()
     ? html`<label class="aarvalg"><span class="skjult">Regnskapsår</span><select id="aar">${tilgjengeligeAar(S.poster, [S.aar, ...Object.keys(S.innst.budsjett || {}).map(Number)]).map((a) => raw(html`<option ${a === S.aar ? "selected" : ""}>${a}</option>`))}</select></label>`
     : "";
-  topp.innerHTML = aarValg + (s.for && !s.for.meny ? forLenke(forbestilling.nyeBestillinger(S)) : "")
-    + (s.meldinger && !s.meldinger.meny ? meldingLenke(meldinger.uleste(S)) : "")
-    + (s.minside && !s.minside.meny ? minSideLenke() : "") + (s.hjelp?.meny ? "" : hjelpLenke()) + utloggKnapp();
+  const nyeFor = s.for && !s.for.meny ? forbestilling.nyeBestillinger(S) : 0;
+  const uleste = s.meldinger && !s.meldinger.meny ? meldinger.uleste(S) : 0;
+  const valg = (s.for && !s.for.meny ? toppValg("#/for", "hund", "Fôr", nyeFor) : "")
+    + (s.meldinger && !s.meldinger.meny ? toppValg("#/meldinger", "melding", "Meldinger", uleste) : "")
+    + (s.minside && !s.minside.meny ? toppValg("#/minside", "person", "Min side") : "")
+    + (s.hjelp?.meny ? "" : toppValg("#/hjelp", "hjelp", "Hjelp"));
+  topp.innerHTML = aarValg + toppMeny(valg, nyeFor + uleste);
   topp.querySelector("#loggut").addEventListener("click", () => konto.loggUt());
+  topp.querySelector("#topp-mer").addEventListener("click", () => settToppMeny(!toppMenyApen));
+  topp.querySelector("#topp-liste").addEventListener("click", (e) => { if (e.target.closest("a")) settToppMeny(false); });
   topp.querySelector("#aar")?.addEventListener("change", (e) => { S.aar = Number(e.target.value); tegn(); });
 }
 
