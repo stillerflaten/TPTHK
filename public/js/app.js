@@ -251,13 +251,25 @@ function venter() {
   main.innerHTML = `<div class="laster"><div class="spinner"></div></div>`;
 }
 
-const minSideLenke = () => `<a class="utlogg" href="#/minside" title="Min side" aria-label="Min side">${ikon("person")}<span>Min side</span></a>`;
-// Kassereren har ikke Fôr i menyen, så den ligger øverst ved siden av Min side.
-const forLenke = (n) => `<a class="utlogg" href="#/for" title="Fôrbestilling" aria-label="Fôrbestilling">${ikon("hund")}<span>Fôr</span>${n ? `<span class="topp-merke">${n}</span>` : ""}</a>`;
-const meldingLenke = (n) => `<a class="utlogg" href="#/meldinger" title="Meldinger" aria-label="Meldinger">${ikon("melding")}<span>Meldinger</span>${n ? `<span class="topp-merke">${n}</span>` : ""}</a>`;
-const hjelpLenke = () => `<a class="utlogg" href="#/hjelp" title="Hjelp" aria-label="Hjelp">${ikon("hjelp")}<span>Hjelp</span></a>`;
+// Fôr, Meldinger, Min side, Hjelp og Logg ut samles under «…» øverst, så topplinja ikke blir full av knapper.
+// Kassereren har ikke Fôr, Meldinger og Min side i menyen, så de ligger her. De andre har Hjelp og Logg ut her.
+const merPunkt = (sti, ikonNavn, tekst, n) =>
+  `<a class="mer-punkt" role="menuitem" href="#/${sti}">${ikon(ikonNavn)}<span>${tekst}</span>${n ? `<span class="topp-merke">${n}</span>` : ""}</a>`;
 const utloggKnapp = () =>
   html`<button class="utlogg" id="loggut" title="Logg ut ${S.bruker.email}">${raw(ikon("utlogg"))}<span>Logg ut</span></button>`;
+let merAapen = false;
+function visMer(aapen) {
+  merAapen = aapen;
+  const knapp = topp.querySelector("#mer-knapp");
+  if (!knapp) return;
+  knapp.setAttribute("aria-expanded", String(aapen));
+  topp.querySelector("#mer-liste").hidden = !aapen;
+}
+document.addEventListener("click", (e) => { if (merAapen && (!e.target.closest?.(".mer") || e.target.closest("a.mer-punkt"))) visMer(false); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && merAapen) { visMer(false); topp.querySelector("#mer-knapp")?.focus(); }
+});
+addEventListener("hashchange", () => { merAapen = false; });
 
 function tegnMeny(aktiv) {
   document.getElementById("rolle").textContent = S.profil ? (S.profil.admin ? (supportAktiv(S) ? "support" : "admin") : erKasserer() ? "kasserer" : harVerv(S) ? "styret" : erRevisor(S) ? "revisor" : bareFor(S) ? "støttemedlem" : "medlem") : "";
@@ -286,9 +298,25 @@ function tegnMeny(aktiv) {
   const aarValg = seRegnskap()
     ? html`<label class="aarvalg"><span class="skjult">Regnskapsår</span><select id="aar">${tilgjengeligeAar(S.poster, [S.aar, ...Object.keys(S.innst.budsjett || {}).map(Number)]).map((a) => raw(html`<option ${a === S.aar ? "selected" : ""}>${a}</option>`))}</select></label>`
     : "";
-  topp.innerHTML = aarValg + (s.for && !s.for.meny ? forLenke(forbestilling.nyeBestillinger(S)) : "")
-    + (s.meldinger && !s.meldinger.meny ? meldingLenke(meldinger.uleste(S)) : "")
-    + (s.minside && !s.minside.meny ? minSideLenke() : "") + (s.hjelp?.meny ? "" : hjelpLenke()) + utloggKnapp();
+  const nyeFor = s.for && !s.for.meny ? forbestilling.nyeBestillinger(S) : 0;
+  const uleste = s.meldinger && !s.meldinger.meny ? meldinger.uleste(S) : 0;
+  const punkter = [
+    s.for && !s.for.meny && merPunkt("for", "hund", "Fôr", nyeFor),
+    s.meldinger && !s.meldinger.meny && merPunkt("meldinger", "melding", "Meldinger", uleste),
+    s.minside && !s.minside.meny && merPunkt("minside", "person", "Min side"),
+    !s.hjelp?.meny && merPunkt("hjelp", "hjelp", "Hjelp"),
+  ].filter(Boolean);
+  // Er Logg ut det eneste som er igjen (støttemedlem), står den alene uten «…».
+  const varsler = nyeFor + uleste;
+  topp.innerHTML = aarValg + (punkter.length ? `<div class="mer">
+      <button class="utlogg mer-knapp" id="mer-knapp" type="button" aria-haspopup="menu" aria-expanded="${merAapen}" aria-controls="mer-liste"
+        title="Mer" aria-label="Mer${varsler ? `, ${varsler} nye` : ""}">${ikon("mer")}${varsler ? `<span class="mer-prikk">${varsler}</span>` : ""}</button>
+      <div class="mer-liste" id="mer-liste" role="menu" ${merAapen ? "" : "hidden"}>
+        ${punkter.join("")}
+        <button class="mer-punkt" role="menuitem" id="loggut" type="button" title="Logg ut ${esc(S.bruker.email)}">${ikon("utlogg")}<span>Logg ut</span></button>
+      </div>
+    </div>` : utloggKnapp());
+  topp.querySelector("#mer-knapp")?.addEventListener("click", () => visMer(!merAapen));
   topp.querySelector("#loggut").addEventListener("click", () => konto.loggUt());
   topp.querySelector("#aar")?.addEventListener("change", (e) => { S.aar = Number(e.target.value); tegn(); });
 }
