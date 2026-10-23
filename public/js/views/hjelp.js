@@ -29,8 +29,10 @@ const DELER = [
       ["Få igjen penger du har lagt ut", `
         <ol>
           <li>Gå til «Ny søknad» (eller «Mine søknader» og «+ Ny søknad»).</li>
-          <li>Skriv hva du har lagt ut for, beløp, dato og kontonummeret ditt. Ta bilde av eller last opp kvitteringen. Du kan legge ved flere.</li>
-          <li>Trykk «Send søknad». Kassereren godkjenner den og betaler ut.</li>
+          <li>Skriv hva du har lagt ut for, beløp, dato og kontonummeret ditt. Består utlegget av flere ting (f.eks. fly, hotell og kost), trykk «+ Legg til linje» og før opp hver ting for seg, så regnes summen ut.</li>
+          <li>Ta bilde av eller last opp kvitteringene. Du kan legge ved flere.</li>
+          <li>Kryss av for at opplysningene stemmer, og trykk «Send søknad». Kassereren godkjenner den og betaler ut.</li>
+          <li>Åpne søknaden under «Mine søknader», trykk «Skriv ut regning», signer den med penn og gi den til kassereren (eller send et bilde av den). Revisorene krever signatur.</li>
         </ol>
         <p>Under «Mine søknader» ser du om søknaden er sendt, godkjent, avslått eller utbetalt. Så lenge den ikke er behandlet, kan du trekke den.
         Lagrer du kontonummeret under <a href="#/minside">Min side</a>, fylles det inn av seg selv neste gang.</p>`, ["ny-soknad", "mine-soknader"]],
@@ -153,9 +155,11 @@ const DELER = [
       ["Behandle søknader om refusjon", `
         <ol>
           <li>Nye søknader vises med et tall ved «Søknader» i menyen. Åpne søknaden og se kvitteringene.</li>
-          <li>Trykk «Godkjenn» eller «Avslå». Avslår du, må du skrive en kort begrunnelse til søkeren.</li>
+          <li>Skriv gjerne inn vedtaket utbetalingen bygger på (f.eks. «Årsmøtet 2026, sak 5»), og trykk «Godkjenn» eller «Avslå». Avslår du, må du skrive en kort begrunnelse til søkeren.
+            Navnet ditt, datoen og vedtaket kommer med på regningen.</li>
           <li>Når du har overført pengene i nettbanken, fyll inn dato, beløp og kategori under «Betalt ut? Før det i regnskapet» og trykk «Marker som utbetalt».
             Da blir det en utgift i regnskapet med kvitteringene vedlagt.</li>
+          <li>Når du får den signerte regningen fra søkeren, åpner du posten og legger den ved med «Legg til kvittering».</li>
         </ol>`, ["behandle-soknad"]],
       ["Medlemmer og kontingent", `<p>Under <a href="#/medlemmer">Medlemmer</a> legger du inn medlemmene med navn, e-post og telefon.
         Trykk på et medlem for å registrere betalt kontingent. Da føres den også i regnskapet. Har dere fått ett samlet beløp (f.eks. fra Vipps),

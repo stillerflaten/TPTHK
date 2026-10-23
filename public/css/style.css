@@ -694,3 +694,7 @@ span.kontingent { cursor: default; pointer-events: none; }
 .skjema input[readonly] { background: var(--papir); }
 .skjema label.avkryss.lang { align-items: flex-start; }
 .skjema label.avkryss.lang input { margin-top: 2px; flex: 0 0 auto; }
+
+/* Kort veiledning øverst i et skjema */
+.veiledning ol { margin: 0; padding-left: 20px; }
+.veiledning li { margin-bottom: 6px; font-size: .93rem; }
