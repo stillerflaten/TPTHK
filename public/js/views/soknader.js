@@ -108,14 +108,32 @@ function soknadsliste(liste, lenke) {
     </a></li>`))}</ul>`;
 }
 
-function soknadsinfo(s) {
+/** Knapp som kopierer en verdi, slik at kassereren kan lime den rett inn i nettbanken. */
+const kopierknapp = (verdi, hva) => verdi ? html`<button type="button" class="ikonknapp kopierknapp" data-kopier="${verdi}" aria-label="Kopier ${hva}" title="Kopier ${hva}">${raw(ikon("kopier"))}<span class="kopiert" hidden>Kopiert</span></button>` : "";
+
+function kobleKopierknapper(rot) {
+  rot.querySelectorAll("[data-kopier]").forEach((b) => b.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(b.dataset.kopier);
+    } catch {
+      return melding("Klarte ikke å kopiere. Merk teksten og kopier den selv.", "feil");
+    }
+    const merke = b.querySelector(".kopiert");
+    merke.hidden = false;
+    b.classList.add("ok");
+    clearTimeout(b._tid);
+    b._tid = setTimeout(() => { merke.hidden = true; b.classList.remove("ok"); }, 1800);
+  }));
+}
+
+function soknadsinfo(s, { kopier = false } = {}) {
   return html`
     <dl class="info">
       <dt>Søker</dt><dd>${s.navn} <span class="hint">(${s.epost})</span></dd>
       <dt>Gjelder</dt><dd class="fritekst">${s.formaal}</dd>
       <dt>Dato for utlegg</dt><dd>${datoTekst(s.dato)}</dd>
-      <dt>Beløp</dt><dd><strong>${kr(s.belop)}</strong></dd>
-      <dt>Kontonummer</dt><dd>${visKonto(s.kontonummer)}</dd>
+      <dt>Beløp</dt><dd><strong>${kr(s.belop)}</strong>${kopier ? raw(kopierknapp(belopTilInput(s.belop), "beløpet")) : ""}</dd>
+      <dt>Kontonummer</dt><dd>${visKonto(s.kontonummer)}${kopier ? raw(kopierknapp(String(s.kontonummer || "").replace(/\D/g, ""), "kontonummeret")) : ""}</dd>
       <dt>Status</dt><dd>${raw(statusMerke(s))}${s.utbetaltDato ? ` ${datoTekst(s.utbetaltDato)}` : ""}</dd>
       ${s.kommentar ? raw(html`<dt>Kommentar fra kasserer</dt><dd class="fritekst">${s.kommentar}</dd>`) : ""}
     </dl>
@@ -165,7 +183,7 @@ export function kassererDetalj(main, S, id) {
       <div class="knapperad"><button class="knapp sekundaer" id="skrivUt">${raw(ikon("skriver"))} Skriv ut</button><a class="lenkeknapp" href="#/soknader">Tilbake</a></div>
     </div>
     ${kasserer && kanUtbetales && s.epost === normalEpost(S.bruker.email) ? raw(`<div class="varsel info">Dette er din egen søknad. Det er lurt at leder eller et annet styremedlem ser over den før du betaler ut.</div>`) : ""}
-    <section class="kort">${raw(soknadsinfo(s))}</section>
+    <section class="kort">${raw(soknadsinfo(s, { kopier: kasserer }))}</section>
 
     ${kasserer && s.status === "utbetalt" && s.postId ? raw(html`<p><a href="#/post/${s.postId}">Åpne posten i regnskapet</a></p>`) : ""}
 
@@ -205,6 +223,7 @@ export function kassererDetalj(main, S, id) {
       </section>`) : ""}`;
 
   kobleKvitteringslenker(main);
+  kobleKopierknapper(main);
   main.querySelector("#skrivUt").addEventListener("click", (e) => medKnapp(e.currentTarget, () => skrivUt(S, [s])));
   const kommentar = () => main.querySelector("#kommentar")?.value.trim() || "";
 

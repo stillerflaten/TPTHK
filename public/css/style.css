@@ -503,6 +503,10 @@ p.status { font-size: .93rem; padding: 7px 14px; }
 dl.info { display: grid; grid-template-columns: max-content 1fr; gap: 8px 22px; margin: 0 0 14px; }
 dl.info dt { color: var(--dempet); font-size: .85rem; }
 dl.info dd { margin: 0; }
+.kopierknapp { color: var(--dempet); margin-left: 8px; vertical-align: middle; padding: 7px; gap: 6px; grid-auto-flow: column; }
+.kopierknapp .ikon { width: 19px; height: 19px; }
+.kopierknapp.ok { color: var(--pluss); background: var(--pluss-lys); }
+.kopierknapp .kopiert { font-size: .8rem; font-weight: 600; }
 @media (max-width: 480px) { dl.info { grid-template-columns: 1fr; gap: 0; } dl.info dd { margin-bottom: 10px; } }
 
 .brikker { display: flex; flex-wrap: wrap; gap: 6px; }
