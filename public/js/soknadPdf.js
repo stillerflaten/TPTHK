@@ -1,5 +1,5 @@
 // Refusjonssøknader som PDF, til kassererens perm: én søknad, eller alle i en periode med en oversikt først.
-// Hver søknad får egen side med opplysningene, og kvitteringene følger etter. Bilder legges rett inn med jsPDF.
+// Hver søknad får egen side satt opp som en regning (som klubbens gamle Word-mal), og kvitteringene følger etter. Bilder legges rett inn med jsPDF.
 // Kvitteringer som er PDF settes inn som egne sider med pdf-lib til slutt, siden jsPDF ikke kan lese PDF-er.
 
 import { datoTekst, kr } from "./util.js";
@@ -52,7 +52,7 @@ export async function lagSoknaderPdf(soknader, valg) {
   const [{ doc, logo }, kvitteringer] = await Promise.all([nyPdf(), hentKvitteringer(soknader, valg.hent)]);
   const { B, H, marg } = A4, bredde = B - marg * 2, bunn = H - 22;
   const samlet = Boolean(valg.periode);
-  doc.setProperties({ title: samlet ? "Refusjonssøknader" : "Refusjonssøknad", author: rens(valg.klubbnavn), creator: "TPTHK" });
+  doc.setProperties({ title: samlet ? "Refusjonssøknader" : "Regning", author: rens(valg.klubbnavn), creator: "TPTHK" });
 
   // PDF-kvitteringer som skal settes inn etter en bestemt side, med teksten som skal stå øverst.
   const innsett = [];
@@ -66,38 +66,9 @@ export async function lagSoknaderPdf(soknader, valg) {
 
   for (const s of soknader) {
     nySide();
-    let y = tegnTopp(doc, logo, valg.klubbnavn);
-    y += 14;
-    doc.setFont("helvetica", "bold").setFontSize(22).setTextColor(20).text("Refusjonssøknad", marg, y);
+    let y = tegnRegning(doc, s, tegnTopp(doc, logo, valg.klubbnavn), valg);
     const bilag = valg.bilag(s);
-    if (bilag) doc.setFontSize(14).text(`Bilag ${bilag}`, B - marg, y, { align: "right" });
-    y += 6;
-
     const ider = s.kvitteringIds || [];
-    const felt = [
-      ["Søker", s.navn],
-      ["E-post", s.epost],
-      ["Gjelder", s.formaal],
-      ["Dato for utlegg", datoTekst(s.dato)],
-      ["Beløp", kr(s.belop)],
-      ["Kontonummer", String(s.kontonummer || "").replace(/\D/g, "").replace(/^(\d{4})(\d{2})(\d{5})$/, "$1.$2.$3")],
-      ["Sendt inn", s.opprettet?.toDate ? datoTekst(isoDato(s.opprettet.toDate())) : ""],
-      ["Status", valg.statusTekst[s.status] || s.status],
-      ["Utbetalt", datoTekst(s.utbetaltDato)],
-      ["Kommentar", s.kommentar],
-      ["Kvitteringer", ider.length ? `${ider.length} ${ider.length === 1 ? "kvittering, følger under" : "kvitteringer, følger under"}` : "Ingen"],
-    ].filter(([, v]) => v);
-    doc.setFontSize(12);
-    for (const [navn, verdi] of felt) {
-      const linjer = doc.splitTextToSize(rens(verdi), bredde - 40);
-      y += 8;
-      doc.setFont("helvetica", "bold").setTextColor(90).text(navn, marg, y);
-      doc.setFont("helvetica", navn === "Beløp" ? "bold" : "normal").setTextColor(20).text(linjer, marg + 40, y);
-      y += (linjer.length - 1) * 5.5;
-    }
-    y += 6;
-    doc.setDrawColor(200).setLineWidth(0.4).line(marg, y, B - marg, y);
-    y += 4;
 
     // Kvitteringene: bilder fyller resten av siden og nye sider, PDF-er settes inn etterpå.
     ider.forEach((id, i) => {
@@ -136,6 +107,102 @@ export async function lagSoknaderPdf(soknader, valg) {
     return { blob: doc.output("blob"), filnavn };
   }
   return { blob: await settInnPdfer(doc, innsett), filnavn };
+}
+
+const visKonto = (nr) => String(nr || "").replace(/\D/g, "").replace(/^(\d{4})(\d{2})(\d{5})$/, "$1.$2.$3");
+const klokke = (d) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+/**
+ * Selve regningen, satt opp som klubbens gamle mal: hva det gjelder, spesifisering med sum, kontonummer,
+ * søkerens signatur (innlogget bekreftelse) og vedlegg. Under kommer kassererens attestasjon og vedtaket.
+ * Gir y-posisjonen under.
+ */
+function tegnRegning(doc, s, y, valg) {
+  const { B, marg } = A4, hoyre = B - marg, bredde = B - marg * 2;
+  const bilag = valg.bilag(s);
+  const ider = s.kvitteringIds || [];
+  const sendt = s.opprettet?.toDate ? s.opprettet.toDate() : null;
+
+  y += 14;
+  doc.setFont("helvetica", "bold").setFontSize(22).setTextColor(20).text("Regning", marg, y);
+  if (bilag) doc.setFontSize(14).text(`Bilag ${bilag}`, hoyre, y, { align: "right" });
+  y += 6;
+  doc.setFont("helvetica", "normal").setFontSize(11).setTextColor(100).text("Refusjon av utlegg", marg, y);
+
+  // Gjelder
+  y += 11;
+  doc.setFont("helvetica", "bold").setFontSize(10).setTextColor(90).text("GJELDER", marg, y);
+  const gjelder = doc.setFont("helvetica", "normal").setFontSize(12).splitTextToSize(rens(s.formaal), bredde);
+  y += 6;
+  doc.setTextColor(20).text(gjelder, marg, y);
+  y += (gjelder.length - 1) * 5.5 + 6;
+  doc.setFontSize(10).setTextColor(100).text(rens(`Dato for utlegget: ${datoTekst(s.dato)}`), marg, y);
+
+  // Spesifisering med sum
+  y += 11;
+  const linjer = s.linjer?.length ? s.linjer : [{ tekst: "Utlegg", belop: s.belop }];
+  doc.setFont("helvetica", "normal").setFontSize(12).setTextColor(20);
+  for (const l of linjer) {
+    const t = doc.splitTextToSize(rens(l.tekst), bredde - 45);
+    doc.text(t, marg, y);
+    doc.text(rens(kr(l.belop)), hoyre, y, { align: "right" });
+    y += (t.length - 1) * 5.5 + 7;
+  }
+  doc.setDrawColor(120).setLineWidth(0.4).line(marg, y - 4, hoyre, y - 4);
+  y += 2;
+  doc.setFont("helvetica", "bold").setFontSize(13).text("Sum", marg, y);
+  doc.text(rens(kr(s.belop)), hoyre, y, { align: "right" });
+
+  y += 12;
+  doc.setFont("helvetica", "normal").setFontSize(12)
+    .text(rens(`Overstående beløp bes utbetalt til kontonummer: ${visKonto(s.kontonummer)}`), marg, y);
+
+  // Signatur med penn, som revisorene krever. Under står når og av hvem søknaden ble sendt inn på nettsiden.
+  y += 14;
+  doc.setFont("helvetica", "normal").setFontSize(11).setTextColor(20).text("Sted og dato:", marg, y);
+  doc.setDrawColor(120).setLineWidth(0.3).line(marg + 26, y + 1, marg + 95, y + 1);
+  y += 20;
+  doc.line(marg, y, marg + 95, y);
+  y += 5;
+  doc.setFontSize(11).text(rens(s.navn), marg, y);
+  doc.setFontSize(9).setTextColor(100).text("Signatur", marg + 95, y, { align: "right" });
+  y += 6;
+  const innsendt = `Sendt inn på tpthk.no${sendt ? ` ${datoTekst(isoDato(sendt))} kl. ${klokke(sendt)}` : ""}, innlogget som ${s.epost}.`
+    + (s.bekreftet ? " Søkeren bekreftet at opplysningene stemmer, og at utlegget ikke er dekket på annen måte." : "");
+  const sig = doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(100).splitTextToSize(rens(innsendt), bredde);
+  doc.text(sig, marg, y);
+  y += (sig.length - 1) * 4.2;
+
+  // Vedlegg
+  y += 10;
+  doc.setFont("helvetica", "bold").setFontSize(10).setTextColor(90).text("VEDLEGG", marg, y);
+  doc.setFont("helvetica", "normal").setFontSize(11).setTextColor(20);
+  if (!ider.length) { y += 6; doc.text("Ingen", marg, y); }
+  ider.forEach((_, i) => { y += 6; doc.text(`Kvittering ${ider.length > 1 ? i + 1 : ""}`.trim() + " (følger under)", marg, y); });
+
+  // Kassererens behandling: attestasjon, vedtak og utbetaling
+  const felt = [
+    ["Status", valg.statusTekst[s.status] || s.status],
+    ["Godkjent", s.godkjentAv ? `${datoTekst(s.godkjentDato)} av ${s.godkjentAv}` : ""],
+    ["Vedtak", s.vedtak],
+    ["Utbetalt", datoTekst(s.utbetaltDato)],
+    ["Kommentar", s.kommentar],
+  ].filter(([, v]) => v);
+  y += 12;
+  const topp = y;
+  y += 7;
+  doc.setFont("helvetica", "bold").setFontSize(10).setTextColor(90).text("KLUBBENS BEHANDLING", marg + 4, y);
+  doc.setFontSize(11);
+  for (const [navn, verdi] of felt) {
+    const t = doc.splitTextToSize(rens(verdi), bredde - 38);
+    y += 6.5;
+    doc.setFont("helvetica", "bold").setTextColor(90).text(navn, marg + 4, y);
+    doc.setFont("helvetica", "normal").setTextColor(20).text(t, marg + 32, y);
+    y += (t.length - 1) * 5;
+  }
+  y += 5;
+  doc.setDrawColor(200).setLineWidth(0.4).roundedRect(marg, topp, bredde, y - topp, 2, 2);
+  return y + 4;
 }
 
 const isoDato = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
