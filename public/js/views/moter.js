@@ -138,7 +138,15 @@ const kanDeleFil = () => {
 const utsendelserFor = (S, m) => (S.utsendelser || []).filter((u) => u.moteId === m.id)
   .sort((a, b) => (b.bestilt?.toMillis?.() ?? Date.now()) - (a.bestilt?.toMillis?.() ?? Date.now()));
 
+// Svarer ikke skyfunksjonen innen et minutt, har den trolig ikke startet. Da kan man prøve igjen.
+const SVARFRIST = 60 * 1000;
+const ventetid = (u) => (u.bestilt?.toMillis ? Date.now() - u.bestilt.toMillis() : 0);
+const ventende = (u) => u.status === "venter" && ventetid(u) <= SVARFRIST;
+
 function utsendelseLinje(u) {
+  if (u.status === "venter" && !ventende(u)) {
+    return html`<li><span class="feiltekst">Fikk ikke svar (${tidspunkt(u.bestilt)}). Prøv å sende på nytt. Skjer det igjen, si fra til administratoren.</span></li>`;
+  }
   if (u.status === "venter") return html`<li><span class="hint">Sendes nå …</span></li>`;
   if (u.status === "feil") return html`<li><span class="feiltekst">Ble ikke sendt (${tidspunkt(u.bestilt)}): ${u.feil || "ukjent feil"}</span></li>`;
   return html`<li>${raw(ikon("sjekk"))} ${u.oppdatert ? "Oppdatert innkalling sendt" : "Sendt"} ${tidspunkt(u.bestilt)}
@@ -148,7 +156,7 @@ function utsendelseLinje(u) {
 function epostboks(S, m) {
   const hvem = hvemFor(m);
   const sendt = utsendelserFor(S, m);
-  const venter = sendt.some((u) => u.status === "venter");
+  const venter = sendt.some(ventende);
   const tidligereSendt = sendt.some((u) => u.status === "sendt");
   const klar = kjennerMottakere(S, m);
   const antall = klar ? mottakere(S, m).length : 0;
@@ -221,6 +229,12 @@ function kobleEpost(main, S, m) {
     valgtHvem[m.id] = b.dataset.hvem;
     detalj(main, S, m.id);
   }));
+  // Tegn siden på nytt når svarfristen går ut, så knappen blir klikkbar igjen hvis funksjonen ikke svarte.
+  const venter = utsendelserFor(S, m).filter(ventende);
+  if (venter.length) {
+    const igjen = Math.max(...venter.map((u) => SVARFRIST - ventetid(u))) + 500;
+    setTimeout(() => { if (location.hash === `#/mote/${m.id}`) detalj(main, S, m.id); }, igjen);
+  }
   main.querySelector(".andre-maater")?.addEventListener("toggle", (e) => { visAndreMaater = e.currentTarget.open; });
   main.querySelector("#sendInnkalling")?.addEventListener("click", async (e) => {
     const knapp = e.currentTarget;
