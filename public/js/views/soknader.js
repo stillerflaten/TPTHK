@@ -335,6 +335,16 @@ minDetalj.trenger = ["mineSoknader"];
 export function nySoknad(main, S) {
   main.innerHTML = html`
     <div class="sidetopp"><h1>Ny søknad om refusjon</h1><a class="lenkeknapp" href="#/mine">Avbryt</a></div>
+    <section class="kort veiledning">
+      <h2>Slik gjør du det</h2>
+      <ol>
+        <li>Skriv hva du har lagt ut for, og til hva. For eksempel «Fly, hotell og kost, NM for patruljehunder i Alta 25.–26.3.».</li>
+        <li>Består utlegget av flere ting, trykker du «+ Legg til linje» og fører opp hver ting med beløp. Summen regnes ut av seg selv.</li>
+        <li>Ta bilde av eller last opp alle kvitteringene.</li>
+        <li>Kryss av for at opplysningene stemmer, og trykk «Send søknad».</li>
+        <li>Åpne søknaden under «Mine søknader» og trykk «Skriv ut regning». Signer den med penn og gi den til kassereren, eller send et bilde eller en skann av den. Revisorene krever signatur.</li>
+      </ol>
+    </section>
     <form id="skjema" class="skjema kort">
       <label>Ditt navn<input name="navn" value="${S.profil.navn || ""}" autocomplete="name" required maxlength="100"></label>
       <label>Hva har du lagt ut for?
