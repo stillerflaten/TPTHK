@@ -40,7 +40,7 @@ export const S = {
   profil: undefined, // undefined = ikke lastet, null = finnes ikke (ingen tilgang)
   foresporsel: null,
   poster: [], medlemmer: [], soknader: [], brukere: [], foresporsler: [],
-  moter: [], signaturer: [], personer: [], regelverk: [],
+  moter: [], signaturer: [], personer: [], regelverk: [], utsendelser: [],
   support: null,
   verv: undefined, // undefined = ikke lastet, null = ikke opprettet ennå
   forInnst: undefined, // fôrbestilling: undefined = ikke lastet, null = ikke opprettet ennå
@@ -124,13 +124,14 @@ const medlemSider = {
   minside: { meny: "Min side", ikon: "person", side: minside.minside },
 };
 
-// Styret ser regnskapet, årsrapporten med budsjett og søknadene, men kan ikke endre dem.
+// Styret ser regnskapet, årsrapporten med budsjett, søknadene og medlemslista, men kan ikke endre dem.
 const styreSider = {
   oversikt: { meny: "Oversikt", ikon: "oversikt", side: oversikt.oversikt },
   rapport: { meny: "Årsrapport", ikon: "rapport", side: rapport.rapport },
   avstemming: { side: avstemming },
   soknader: { meny: "Søknader", ikon: "soknader", side: soknader.kassererListe },
   soknad: { side: soknader.kassererDetalj },
+  medlemmer: { meny: "Medlemmer", ikon: "medlemmer", side: medlemmer.liste },
   mine: { meny: "Mine søknader", ikon: "poster", side: soknader.mineListe },
   "ny-soknad": { side: soknader.nySoknad },
   "min-soknad": { side: soknader.minDetalj },
@@ -448,6 +449,13 @@ function startRolleLyttere() {
     S.personer = [];
     S.lastet.add("personer");
   }
+  // Innkallinger sendt på e-post: bare styret ser når og til hvor mange.
+  if (moter.erStyret(S)) {
+    stoppLyttere.push(lyttSamling("utsendelser", sett("utsendelser"), visFeil));
+  } else {
+    S.utsendelser = [];
+    S.lastet.add("utsendelser");
+  }
 
   if (seRegnskap()) {
     stoppLyttere.push(lyttSamling("poster", (p) => sett("poster")(nummererBilag(p)), visFeil));
@@ -463,6 +471,7 @@ function startRolleLyttere() {
   } else {
     S.brukere = [];
     S.foresporsler = [];
+    S.lastet.add("brukere");
     S.lastet.add("foresporsler");
   }
 }
@@ -476,10 +485,11 @@ function oppdaterPersonliste() {
   if (!erKasserer() || !S.lastet.has("brukere") || !S.lastet.has("personer") || !S.lastet.has("verv")) return;
   const liste = S.brukere
     .filter((b) => b.rolle !== "revisor")
-    .map((b) => ({ epost: b.id, navn: b.navn || "", styre: (S.verv?.styre || []).includes(b.id) || (b.rolle === "kasserer" && !b.admin) }))
+    .map((b) => ({ epost: b.id, navn: b.navn || "", styre: (S.verv?.styre || []).includes(b.id) || (b.rolle === "kasserer" && !b.admin),
+      ...(b.rolle === "for" ? { stotte: true } : {}) }))
     .sort((a, b) => a.epost.localeCompare(b.epost));
   const ny = JSON.stringify(liste);
-  const naa = JSON.stringify(S.personer.map((p) => ({ epost: p.epost, navn: p.navn, styre: p.styre }))
+  const naa = JSON.stringify(S.personer.map((p) => ({ epost: p.epost, navn: p.navn, styre: p.styre, ...(p.stotte ? { stotte: true } : {}) }))
     .sort((a, b) => a.epost.localeCompare(b.epost)));
   if (ny === naa || ny === sistePersonliste) return;
   sistePersonliste = ny;
@@ -512,7 +522,7 @@ if (klar) {
     Object.assign(S, {
       bruker, profil: undefined, foresporsel: null, poster: [], medlemmer: [], soknader: [], mineSoknader: [],
       brukere: [], foresporsler: [], innst: medStandard(null), info: {}, mittMedlem: null, lastet: new Set(),
-      moter: [], signaturer: [], personer: [], regelverk: [], support: null, verv: undefined,
+      moter: [], signaturer: [], personer: [], regelverk: [], utsendelser: [], support: null, verv: undefined,
       forInnst: undefined, mineFor: [], forbestillinger: [], mittForabonnement: null, forabonnenter: [],
       meldinger: [], meldingsinnlegg: [],
     });

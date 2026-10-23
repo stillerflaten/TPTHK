@@ -4,7 +4,7 @@
 import { html, raw, datoTekst, iDag, lastNed } from "../util.js";
 import { lagInnkallingPdf } from "../innkallingPdf.js";
 import {
-  lagreMote, slettMote, hentReferatutkast, lagreReferatutkast, sendTilSignering, trekkTilbakeReferat,
+  lagreMote, slettMote, bestillUtsendelse, hentReferatutkast, lagreReferatutkast, sendTilSignering, trekkTilbakeReferat,
   signerReferat, markerGodkjent, referatHash, normalEpost,
 } from "../firebase.js";
 import { melding, medKnapp, bekreft } from "../ui.js";
@@ -95,16 +95,37 @@ liste.live = true;
 liste.tittel = "Møter";
 liste.trenger = ["moter", "signaturer"];
 
-// ---------- Innkalling som PDF og på e-post ----------
-// Innkallingen lages som PDF med logo. Nettleseren kan ikke legge ved filer i en e-post av seg selv,
-// så «Send på e-post» laster ned PDF-en og åpner e-postprogrammet med mottakerne i Bcc. Da legger man ved fila selv.
-// På telefon kan «Del PDF» sende fila rett til Mail, Outlook o.l.
+// ---------- Innkalling på e-post ----------
+// «Send innkallingen» ber skyfunksjonen sendInnkalling (functions/index.js) sende den. Funksjonen finner mottakerne
+// selv, så også styremedlemmer som ikke kan se medlemslista, kan sende innkallinger til medlemsmøter og årsmøter.
+// Som reserve kan innkallingen lages som PDF og sendes fra eget e-postprogram. Nettleseren kan ikke legge ved
+// filer i en e-post av seg selv, så «Send fra e-postprogrammet» laster ned PDF-en og åpner e-postprogrammet
+// med mottakerne i Bcc. Da legger man ved fila selv. På telefon kan «Del PDF» sende fila rett til Mail, Outlook o.l.
 
-/** Hvem som skal ha innkallingen: aktive medlemmer med e-post, eller bare styret for styremøter. */
-function mottakere(S, m) {
-  if (!erAapent(m)) return [...new Set((S.personer || []).filter((p) => p.styre).map((p) => p.epost))];
-  return [...new Set(S.medlemmer.filter((x) => x.aktiv !== false && x.epost).map((x) => normalEpost(x.epost)))];
+const hvemTekst = {
+  styret: "styret",
+  alle: "alle medlemmer, også støttemedlemmer",
+  aktive: "aktive medlemmer, uten støttemedlemmer",
+};
+// Valget huskes per møte mens siden er åpen, fordi siden tegnes på nytt når noe endres.
+const valgtHvem = {};
+const hvemFor = (m) => (erAapent(m) ? valgtHvem[m.id] || "aktive" : "styret");
+let visAndreMaater = false;
+
+/**
+ * Hvem som skal ha innkallingen, regnet ut på nettsiden for PDF-knappene og antallet i bekreftelsen.
+ * Samme regel som i skyfunksjonen. Støttemedlemmene finnes i «brukere» (bare kassereren) eller personlista (styret).
+ */
+function mottakere(S, m, hvem = hvemFor(m)) {
+  if (hvem === "styret") return [...new Set((S.personer || []).filter((p) => p.styre).map((p) => p.epost))];
+  const stotte = new Set(hvem !== "aktive" ? []
+    : erKasserer(S) ? S.brukere.filter((b) => b.rolle === "for").map((b) => b.id)
+    : (S.personer || []).filter((p) => p.stotte).map((p) => p.epost));
+  return [...new Set(S.medlemmer.filter((x) => x.aktiv !== false && x.epost).map((x) => normalEpost(x.epost)))]
+    .filter((e) => !stotte.has(e));
 }
+const kjennerMottakere = (S, m) => S.lastet.has("personer")
+  && (!erAapent(m) || (S.lastet.has("medlemmer") && S.lastet.has("brukere")));
 
 const kanDeleFil = () => {
   try {
@@ -114,23 +135,55 @@ const kanDeleFil = () => {
   }
 };
 
+const utsendelserFor = (S, m) => (S.utsendelser || []).filter((u) => u.moteId === m.id)
+  .sort((a, b) => (b.bestilt?.toMillis?.() ?? Date.now()) - (a.bestilt?.toMillis?.() ?? Date.now()));
+
+function utsendelseLinje(u) {
+  if (u.status === "venter") return html`<li><span class="hint">Sendes nå …</span></li>`;
+  if (u.status === "feil") return html`<li><span class="feiltekst">Ble ikke sendt (${tidspunkt(u.bestilt)}): ${u.feil || "ukjent feil"}</span></li>`;
+  return html`<li>${raw(ikon("sjekk"))} ${u.oppdatert ? "Oppdatert innkalling sendt" : "Sendt"} ${tidspunkt(u.bestilt)}
+    til ${u.antall} ${u.antall === 1 ? "mottaker" : "mottakere"} (${hvemTekst[u.hvem] || u.hvem})</li>`;
+}
+
 function epostboks(S, m) {
-  const klar = erAapent(m) ? S.lastet.has("medlemmer") : S.lastet.has("personer");
+  const hvem = hvemFor(m);
+  const sendt = utsendelserFor(S, m);
+  const venter = sendt.some((u) => u.status === "venter");
+  const tidligereSendt = sendt.some((u) => u.status === "sendt");
+  const klar = kjennerMottakere(S, m);
   const antall = klar ? mottakere(S, m).length : 0;
-  const hvem = erAapent(m) ? `alle ${antall} aktive medlemmer med e-post` : `styret (${antall})`;
   return html`
     <div class="epostboks">
-      <p class="hint">${!klar ? "Henter mottakerne …"
-        : antall ? `Innkallingen lages som PDF med logo og sendes til ${hvem}. «Send på e-post» laster ned PDF-en og åpner e-postprogrammet med adressene som blindkopi (Bcc). Legg ved PDF-en før du sender.${kanDeleFil() ? " «Del PDF» sender fila rett til e-postappen og kopierer adressene, så du kan lime dem inn." : ""}`
-        : erAapent(m) ? "Ingen aktive medlemmer har e-post i medlemslisten. Du kan likevel laste ned PDF-en."
-        : "Fant ingen i styret med e-post. Du kan likevel laste ned PDF-en."}</p>
+      <h3>Send innkallingen på e-post</h3>
+      ${erAapent(m) ? raw(html`
+        <div class="veksler" role="radiogroup" aria-label="Hvem skal få innkallingen">
+          <button type="button" data-hvem="alle" class="${hvem === "alle" ? "valgt" : ""}">Alle medlemmer</button>
+          <button type="button" data-hvem="aktive" class="${hvem === "aktive" ? "valgt" : ""}">Bare aktive medlemmer</button>
+        </div>
+        <p class="hint">${hvem === "alle"
+          ? "Går til alle medlemmer som har e-post, også støttemedlemmer (de som bare bestiller fôr)."
+          : "Går til medlemmene som har e-post, men ikke til støttemedlemmer (de som bare bestiller fôr)."}
+          Utmeldte medlemmer får den ikke. Alle får den som blindkopi, så ingen ser hverandres adresser.</p>`)
+      : raw(`<p class="hint">Går til styret som blindkopi.</p>`)}
+      <p class="hint">E-posten inneholder tid, sted, hele sakslista og en lenke til møtet her på nettsiden.</p>
+      ${sendt.length ? raw(html`<ul class="utsendelser">${sendt.map((u) => raw(utsendelseLinje(u)))}</ul>`) : ""}
       <div class="knapperad">
-        <button type="button" class="knapp sekundaer liten" id="lastNedPdf">${raw(ikon("lastned"))} Last ned PDF</button>
-        ${antall ? raw(html`
-          <button type="button" class="knapp liten" id="sendEpost">${raw(ikon("send"))} Send på e-post</button>
-          ${kanDeleFil() ? raw(`<button type="button" class="knapp sekundaer liten" id="delPdf">Del PDF</button>`) : ""}
-          <button type="button" class="knapp sekundaer liten" id="kopierAdresser">Kopier adressene</button>`) : ""}
+        <button type="button" class="knapp liten" id="sendInnkalling" ${venter ? "disabled" : ""}>${raw(ikon("send"))} ${tidligereSendt ? "Send oppdatert innkalling" : "Send innkallingen"}</button>
       </div>
+
+      <details class="andre-maater" ${visAndreMaater ? "open" : ""}>
+        <summary>Last ned PDF, eller send fra eget e-postprogram</summary>
+        <p class="hint">${!klar ? "Henter mottakerne …"
+          : antall ? `PDF med logo, emne, tid, sted og saksliste. «Send fra e-postprogrammet» laster ned PDF-en og åpner e-postprogrammet med de ${antall} adressene som blindkopi (Bcc). Legg ved PDF-en før du sender.${kanDeleFil() ? " «Del PDF» sender fila rett til e-postappen og kopierer adressene, så du kan lime dem inn." : ""}`
+          : "Fant ingen mottakere med e-post. Du kan likevel laste ned PDF-en."}</p>
+        <div class="knapperad">
+          <button type="button" class="knapp sekundaer liten" id="lastNedPdf">${raw(ikon("lastned"))} Last ned PDF</button>
+          ${antall ? raw(html`
+            <button type="button" class="knapp sekundaer liten" id="sendEpost">Send fra e-postprogrammet</button>
+            ${kanDeleFil() ? raw(`<button type="button" class="knapp sekundaer liten" id="delPdf">Del PDF</button>`) : ""}
+            <button type="button" class="knapp sekundaer liten" id="kopierAdresser">Kopier adressene</button>`) : ""}
+        </div>
+      </details>
     </div>`;
 }
 
@@ -164,6 +217,24 @@ const lagPdf = (S, m) => lagInnkallingPdf(m, {
 
 function kobleEpost(main, S, m) {
   const emne = `Innkalling: ${motetittel(m)}`;
+  main.querySelectorAll("[data-hvem]").forEach((b) => b.addEventListener("click", () => {
+    valgtHvem[m.id] = b.dataset.hvem;
+    detalj(main, S, m.id);
+  }));
+  main.querySelector(".andre-maater")?.addEventListener("toggle", (e) => { visAndreMaater = e.currentTarget.open; });
+  main.querySelector("#sendInnkalling")?.addEventListener("click", async (e) => {
+    const knapp = e.currentTarget;
+    const hvem = hvemFor(m);
+    const antall = kjennerMottakere(S, m) ? mottakere(S, m, hvem).length : null;
+    const oppdatert = utsendelserFor(S, m).some((u) => u.status === "sendt");
+    const til = `${hvemTekst[hvem]}${antall != null ? ` (${antall} ${antall === 1 ? "person" : "personer"})` : ""}`;
+    const sporsmaal = `Sende ${oppdatert ? "den oppdaterte innkallingen" : "innkallingen"} til ${til}? E-posten sendes med en gang og kan ikke trekkes tilbake.`;
+    if (!(await bekreft(sporsmaal, { ja: "Send" }))) return;
+    await medKnapp(knapp, async () => {
+      await bestillUtsendelse(m.id, hvem);
+      melding("Innkallingen sendes nå. Du ser her på siden når den er sendt.");
+    });
+  });
   main.querySelector("#lastNedPdf")?.addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
     const { blob, filnavn } = await lagPdf(S, m);
     lastNed(filnavn, blob);
@@ -311,7 +382,7 @@ export function detalj(main, S, id) {
   main.querySelector("#slett")?.addEventListener("click", async (ev) => {
     if (!(await bekreft(`Slette ${motetittel(m)} med innkalling og referat?`, { ja: "Slett", farlig: true }))) return;
     await medKnapp(ev.currentTarget, async () => {
-      await slettMote(m, sign);
+      await slettMote(m, sign, utsendelserFor(S, m));
       melding("Møtet er slettet.");
       gaaTil("moter");
     });
@@ -319,7 +390,7 @@ export function detalj(main, S, id) {
 }
 detalj.live = true;
 detalj.tittel = "Møte";
-detalj.trenger = ["moter", "signaturer"];
+detalj.trenger = ["moter", "signaturer", "utsendelser"];
 
 // ---------- Innkalling (styret) ----------
 

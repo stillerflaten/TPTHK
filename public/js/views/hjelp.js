@@ -64,23 +64,31 @@ const DELER = [
     id: "styret", tittel: "For styret", gjelder: (S) => erStyret(S),
     emner: [
       ["Hva styret kan se", `<p>Alle som har et styreverv, ser <strong>Oversikt</strong> med nøkkeltallene, <strong>Årsrapport</strong> med budsjett og avvik,
-        og alle <strong>Søknader</strong> som kommer inn. Styret kan lese, men ikke endre regnskapet, budsjettet eller behandle søknader. Det gjør kassereren.</p>`, ["oversikt"]],
+        alle <strong>Søknader</strong> som kommer inn, og <strong>Medlemmer</strong> med e-post, telefon og om kontingenten er betalt.
+        Styret kan lese, men ikke endre regnskapet, budsjettet eller medlemslista, og ikke behandle søknader. Det gjør kassereren.</p>`, ["oversikt"]],
       ["Legg ut en innkalling", `
         <ol>
           <li>Gå til «Møter» og trykk «+ Ny innkalling».</li>
           <li>Velg styremøte, medlemsmøte eller årsmøte. Fyll inn emne, dato, klokkeslett, sted og saksliste.</li>
           <li>Lagre. Innkallingen er synlig for alle med innlogging med en gang. Styremøter er også synlige, men bare styret kan endre dem.</li>
         </ol>`, ["ny-innkalling"]],
-      ["Send innkallingen som PDF", `
-        <p>Åpne møtet. Nederst i innkallingen finner du knappene:</p>
+      ["Send innkallingen på e-post", `
+        <p>Åpne møtet. Under innkallingen står «Send innkallingen på e-post».</p>
+        <ol>
+          <li>Ved medlemsmøter og årsmøter velger du hvem som skal få den: <strong>Alle medlemmer</strong> (også støttemedlemmer som bare bestiller fôr)
+            eller <strong>Bare aktive medlemmer</strong> (uten støttemedlemmer). «Bare aktive» er valgt fra start. Utmeldte får den aldri. Ved styremøter går den til styret.</li>
+          <li>Trykk <strong>Send innkallingen</strong> og bekreft. E-posten går ut med en gang, som blindkopi, med tid, sted, hele sakslista og en lenke til møtet.</li>
+          <li>På møtesiden ser du når den ble sendt og til hvor mange. Har du endret innkallingen, kan du trykke <strong>Send oppdatert innkalling</strong>.</li>
+        </ol>
+        <p>Under «Last ned PDF, eller send fra eget e-postprogram» finner du de gamle knappene, hvis du heller vil sende selv:</p>
         <ul>
           <li><strong>Last ned PDF</strong> lager innkallingen som PDF med logo, emne, tid, sted og saksliste.</li>
-          <li><strong>Send på e-post</strong> laster ned PDF-en og åpner e-postprogrammet med mottakerne som blindkopi (Bcc).
+          <li><strong>Send fra e-postprogrammet</strong> laster ned PDF-en og åpner e-postprogrammet med mottakerne som blindkopi (Bcc).
             Dra PDF-en inn i e-posten før du sender. En nettside får ikke lov til å legge ved filer av seg selv.</li>
           <li><strong>Del PDF</strong> (på telefon) sender fila rett til Mail eller Outlook og kopierer adressene, så du kan lime dem inn i Bcc.</li>
           <li><strong>Kopier adressene</strong> hvis du heller vil skrive e-posten selv.</li>
         </ul>
-        <p>Ved styremøter går innkallingen til styret. Ved medlemsmøter og årsmøter går den til alle aktive medlemmer som har e-post i medlemslisten.</p>`, ["send-pdf"]],
+`, ["send-pdf"]],
       ["Skriv referat og send til signering", `
         <ol>
           <li>Åpne møtet og trykk «Skriv referat». Trykk «Lagre utkast» underveis. Bare styret ser utkastet.</li>

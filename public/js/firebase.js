@@ -514,13 +514,22 @@ export async function lagreMote(id, data) {
   return ref.id;
 }
 
-export async function slettMote(mote, signaturer) {
+export async function slettMote(mote, signaturer, utsendelser = []) {
   const batch = writeBatch(db);
   for (const s of signaturer) batch.delete(doc(db, "signaturer", s.id));
+  for (const u of utsendelser) batch.delete(doc(db, "utsendelser", u.id));
   batch.delete(doc(db, "referatutkast", mote.id));
   batch.delete(doc(db, "moter", mote.id));
   await batch.commit();
 }
+
+/**
+ * Ber skyfunksjonen sende innkallingen på e-post (functions/index.js, sendInnkalling).
+ * hvem: «styret» for styremøter, ellers «alle» (også støttemedlemmer) eller «aktive» (uten støttemedlemmer).
+ */
+export const bestillUtsendelse = (moteId, hvem) => addDoc(collection(db, "utsendelser"), {
+  moteId, hvem, bestiltAv: meg(), bestilt: serverTimestamp(), status: "venter",
+});
 
 export async function hentReferatutkast(moteId) {
   const d = await getDoc(doc(db, "referatutkast", moteId));

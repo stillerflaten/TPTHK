@@ -649,3 +649,14 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 .innlegg-topp { display: flex; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; font-size: .84rem; margin-bottom: 6px; }
 .innlegg-topp span { color: var(--dempet); }
 .innlegg .brikker { margin-top: 10px; }
+
+/* Innkalling på e-post */
+.epostboks h3 { margin: 0 0 10px; font-size: 1rem; }
+.epostboks .veksler { margin-bottom: 10px; }
+.utsendelser { list-style: none; padding: 0; margin: 0 0 12px; font-size: .9rem; }
+.utsendelser li { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
+.utsendelser svg { width: 16px; height: 16px; color: var(--pluss); flex: none; }
+.utsendelser .feiltekst { color: var(--minus); }
+.andre-maater { margin-top: 16px; }
+.andre-maater summary { cursor: pointer; font-weight: 600; color: var(--blekk); padding: 4px 0 10px; }
+span.kontingent { cursor: default; pointer-events: none; }

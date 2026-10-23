@@ -6,8 +6,9 @@ som kjører hos Google, i Belgia (`europe-west1`). De ligger i mappa `functions/
 | Funksjon | Hva den gjør |
 |---|---|
 | `slettInnloggingForMedlem` | Når et medlem slettes under **Medlemmer**, slettes også innloggingen (kontoen i Firebase Authentication). Forespørselen om tilgang og fôrabonnementet ryddes bort. Søknader, kvitteringer og fôrbestillinger beholdes, fordi de hører til regnskapet og fôrrunden. Innloggingen beholdes hvis personen fortsatt har tilgang (f.eks. kasserer eller revisor), eller hvis e-posten står på et annet medlem. |
+| `sendInnkalling` | Når styret trykker **Send innkallingen** på et møte, finner funksjonen mottakerne (styret, alle medlemmer eller bare aktive medlemmer uten støttemedlemmer) og legger e-posten i samlingen `mail`, som utvidelsen «Trigger Email» sender. Antallet mottakere skrives tilbake, så styret ser det på møtesiden. |
 
-**Pris:** Gratis i praksis. Google gir 2 millioner kjøringer i måneden gratis, og funksjonen kjører bare når noen slettes.
+**Pris:** Gratis i praksis. Google gir 2 millioner kjøringer i måneden gratis, og funksjonene kjører bare når noen slettes eller en innkalling sendes.
 
 Funksjonene publiseres av GitHub-jobben **Publiser skyfunksjonene** hver gang noe i `functions/` flettes inn på `main`.
 Den bruker samme nøkkel som sikkerhetsreglene (`FIREBASE_SERVICE_ACCOUNT`), men nøkkelen må først få lov til å publisere funksjoner.
