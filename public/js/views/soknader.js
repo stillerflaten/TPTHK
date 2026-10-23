@@ -1,11 +1,13 @@
 // Søknader om å få dekket utlegg: medlemmene sender, kassereren behandler og utbetaler.
 
-import { html, raw, kr, datoTekst, iDag, tolkBelop, belopTilInput } from "../util.js";
+import { html, raw, kr, datoTekst, iDag, tolkBelop, belopTilInput, lastNed } from "../util.js";
 import { kontovalg } from "./poster.js";
-import { sendSoknad, trekkSoknad, behandleSoknad, utbetalSoknad, oppdaterMinProfil, normalEpost, varsleOmSoknad } from "../firebase.js";
-import { melding, medKnapp, bekreft, kvitteringslenker, kobleKvitteringslenker, kvitteringsvelger } from "../ui.js";
+import { sendSoknad, trekkSoknad, behandleSoknad, utbetalSoknad, oppdaterMinProfil, normalEpost, varsleOmSoknad, hentKvittering } from "../firebase.js";
+import { melding, medKnapp, bekreft, dialog, kvitteringslenker, kobleKvitteringslenker, kvitteringsvelger } from "../ui.js";
+import { aarFor } from "../regnskap.js";
 import { gaaTil } from "../app.js";
 import { erKasserer } from "../tilgang.js";
+import { ikon } from "../ikoner.js";
 
 export const statusTekst = {
   sendt: "Til behandling",
@@ -27,6 +29,72 @@ export function gyldigKontonummer(nr) {
   return kontroll !== 10 && kontroll === Number(s[10]);
 }
 const visKonto = (nr) => String(nr || "").replace(/\D/g, "").replace(/^(\d{4})(\d{2})(\d{5})$/, "$1.$2.$3");
+
+// ---------- Utskrift ----------
+
+/** Bilagsnummeret («12/2026») til posten en utbetalt søknad ble ført som, hvis regnskapet er lastet. */
+function bilagsoppslag(S) {
+  const poster = new Map((S.poster || []).map((p) => [p.id, p]));
+  const bilag = (s) => {
+    const p = s.postId && poster.get(s.postId);
+    return p?.bilagsnr ? { aar: aarFor(p), nr: p.bilagsnr } : null;
+  };
+  return { tekst: (s) => { const b = bilag(s); return b ? `${b.nr}/${b.aar}` : ""; }, bilag };
+}
+
+async function skrivUt(S, soknader, periode) {
+  const { lagSoknaderPdf } = await import("../soknadPdf.js");
+  const oppslag = bilagsoppslag(S);
+  const { blob, filnavn } = await lagSoknaderPdf(soknader, {
+    klubbnavn: S.innst.klubbnavn, statusTekst, bilag: oppslag.tekst, periode, hent: hentKvittering,
+  });
+  lastNed(filnavn, blob);
+}
+
+const UTVALG = {
+  utbetalt: { tekst: "Bare utbetalte", passer: (s) => s.status === "utbetalt" },
+  aktive: { tekst: "Alle unntatt avslåtte", passer: (s) => s.status !== "avslatt" },
+  alle: { tekst: "Alle", passer: () => true },
+};
+
+/** Dialog for samle-PDF: velg periode og hvilke søknader, så lages én PDF med oversikt og alle kvitteringene. */
+function skrivUtPeriode(S) {
+  const aar = S.aar || new Date().getFullYear();
+  const d = dialog(html`
+    <div class="dialog-topp"><h2>Skriv ut søknader</h2><button class="ikonknapp" data-lukk aria-label="Lukk">${raw(ikon("lukk"))}</button></div>
+    <p class="hint">Lager én PDF med alle søknadene i perioden, klar til å skrive ut og sette i perm. Først kommer en oversikt, så får hver søknad sin egen side med kvitteringene bak.</p>
+    <form class="skjema" id="utskrift">
+      <div class="to-kol">
+        <label>Fra og med<input type="date" name="fra" value="${aar}-01-01" required></label>
+        <label>Til og med<input type="date" name="til" value="${aar}-12-31" required></label>
+      </div>
+      <label>Hvilke søknader
+        <select name="utvalg">${Object.entries(UTVALG).map(([k, v]) => raw(html`<option value="${k}">${v.tekst}</option>`))}</select>
+      </label>
+      <p class="hint">Utbetalte søknader regnes etter datoen de ble betalt ut, de andre etter datoen for utlegget.</p>
+      <div class="knapper">
+        <button type="button" class="knapp sekundaer" data-lukk>Avbryt</button>
+        <button class="knapp" type="submit">Lag PDF</button>
+      </div>
+    </form>`, { bred: true });
+  const skjema = d.querySelector("#utskrift");
+  skjema.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const { fra, til, utvalg } = Object.fromEntries(new FormData(skjema));
+    if (fra > til) return melding("Fra-datoen må være før til-datoen.", "feil");
+    const { bilag } = bilagsoppslag(S);
+    const dato = (s) => s.utbetaltDato || s.dato || "";
+    const valgte = S.soknader
+      .filter((s) => UTVALG[utvalg].passer(s) && dato(s) >= fra && dato(s) <= til)
+      .sort((a, b) => dato(a).localeCompare(dato(b)) || (bilag(a)?.nr || 0) - (bilag(b)?.nr || 0) || tid(a) - tid(b));
+    if (!valgte.length) return melding("Ingen søknader passer med det du har valgt.", "feil");
+    await medKnapp(e.submitter, async () => {
+      await skrivUt(S, valgte, { fra, til, utvalg: UTVALG[utvalg].tekst });
+      d.close();
+      melding(`PDF-en med ${valgte.length} ${valgte.length === 1 ? "søknad" : "søknader"} er lastet ned. Åpne den og skriv ut.`);
+    });
+  });
+}
 
 function soknadsliste(liste, lenke) {
   return html`<ul class="postliste">${liste.map((s) => raw(html`
@@ -65,7 +133,10 @@ export function kassererListe(main, S) {
   main.innerHTML = html`
     <div class="sidetopp">
       <h1>Søknader om refusjon</h1>
-      ${erKasserer(S) ? raw(`<div class="knapperad"><a class="knapp sekundaer" href="#/mine">Mine søknader</a><a class="knapp" href="#/ny-soknad">+ Ny søknad</a></div>`) : ""}
+      <div class="knapperad">
+        ${S.soknader.length ? raw(`<button class="knapp sekundaer" id="skrivUtPeriode">${ikon("skriver")} Skriv ut</button>`) : ""}
+        ${erKasserer(S) ? raw(`<a class="knapp sekundaer" href="#/mine">Mine søknader</a><a class="knapp" href="#/ny-soknad">+ Ny søknad</a>`) : ""}
+      </div>
     </div>
     <p class="hint">${erKasserer(S) ? "Medlemmene sender inn utlegg med kvittering fra sin egen side. Her godkjenner du, og fører dem i regnskapet når pengene er betalt ut."
       : "Søknadene medlemmene har sendt inn. Kassereren behandler og betaler dem ut. Som styremedlem kan du lese dem og se kvitteringene."}</p>
@@ -75,6 +146,7 @@ export function kassererListe(main, S) {
     </div>
     ${vis.length ? raw(soknadsliste(vis, "soknad")) : raw(`<div class="tom">${fane === "venter" ? "Ingen søknader venter." : "Ingen ferdigbehandlede søknader ennå."}</div>`)}`;
   main.querySelectorAll("[data-fane]").forEach((b) => b.addEventListener("click", () => { fane = b.dataset.fane; kassererListe(main, S); }));
+  main.querySelector("#skrivUtPeriode")?.addEventListener("click", () => skrivUtPeriode(S));
 }
 kassererListe.live = true;
 kassererListe.tittel = "Søknader";
@@ -89,7 +161,9 @@ export function kassererDetalj(main, S, id) {
   const kasserer = erKasserer(S);
   const kanUtbetales = kasserer && (s.status === "sendt" || s.status === "godkjent");
   main.innerHTML = html`
-    <div class="sidetopp"><h1>Søknad fra ${s.navn}</h1><a class="lenkeknapp" href="#/soknader">Tilbake</a></div>
+    <div class="sidetopp"><h1>Søknad fra ${s.navn}</h1>
+      <div class="knapperad"><button class="knapp sekundaer" id="skrivUt">${raw(ikon("skriver"))} Skriv ut</button><a class="lenkeknapp" href="#/soknader">Tilbake</a></div>
+    </div>
     ${kasserer && kanUtbetales && s.epost === normalEpost(S.bruker.email) ? raw(`<div class="varsel info">Dette er din egen søknad. Det er lurt at leder eller et annet styremedlem ser over den før du betaler ut.</div>`) : ""}
     <section class="kort">${raw(soknadsinfo(s))}</section>
 
@@ -131,6 +205,7 @@ export function kassererDetalj(main, S, id) {
       </section>`) : ""}`;
 
   kobleKvitteringslenker(main);
+  main.querySelector("#skrivUt").addEventListener("click", (e) => medKnapp(e.currentTarget, () => skrivUt(S, [s])));
   const kommentar = () => main.querySelector("#kommentar")?.value.trim() || "";
 
   main.querySelector("#godkjenn")?.addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {

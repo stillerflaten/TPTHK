@@ -15,6 +15,19 @@ export function hentJsPdf() {
   return bibliotek;
 }
 
+// pdf-lib trengs bare når kvitteringer som er PDF skal settes inn i en annen PDF (jsPDF kan ikke lese PDF-er).
+let pdfLib = null;
+export function hentPdfLib() {
+  pdfLib ??= new Promise((ok, feil) => {
+    if (window.PDFLib) return ok(window.PDFLib);
+    const s = Object.assign(document.createElement("script"), { src: "vendor/pdf-lib.min.js" });
+    s.onload = () => ok(window.PDFLib);
+    s.onerror = () => { pdfLib = null; feil(new Error("Klarte ikke å laste PDF-verktøyet. Sjekk nettet og prøv igjen.")); };
+    document.head.append(s);
+  });
+  return pdfLib;
+}
+
 /** Tegner et bilde (f.eks. logoen i SVG) om til JPEG som kan legges i PDF-en. */
 const bilder = {};
 export function hentBilde(src, bredde, hoyde) {
