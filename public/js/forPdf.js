@@ -10,7 +10,7 @@ import { nyPdf, rens, tegnTopp, tegnBunn, A4 } from "./pdf.js";
  * @returns { blob, filnavn }
  */
 export async function lagSamlebestillingPdf(grupper, valg) {
-  const { doc, logo, leverandor } = await nyPdf();
+  const { doc, logo } = await nyPdf();
   const { B, H, marg } = A4, bredde = B - marg * 2;
   const rundeDato = valg.runde ? valg.runde.slice(0, 10) : new Date().toISOString().slice(0, 10);
   doc.setProperties({ title: "Samlebestilling fôr", subject: "Royal Canin", author: rens(valg.klubbnavn), creator: "TPTHK" });
@@ -74,6 +74,6 @@ export async function lagSamlebestillingPdf(grupper, valg) {
   doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(20).text("Totalt", marg, y);
   doc.text(String(totalt), hoyre, y, { align: "right" });
 
-  tegnBunn(doc, leverandor, null);
+  tegnBunn(doc, null);
   return { blob: doc.output("blob"), filnavn: `Samlebestilling fôr ${rundeDato}.pdf` };
 }

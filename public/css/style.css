@@ -550,7 +550,6 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 .bilagsliste { font-size: .84rem; }
 .signaturer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 72px; font-size: .84rem; color: var(--dempet); }
 .signaturer .linje { display: block; border-bottom: 1px solid var(--tekst); height: 42px; margin-bottom: 6px; }
-.rapport-levert { margin-top: 40px; font-size: .72rem; color: var(--dempet); text-align: center; }
 @media (max-width: 600px) { .rapport { padding: 20px; } .signaturer { grid-template-columns: 1fr; } }
 
 @media print {
