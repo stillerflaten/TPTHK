@@ -3,7 +3,8 @@
 // og holder oversikt over pris, Vippskrav og betaling. Betalingen går ikke via klubben, så ingenting her
 // havner i regnskapet. Kassereren eller administratoren velger hvem som er fôransvarlig.
 
-import { html, raw, kr, datoTekst, iDag, tolkBelop, belopTilInput } from "../util.js";
+import { html, raw, kr, datoTekst, iDag, tolkBelop, belopTilInput, lastNed } from "../util.js";
+import { lagSamlebestillingPdf } from "../forPdf.js";
 import {
   normalEpost, lagreForInnstillinger, sendForbestilling, endreForbestilling, slettForbestilling, slettForrunde,
   varsleOmForbestilling, stengForrunde, aapneForrunde, sendForbeskjed, lagreForabonnement, meldAvFor, sendBetalingsmail,
@@ -222,7 +223,8 @@ const BRUK_ANSVARLIG = [
   ["Stenge runden og bestille fra Royal Canin", `
     <ol>
       <li>Trykk «Steng runden». Da kan ingen bestille eller endre mer, og bestillingene merkes som «Bestilt».</li>
-      <li>Under «Samlet bestilling» står totalt antall per fôrtype. Trykk «Kopier lista» og lim den inn i bestillingen til Royal Canin.</li>
+      <li>Under «Samlet bestilling» står totalt antall per fôrtype. Trykk «Last ned PDF» for å få samlebestillingen som PDF med klubbens logo,
+        som du kan sende til Royal Canin. Du kan også trykke «Kopier lista» og lime den inn i en e-post.</li>
     </ol>
     <p>Har du stengt for tidlig, trykker du «Åpne forrige runde igjen».</p>`],
   ["Når regningen kommer: pris og betalingsmail", `
@@ -604,7 +606,10 @@ export function forAlle(main, S) {
         <h2>Samlet bestilling</h2>
         ${sum.length ? raw(html`
           <ul class="enkel-liste">${sum.map((s) => raw(html`<li><span>${s.navn}</span><strong>${s.antall}</strong></li>`))}</ul>
-          <div class="knapper venstre"><button type="button" class="knapp sekundaer liten" id="kopier">${raw(ikon("poster"))} Kopier lista</button></div>`)
+          <div class="knapper venstre">
+            <button type="button" class="knapp liten" id="forPdf">${raw(ikon("lastned"))} Last ned PDF</button>
+            <button type="button" class="knapp sekundaer liten" id="kopier">${raw(ikon("poster"))} Kopier lista</button>
+          </div>`)
         : raw(`<p class="hint">Ingen bestillinger i denne runden ennå.</p>`)}
       </section>
 
@@ -762,6 +767,16 @@ export function forAlle(main, S) {
   });
 
   // Samlet bestilling
+  main.querySelector("#forPdf")?.addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
+    // Samme kategorier som på bestillingssiden. Fôrtyper som er fjernet siden, havner under «Andre».
+    const kategori = new Map(F.varer.map((v) => [v.navn, v.kategori]));
+    const grupper = iKategorier(sum.map((s) => ({ ...s, kategori: kategori.get(s.navn) })));
+    const { blob, filnavn } = await lagSamlebestillingPdf(grupper, {
+      klubbnavn: S.innst.klubbnavn, runde: valgtRunde, stengt: erGjeldende && !F.aapen ? F.stengt : "",
+      ansvarlig: F.ansvarlige.map((e) => F.navn[e] || e).join(", "), bestillinger: iRunden.length,
+    });
+    lastNed(filnavn, blob);
+  }));
   main.querySelector("#kopier")?.addEventListener("click", async () => {
     const tekst = sum.map((s) => `${s.antall} × ${s.navn}`).join("\n");
     try {
