@@ -1,7 +1,6 @@
 // Refusjonssøknader som PDF, til kassererens perm: én søknad, eller alle i en periode med en oversikt først.
 // Hver søknad får egen side med opplysningene, og kvitteringene følger etter. Bilder legges rett inn med jsPDF.
 // Kvitteringer som er PDF settes inn som egne sider med pdf-lib til slutt, siden jsPDF ikke kan lese PDF-er.
-// Kontonummeret til søkeren er ikke med: arkene blir liggende i en perm, og pengene er som regel betalt ut.
 
 import { datoTekst, kr } from "./util.js";
 import { nyPdf, rens, tegnTopp, tegnBunn, A4, hentPdfLib } from "./pdf.js";
@@ -81,6 +80,7 @@ export async function lagSoknaderPdf(soknader, valg) {
       ["Gjelder", s.formaal],
       ["Dato for utlegg", datoTekst(s.dato)],
       ["Beløp", kr(s.belop)],
+      ["Kontonummer", String(s.kontonummer || "").replace(/\D/g, "").replace(/^(\d{4})(\d{2})(\d{5})$/, "$1.$2.$3")],
       ["Sendt inn", s.opprettet?.toDate ? datoTekst(isoDato(s.opprettet.toDate())) : ""],
       ["Status", valg.statusTekst[s.status] || s.status],
       ["Utbetalt", datoTekst(s.utbetaltDato)],
