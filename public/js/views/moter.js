@@ -3,6 +3,7 @@
 
 import { html, raw, datoTekst, iDag, lastNed } from "../util.js";
 import { lagInnkallingPdf } from "../innkallingPdf.js";
+import { lagReferatPdf } from "../referatPdf.js";
 import {
   lagreMote, slettMote, bestillUtsendelse, hentReferatutkast, lagreReferatutkast, sendTilSignering, trekkTilbakeReferat,
   signerReferat, markerGodkjent, referatHash, normalEpost,
@@ -98,6 +99,7 @@ liste.trenger = ["moter", "signaturer"];
 // ---------- Innkalling på e-post ----------
 // «Send innkallingen» ber skyfunksjonen sendInnkalling (functions/index.js) sende den. Funksjonen finner mottakerne
 // selv, så også styremedlemmer som ikke kan se medlemslista, kan sende innkallinger til medlemsmøter og årsmøter.
+// Når referatet er godkjent, kan det sendes på samme måte («hva: referat»), og alle kan laste det ned som PDF.
 // Som reserve kan innkallingen lages som PDF og sendes fra eget e-postprogram. Nettleseren kan ikke legge ved
 // filer i en e-post av seg selv, så «Send fra e-postprogrammet» laster ned PDF-en og åpner e-postprogrammet
 // med mottakerne i Bcc. Da legger man ved fila selv. På telefon kan «Del PDF» sende fila rett til Mail, Outlook o.l.
@@ -107,9 +109,10 @@ const hvemTekst = {
   alle: "alle medlemmer, også støttemedlemmer",
   aktive: "aktive medlemmer, uten støttemedlemmer",
 };
-// Valget huskes per møte mens siden er åpen, fordi siden tegnes på nytt når noe endres.
+// Valget huskes per møte (og for innkalling og referat hver for seg) mens siden er åpen,
+// fordi siden tegnes på nytt når noe endres.
 const valgtHvem = {};
-const hvemFor = (m) => (erAapent(m) ? valgtHvem[m.id] || "aktive" : "styret");
+const hvemFor = (m, hva = "innkalling") => (erAapent(m) ? valgtHvem[`${m.id}:${hva}`] || "aktive" : "styret");
 let visAndreMaater = false;
 
 /**
@@ -135,7 +138,9 @@ const kanDeleFil = () => {
   }
 };
 
-const utsendelserFor = (S, m) => (S.utsendelser || []).filter((u) => u.moteId === m.id)
+// Gamle utsendelser uten «hva» er innkallinger.
+const alleUtsendelser = (S, m) => (S.utsendelser || []).filter((u) => u.moteId === m.id);
+const utsendelserFor = (S, m, hva = "innkalling") => alleUtsendelser(S, m).filter((u) => (u.hva || "innkalling") === hva)
   .sort((a, b) => (b.bestilt?.toMillis?.() ?? Date.now()) - (a.bestilt?.toMillis?.() ?? Date.now()));
 
 // Svarer ikke skyfunksjonen innen et minutt, har den trolig ikke startet. Da kan man prøve igjen.
@@ -153,6 +158,39 @@ function utsendelseLinje(u) {
     til ${u.antall} ${u.antall === 1 ? "mottaker" : "mottakere"} (${hvemTekst[u.hvem] || u.hvem})</li>`;
 }
 
+function hvemVelger(m, hva) {
+  const hvem = hvemFor(m, hva);
+  if (!erAapent(m)) return `<p class="hint">Går til styret som blindkopi.</p>`;
+  return html`
+    <div class="veksler" role="radiogroup" aria-label="Hvem skal få ${hva === "referat" ? "referatet" : "innkallingen"}">
+      <button type="button" data-hvem="alle" data-hva="${hva}" class="${hvem === "alle" ? "valgt" : ""}">Alle medlemmer</button>
+      <button type="button" data-hvem="aktive" data-hva="${hva}" class="${hvem === "aktive" ? "valgt" : ""}">Bare aktive medlemmer</button>
+    </div>
+    <p class="hint">${hvem === "alle"
+      ? "Går til alle medlemmer som har e-post, også støttemedlemmer (de som bare bestiller fôr)."
+      : "Går til medlemmene som har e-post, men ikke til støttemedlemmer (de som bare bestiller fôr)."}
+      Utmeldte medlemmer får den ikke. Alle får den som blindkopi, så ingen ser hverandres adresser.</p>`;
+}
+
+/** Det godkjente referatet: last ned som PDF (alle) og send på e-post (styret). */
+function referatboks(S, m) {
+  const pdf = `<button type="button" class="knapp sekundaer liten" id="referatPdf">${ikon("lastned")} Last ned referatet som PDF</button>`;
+  if (!erStyret(S)) return `<div class="knapperad">${pdf}</div>`;
+  const sendt = utsendelserFor(S, m, "referat");
+  const venter = sendt.some(ventende);
+  return html`
+    <div class="epostboks">
+      <h3>Send referatet på e-post</h3>
+      ${raw(hvemVelger(m, "referat"))}
+      <p class="hint">E-posten inneholder hele referatet, hvem som har signert når, og en lenke til møtet her på nettsiden, der det kan lastes ned som PDF.</p>
+      ${sendt.length ? raw(html`<ul class="utsendelser">${sendt.map((u) => raw(utsendelseLinje(u)))}</ul>`) : ""}
+      <div class="knapperad">
+        <button type="button" class="knapp liten" id="sendReferat" ${venter ? "disabled" : ""}>${raw(ikon("send"))} ${sendt.some((u) => u.status === "sendt") ? "Send referatet på nytt" : "Send referatet"}</button>
+        ${raw(pdf)}
+      </div>
+    </div>`;
+}
+
 function epostboks(S, m) {
   const hvem = hvemFor(m);
   const sendt = utsendelserFor(S, m);
@@ -163,16 +201,7 @@ function epostboks(S, m) {
   return html`
     <div class="epostboks">
       <h3>Send innkallingen på e-post</h3>
-      ${erAapent(m) ? raw(html`
-        <div class="veksler" role="radiogroup" aria-label="Hvem skal få innkallingen">
-          <button type="button" data-hvem="alle" class="${hvem === "alle" ? "valgt" : ""}">Alle medlemmer</button>
-          <button type="button" data-hvem="aktive" class="${hvem === "aktive" ? "valgt" : ""}">Bare aktive medlemmer</button>
-        </div>
-        <p class="hint">${hvem === "alle"
-          ? "Går til alle medlemmer som har e-post, også støttemedlemmer (de som bare bestiller fôr)."
-          : "Går til medlemmene som har e-post, men ikke til støttemedlemmer (de som bare bestiller fôr)."}
-          Utmeldte medlemmer får den ikke. Alle får den som blindkopi, så ingen ser hverandres adresser.</p>`)
-      : raw(`<p class="hint">Går til styret som blindkopi.</p>`)}
+      ${raw(hvemVelger(m, "innkalling"))}
       <p class="hint">E-posten inneholder tid, sted, hele sakslista og en lenke til møtet her på nettsiden.</p>
       ${sendt.length ? raw(html`<ul class="utsendelser">${sendt.map((u) => raw(utsendelseLinje(u)))}</ul>`) : ""}
       <div class="knapperad">
@@ -226,11 +255,11 @@ const lagPdf = (S, m) => lagInnkallingPdf(m, {
 function kobleEpost(main, S, m) {
   const emne = `Innkalling: ${motetittel(m)}`;
   main.querySelectorAll("[data-hvem]").forEach((b) => b.addEventListener("click", () => {
-    valgtHvem[m.id] = b.dataset.hvem;
+    valgtHvem[`${m.id}:${b.dataset.hva}`] = b.dataset.hvem;
     detalj(main, S, m.id);
   }));
   // Tegn siden på nytt når svarfristen går ut, så knappen blir klikkbar igjen hvis funksjonen ikke svarte.
-  const venter = utsendelserFor(S, m).filter(ventende);
+  const venter = alleUtsendelser(S, m).filter(ventende);
   if (venter.length) {
     const igjen = Math.max(...venter.map((u) => SVARFRIST - ventetid(u))) + 500;
     setTimeout(() => { if (location.hash === `#/mote/${m.id}`) detalj(main, S, m.id); }, igjen);
@@ -249,6 +278,23 @@ function kobleEpost(main, S, m) {
       melding("Innkallingen sendes nå. Du ser her på siden når den er sendt.");
     });
   });
+  main.querySelector("#sendReferat")?.addEventListener("click", async (e) => {
+    const knapp = e.currentTarget;
+    const hvem = hvemFor(m, "referat");
+    const antall = kjennerMottakere(S, m) ? mottakere(S, m, hvem).length : null;
+    const til = `${hvemTekst[hvem]}${antall != null ? ` (${antall} ${antall === 1 ? "person" : "personer"})` : ""}`;
+    if (!(await bekreft(`Sende referatet til ${til}? E-posten sendes med en gang og kan ikke trekkes tilbake.`, { ja: "Send" }))) return;
+    await medKnapp(knapp, async () => {
+      await bestillUtsendelse(m.id, hvem, "referat");
+      melding("Referatet sendes nå. Du ser her på siden når det er sendt.");
+    });
+  });
+  main.querySelector("#referatPdf")?.addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
+    const { blob, filnavn } = await lagReferatPdf(m, signaturerFor(S, m.id), {
+      klubbnavn: S.innst.klubbnavn, typeTekst: typeTekst[m.type], lenke: moteLenke(m),
+    });
+    lastNed(filnavn, blob);
+  }));
   main.querySelector("#lastNedPdf")?.addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
     const { blob, filnavn } = await lagPdf(S, m);
     lastNed(filnavn, blob);
@@ -321,7 +367,8 @@ export function detalj(main, S, id) {
       ${visReferat ? raw(html`
         ${m.referatStatus === "signering" ? raw(`<p class="hint">Referatet er ikke godkjent før alle har signert.</p>`) : ""}
         <div class="fritekst dokumenttekst">${m.referat}</div>
-        <div id="kontroll" class="hint"></div>`)
+        <div id="kontroll" class="hint"></div>
+        ${m.referatStatus === "godkjent" ? raw(referatboks(S, m)) : ""}`)
       : raw(html`<p class="hint">${m.referatStatus === "utkast" ? "Styret skriver på referatet. Det blir synlig her når det sendes til signering." : "Referatet er ikke skrevet ennå."}</p>`)}
 
       ${kanSignere ? raw(html`
@@ -396,7 +443,7 @@ export function detalj(main, S, id) {
   main.querySelector("#slett")?.addEventListener("click", async (ev) => {
     if (!(await bekreft(`Slette ${motetittel(m)} med innkalling og referat?`, { ja: "Slett", farlig: true }))) return;
     await medKnapp(ev.currentTarget, async () => {
-      await slettMote(m, sign, utsendelserFor(S, m));
+      await slettMote(m, sign, alleUtsendelser(S, m));
       melding("Møtet er slettet.");
       gaaTil("moter");
     });

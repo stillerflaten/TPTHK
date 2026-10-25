@@ -2,7 +2,7 @@
 // Felles topp, bunn og lasting av PDF-biblioteket ligger i pdf.js.
 
 import { datoTekst } from "./util.js";
-import { nyPdf, rens, tegnTopp, tegnBunn, A4 } from "./pdf.js";
+import { nyPdf, rens, tegnTopp, tegnBunn, tegnFelt, tegnMellomtittel, tegnTekst, A4 } from "./pdf.js";
 
 /**
  * Lager PDF-en.
@@ -12,7 +12,7 @@ import { nyPdf, rens, tegnTopp, tegnBunn, A4 } from "./pdf.js";
  */
 export async function lagInnkallingPdf(m, valg) {
   const { doc, logo } = await nyPdf();
-  const { B, H, marg } = A4, bredde = B - marg * 2;
+  const { marg } = A4;
   const type = valg.typeTekst.toLowerCase();
   doc.setProperties({ title: `Innkalling til ${type}`, subject: rens(m.tittel || ""), author: rens(valg.klubbnavn), creator: "TPTHK" });
 
@@ -32,32 +32,11 @@ export async function lagInnkallingPdf(m, valg) {
     ["Sted", m.sted || "Ikke oppgitt"],
   ];
   if (valg.aapent) felt.push(["Hvem", "Åpent for alle medlemmer"]);
-  doc.setFontSize(12);
-  for (const [navn, verdi] of felt) {
-    const linjer = doc.splitTextToSize(rens(verdi), bredde - 28);
-    y += 8;
-    doc.setFont("helvetica", "bold").setTextColor(90).text(navn, marg, y);
-    doc.setFont("helvetica", "normal").setTextColor(20).text(linjer, marg + 28, y);
-    y += (linjer.length - 1) * 5.5;
-  }
+  y = tegnFelt(doc, y, felt);
 
   // Saksliste
-  y += 14;
-  doc.setFont("helvetica", "bold").setFontSize(15).setTextColor(20).text("Saksliste", marg, y);
-  y += 3;
-  doc.setDrawColor(200).line(marg, y, B - marg, y);
-  y += 8;
-  doc.setFont("helvetica", "normal").setFontSize(11.5).setTextColor(20);
-  const linjehoyde = 5.6, bunn = H - 24;
-  const tekst = rens(m.innkalling?.trim() || "Ingen saksliste er lagt inn.");
-  for (const avsnitt of tekst.split("\n")) {
-    const linjer = avsnitt.trim() ? doc.splitTextToSize(avsnitt, bredde) : [""];
-    for (const linje of linjer) {
-      if (y > bunn) { doc.addPage(); y = 24; }
-      doc.text(linje, marg, y);
-      y += linjehoyde;
-    }
-  }
+  y = tegnMellomtittel(doc, y + 14, "Saksliste");
+  tegnTekst(doc, y, m.innkalling?.trim() || "Ingen saksliste er lagt inn.");
 
   // Bunntekst på hver side
   tegnBunn(doc, valg.lenke ? { tekst: "Innkallingen ligger også på nettsiden, der du logger inn.", url: valg.lenke } : null);
