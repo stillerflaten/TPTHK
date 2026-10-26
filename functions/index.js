@@ -50,7 +50,7 @@ export const slettInnloggingForMedlem = onDocumentDeleted(
   },
 );
 
-// ---------- Innkalling til møter på e-post ----------
+// ---------- Innkalling og referat fra møter på e-post ----------
 
 const TYPE = { styremote: "styremøte", medlemsmote: "medlemsmøte", arsmote: "årsmøte" };
 const datoTekst = (iso) => {
@@ -61,7 +61,7 @@ const datoTekst = (iso) => {
 const PER_EPOST = 90;
 
 /**
- * Hvem som skal ha innkallingen.
+ * Hvem som skal ha innkallingen eller referatet.
  *  - «styret»: de som har styreverv, og kassereren (ikke administratoren). Samme regel som personlista på nettsiden.
  *  - «alle»: alle medlemmer som ikke er meldt ut og har e-post, også støttemedlemmer.
  *  - «aktive»: som «alle», men uten støttemedlemmer (de som bare har tilgang til fôrbestillingen).
@@ -109,7 +109,41 @@ function innkallingstekst(m, id, klubbnavn, oppdatert) {
   ].filter((x) => x !== null).join("\n");
 }
 
-// Styret ber om å sende innkallingen ved å legge et dokument i «utsendelser» (se møtesiden).
+// Signaturene på et referat, i samme rekkefølge som lista over hvem som skulle signere.
+async function signaturliste(db, moteId, m) {
+  const sign = (await db.collection("signaturer").where("moteId", "==", moteId).get()).docs.map((d) => d.data());
+  return (m.signatarer || []).map((e) => {
+    const s = sign.find((x) => x.epost === e);
+    const navn = s?.navn || m.signatarNavn?.[e] || e;
+    const tid = s?.tidspunkt?.toDate?.().toLocaleString("nb-NO", { timeZone: "Europe/Oslo", dateStyle: "short", timeStyle: "short" });
+    return s ? `${navn}, signert ${tid}` : `${navn}, ikke signert`;
+  });
+}
+
+function referattekst(m, id, klubbnavn, signert) {
+  const type = TYPE[m.type] || "møte";
+  return [
+    "Hei!",
+    "",
+    `Her er det godkjente referatet fra ${type}${m.tittel ? `: ${m.tittel}` : ""}.`,
+    "",
+    `Tid: ${datoTekst(m.dato)}${m.tid ? ` kl. ${m.tid}` : ""}`,
+    m.sted ? `Sted: ${m.sted}` : null,
+    "",
+    "Referat:",
+    m.referat || "",
+    "",
+    "Signert elektronisk på klubbens nettside av:",
+    ...signert,
+    "",
+    `Referatet ligger også på nettsiden, der det kan lastes ned som PDF: https://tpthk.no/#/mote/${id}`,
+    "",
+    `Hilsen styret i ${klubbnavn}`,
+  ].filter((x) => x !== null).join("\n");
+}
+
+// Styret ber om å sende innkallingen eller det godkjente referatet ved å legge et dokument i «utsendelser»
+// (se møtesiden). Gamle utsendelser uten «hva» er innkallinger.
 // Funksjonen finner mottakerne selv, slik at ingen på nettsiden kan velge fritt hvem som får e-post,
 // og legger e-posten i «mail», som Firebase-utvidelsen «Trigger Email» sender (se docs/epostvarsel.md).
 // Svaret (antall mottakere eller feil) skrives tilbake på utsendelsen, så styret ser det på møtesiden.
@@ -121,26 +155,31 @@ export const sendInnkalling = onDocumentCreated(
     if (!ref || !u) return;
     const db = getFirestore();
     const ferdig = (felt) => ref.update({ ...felt, behandlet: FieldValue.serverTimestamp() });
+    const referat = u.hva === "referat";
 
     try {
       const moteDok = await db.doc(`moter/${u.moteId}`).get();
       if (!moteDok.exists) return await ferdig({ status: "feil", feil: "Fant ikke møtet." });
       const m = moteDok.data();
+      if (referat && m.referatStatus !== "godkjent") {
+        return await ferdig({ status: "feil", feil: "Referatet er ikke godkjent ennå." });
+      }
       const aapent = m.type === "arsmote" || m.type === "medlemsmote";
       const hvem = aapent ? (u.hvem === "aktive" ? "aktive" : "alle") : "styret";
 
       const mottakere = await finnMottakere(db, hvem);
       if (!mottakere.length) return await ferdig({ status: "feil", feil: "Fant ingen mottakere med e-post.", hvem });
 
-      const tidligere = await db.collection("utsendelser").where("moteId", "==", u.moteId).where("status", "==", "sendt").limit(1).get();
-      const oppdatert = !tidligere.empty;
+      // Er det samme sendt før, står det «oppdatert» i e-posten. Et godkjent referat kan ikke endres, så det gjelder bare innkallinger.
+      const tidligere = referat ? [] : (await db.collection("utsendelser").where("moteId", "==", u.moteId).where("status", "==", "sendt").get())
+        .docs.filter((d) => (d.data().hva || "innkalling") === "innkalling");
+      const oppdatert = tidligere.length > 0;
       const klubb = (await db.doc("innstillinger/klubb").get()).data();
       const klubbnavn = klubb?.klubbnavn || "Trøndelag Politis Tjenestehundklubb";
       const tittel = m.tittel || `${TYPE[m.type] ? TYPE[m.type][0].toUpperCase() + TYPE[m.type].slice(1) : "Møte"} ${datoTekst(m.dato)}`;
-      const message = {
-        subject: `${oppdatert ? "Oppdatert innkalling" : "Innkalling"}: ${tittel}`,
-        text: innkallingstekst(m, u.moteId, klubbnavn, oppdatert),
-      };
+      const message = referat
+        ? { subject: `Referat: ${tittel}`, text: referattekst(m, u.moteId, klubbnavn, await signaturliste(db, u.moteId, m)) }
+        : { subject: `${oppdatert ? "Oppdatert innkalling" : "Innkalling"}: ${tittel}`, text: innkallingstekst(m, u.moteId, klubbnavn, oppdatert) };
 
       const batch = db.batch();
       for (let i = 0; i < mottakere.length; i += PER_EPOST) {
@@ -148,9 +187,9 @@ export const sendInnkalling = onDocumentCreated(
       }
       batch.update(ref, { status: "sendt", antall: mottakere.length, hvem, oppdatert, behandlet: FieldValue.serverTimestamp() });
       await batch.commit();
-      logger.info("Innkallingen er lagt til sending.", { moteId: u.moteId, antall: mottakere.length, hvem });
+      logger.info(referat ? "Referatet er lagt til sending." : "Innkallingen er lagt til sending.", { moteId: u.moteId, antall: mottakere.length, hvem });
     } catch (feil) {
-      logger.error("Klarte ikke å sende innkallingen.", feil);
+      logger.error(referat ? "Klarte ikke å sende referatet." : "Klarte ikke å sende innkallingen.", feil);
       await ferdig({ status: "feil", feil: "Noe gikk galt. Prøv igjen, eller si fra til administratoren." });
     }
   },

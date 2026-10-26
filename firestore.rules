@@ -495,14 +495,18 @@ service cloud.firestore {
       allow delete: if erStyret();
     }
 
-    // Innkalling på e-post. Styret ber om utsendelsen her, og skyfunksjonen «sendInnkalling» finner mottakerne
-    // selv og sender e-posten (functions/index.js). Bare funksjonen kan endre en utsendelse etterpå.
+    // Innkalling og godkjent referat på e-post. Styret ber om utsendelsen her, og skyfunksjonen «sendInnkalling»
+    // finner mottakerne selv og sender e-posten (functions/index.js). Bare funksjonen kan endre en utsendelse etterpå.
+    // Gamle utsendelser uten «hva» er innkallinger.
     match /utsendelser/{id} {
       allow read: if erStyret();
       allow create: if erStyret()
-        && request.resource.data.keys().hasOnly(['moteId', 'hvem', 'bestiltAv', 'bestilt', 'status'])
+        && request.resource.data.keys().hasOnly(['moteId', 'hvem', 'hva', 'bestiltAv', 'bestilt', 'status'])
         && request.resource.data.moteId is string
         && exists(/databases/$(database)/documents/moter/$(request.resource.data.moteId))
+        && request.resource.data.get('hva', 'innkalling') in ['innkalling', 'referat']
+        && (request.resource.data.get('hva', 'innkalling') == 'innkalling'
+          || get(/databases/$(database)/documents/moter/$(request.resource.data.moteId)).data.referatStatus == 'godkjent')
         && request.resource.data.hvem in ['styret', 'alle', 'aktive']
         && request.resource.data.bestiltAv == epost()
         && request.resource.data.bestilt == request.time

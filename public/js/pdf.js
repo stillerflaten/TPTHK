@@ -74,6 +74,45 @@ export function tegnTopp(doc, logo, klubbnavn) {
   return y;
 }
 
+/** Felt med navn til venstre og verdi til høyre (emne, tid, sted). Gir y-posisjonen under siste felt. */
+export function tegnFelt(doc, y, felt) {
+  const { B, marg } = A4, bredde = B - marg * 2;
+  doc.setFontSize(12);
+  for (const [navn, verdi] of felt) {
+    const linjer = doc.splitTextToSize(rens(verdi), bredde - 28);
+    y += 8;
+    doc.setFont("helvetica", "bold").setTextColor(90).text(navn, marg, y);
+    doc.setFont("helvetica", "normal").setTextColor(20).text(linjer, marg + 28, y);
+    y += (linjer.length - 1) * 5.5;
+  }
+  return y;
+}
+
+/** Mellomtittel med strek under. Gir y-posisjonen der teksten under skal starte. */
+export function tegnMellomtittel(doc, y, tittel) {
+  const { B, marg } = A4;
+  doc.setFont("helvetica", "bold").setFontSize(15).setTextColor(20).text(tittel, marg, y);
+  y += 3;
+  doc.setDrawColor(200).line(marg, y, B - marg, y);
+  return y + 8;
+}
+
+/** Lang tekst over så mange sider som trengs, avsnitt for avsnitt. Gir y-posisjonen under teksten. */
+export function tegnTekst(doc, y, tekst) {
+  const { B, H, marg } = A4, bredde = B - marg * 2;
+  doc.setFont("helvetica", "normal").setFontSize(11.5).setTextColor(20);
+  const linjehoyde = 5.6, bunn = H - 24;
+  for (const avsnitt of rens(tekst).split("\n")) {
+    const linjer = avsnitt.trim() ? doc.splitTextToSize(avsnitt, bredde) : [""];
+    for (const linje of linjer) {
+      if (y > bunn) { doc.addPage(); y = 24; }
+      doc.text(linje, marg, y);
+      y += linjehoyde;
+    }
+  }
+  return y;
+}
+
 /** Bunnteksten på hver side: valgfri lenketekst til venstre og sidetall til høyre. */
 export function tegnBunn(doc, lenke) {
   const { B, H, marg } = A4;

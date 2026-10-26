@@ -524,11 +524,12 @@ export async function slettMote(mote, signaturer, utsendelser = []) {
 }
 
 /**
- * Ber skyfunksjonen sende innkallingen på e-post (functions/index.js, sendInnkalling).
+ * Ber skyfunksjonen sende innkallingen eller det godkjente referatet på e-post (functions/index.js, sendInnkalling).
  * hvem: «styret» for styremøter, ellers «alle» (også støttemedlemmer) eller «aktive» (uten støttemedlemmer).
+ * hva: «innkalling» eller «referat».
  */
-export const bestillUtsendelse = (moteId, hvem) => addDoc(collection(db, "utsendelser"), {
-  moteId, hvem, bestiltAv: meg(), bestilt: serverTimestamp(), status: "venter",
+export const bestillUtsendelse = (moteId, hvem, hva = "innkalling") => addDoc(collection(db, "utsendelser"), {
+  moteId, hvem, hva, bestiltAv: meg(), bestilt: serverTimestamp(), status: "venter",
 });
 
 export async function hentReferatutkast(moteId) {

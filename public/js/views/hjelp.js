@@ -96,6 +96,10 @@ const DELER = [
           <li>Åpne møtet og trykk «Skriv referat». Trykk «Lagre utkast» underveis. Bare styret ser utkastet.</li>
           <li>Velg hvem som skal signere, og send til signering. Da kan alle medlemmer lese referatet, og de som skal signere, får varsel.</li>
           <li>Må noe endres, trykk «Trekk tilbake for å endre». Signaturer som er gitt, slettes, og alle må signere på nytt.</li>
+          <li>Når alle har signert, er referatet godkjent og låst. Da kan du trykke «Send referatet» for å sende det på e-post.
+            Referat fra styremøter går til styret. Referat fra medlemsmøter og årsmøter kan gå til alle medlemmer eller bare de aktive.
+            E-posten inneholder hele referatet og hvem som har signert når.</li>
+          <li>Alle med innlogging kan trykke «Last ned referatet som PDF» på et godkjent referat, for eksempel for å sende det videre eller skrive det ut.</li>
         </ol>`, ["referat"]],
       ["Legg inn vedtekter og andre regler", `
         <ol>
