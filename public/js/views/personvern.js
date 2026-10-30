@@ -1,4 +1,4 @@
-// Personvernerklæring. Kan leses uten å logge inn (lenke fra innloggingssiden og bunnteksten).
+// Personvernerklæring. Kan leses uten å logge inn (lenke fra innloggingssiden og Hjelp-siden).
 // Oppdater teksten og datoen når siden begynner å lagre noe nytt om folk.
 
 import { html, raw, esc } from "../util.js";
