@@ -5,7 +5,7 @@ import { datoTekst } from "./util.js";
 import { nyPdf, rens, tegnTopp, tegnBunn, A4 } from "./pdf.js";
 
 /**
- * @param grupper [[kategori, [{ navn, antall }]]], i den rekkefølgen de skal stå
+ * @param grupper [[kategori, [{ navn, antall, antallTekst }]]], i den rekkefølgen de skal stå
  * @param valg { klubbnavn, runde, stengt, ansvarlig, bestillinger }
  * @returns { blob, filnavn }
  */
@@ -61,7 +61,7 @@ export async function lagSamlebestillingPdf(grupper, valg) {
       const linjer = doc.splitTextToSize(rens(v.navn), bredde - 26);
       if (y + linjer.length * 5.4 > bunn) { nySide(); kolonnetitler(); doc.setFont("helvetica", "normal").setFontSize(11).setTextColor(20); }
       doc.text(linjer, marg + 4, y);
-      doc.setFont("helvetica", "bold").text(String(v.antall), hoyre, y, { align: "right" }).setFont("helvetica", "normal");
+      doc.setFont("helvetica", "bold").text(String(v.antallTekst ?? v.antall), hoyre, y, { align: "right" }).setFont("helvetica", "normal");
       y += linjer.length * 5.4;
       doc.setDrawColor(225).setLineWidth(0.2).line(marg + 4, y - 3.4, hoyre, y - 3.4);
       y += 1.6;
