@@ -615,6 +615,8 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 
 /* Fôrbestilling */
 .skjema .forvarer li input:not([type=checkbox]) { flex: 0 0 84px; width: 84px; min-height: 40px; padding: 6px 10px; border: 1px solid var(--linje-sterk); border-radius: var(--radius-liten); font: inherit; text-align: right; }
+.antall-enhet { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.antall-enhet .enhet { width: 38px; font-size: .9rem; color: var(--dempet); }
 .forliste .forrad { padding: 13px 18px; }
 .forbestillinger { list-style: none; margin: 0; padding: 0; }
 .forbestillinger li { padding: 14px 0; display: grid; gap: 6px; }

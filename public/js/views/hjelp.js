@@ -240,11 +240,11 @@ const DELER = [
     id: "for", tittel: "For fôransvarlig", gjelder: (S) => styrerFor(S),
     emner: [
       ["Fôrtyper og beskjed til medlemmene", `<p>Gå til <a href="#/for-alle">Fôr og «Alle bestillinger»</a>. Under «Fôrtyper» legger du inn det medlemmene kan velge,
-        gjerne med pris. Under «Beskjed til medlemmene» kan du skrive en tekst som vises øverst på bestillingssiden, og datoen for neste planlagte runde.
+        gjerne med pris. Våtfôr bestilles i brett, så prisen på våtfôr skal være for ett brett. Under «Beskjed til medlemmene» kan du skrive en tekst som vises øverst på bestillingssiden.
         Der fyller du også inn navnet ditt og Vipps-nummeret som skal stå i betalingsmailen.</p>`],
       ["En bestillingsrunde fra start til slutt", `
         <ol>
-          <li>Trykk «Åpne ny runde» (sett gjerne en frist). De påmeldte får e-post, og de faste bestillingene legges inn av seg selv.</li>
+          <li>Skriv en omtrentlig dato for neste runde (må fylles ut, så medlemmene vet hvor mye de skal bestille), sett gjerne en frist, og trykk «Åpne ny runde». De påmeldte får e-post, og de faste bestillingene legges inn av seg selv.</li>
           <li>Du får e-post når noen bestiller. Trykk «Send påminnelse til påmeldte» før fristen, så får de som ikke har bestilt, en påminnelse.</li>
           <li>Trykk «Steng runden». Bruk «Samlet bestilling» og «Kopier lista» når du bestiller hos Royal Canin.</li>
           <li>Når regningen kommer, fyll inn pris på hver bestilling (eller trykk «Regn ut pris fra fôrtypene») og trykk «Send betalingsmail».

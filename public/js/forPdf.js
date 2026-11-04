@@ -5,7 +5,7 @@ import { datoTekst } from "./util.js";
 import { nyPdf, rens, tegnTopp, tegnBunn, A4 } from "./pdf.js";
 
 /**
- * @param grupper [[kategori, [{ navn, antall }]]], i den rekkefølgen de skal stå
+ * @param grupper [[kategori, [{ navn, antall, antallTekst }]]], i den rekkefølgen de skal stå
  * @param valg { klubbnavn, runde, stengt, ansvarlig, bestillinger }
  * @returns { blob, filnavn }
  */
@@ -22,12 +22,16 @@ export async function lagSamlebestillingPdf(grupper, valg) {
   doc.setFont("helvetica", "bold").setFontSize(22).setTextColor(20).text("Samlebestilling fôr", marg, y);
   y += 6;
 
-  const totalt = grupper.reduce((t, [, l]) => t + l.reduce((s, v) => s + v.antall, 0), 0);
+  // Våtfôr telles i brett, resten i stk. De to summeres hver for seg.
+  const alleVarer = grupper.flatMap(([, l]) => l);
+  const sumAv = (f) => alleVarer.filter(f).reduce((s, v) => s + v.antall, 0);
+  const brett = sumAv((v) => v.enhet === "brett"), stk = sumAv((v) => v.enhet !== "brett");
+  const totalt = [stk ? `${stk} stk` : "", brett ? `${brett} brett` : ""].filter(Boolean).join(" og ") || "0 stk";
   const felt = [
     ["Leverandør", "Royal Canin"],
     ["Runde", `Åpnet ${datoTekst(rundeDato)}${valg.stengt ? `, stengt ${datoTekst(valg.stengt)}` : ""}`],
     ["Bestilt av", valg.ansvarlig || "Fôransvarlig"],
-    ["Totalt", `${totalt} stk fordelt på ${valg.bestillinger} ${valg.bestillinger === 1 ? "bestilling" : "bestillinger"}`],
+    ["Totalt", `${totalt} fordelt på ${valg.bestillinger} ${valg.bestillinger === 1 ? "bestilling" : "bestillinger"}`],
   ];
   doc.setFontSize(12);
   for (const [navn, verdi] of felt) {
@@ -61,7 +65,7 @@ export async function lagSamlebestillingPdf(grupper, valg) {
       const linjer = doc.splitTextToSize(rens(v.navn), bredde - 26);
       if (y + linjer.length * 5.4 > bunn) { nySide(); kolonnetitler(); doc.setFont("helvetica", "normal").setFontSize(11).setTextColor(20); }
       doc.text(linjer, marg + 4, y);
-      doc.setFont("helvetica", "bold").text(String(v.antall), hoyre, y, { align: "right" }).setFont("helvetica", "normal");
+      doc.setFont("helvetica", "bold").text(String(v.antallTekst ?? v.antall), hoyre, y, { align: "right" }).setFont("helvetica", "normal");
       y += linjer.length * 5.4;
       doc.setDrawColor(225).setLineWidth(0.2).line(marg + 4, y - 3.4, hoyre, y - 3.4);
       y += 1.6;
@@ -72,7 +76,12 @@ export async function lagSamlebestillingPdf(grupper, valg) {
   doc.setDrawColor(160).setLineWidth(0.4).line(marg, y, hoyre, y);
   y += 7;
   doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(20).text("Totalt", marg, y);
-  doc.text(String(totalt), hoyre, y, { align: "right" });
+  doc.text(totalt, hoyre, y, { align: "right" });
+  if (brett) {
+    y += 9;
+    doc.setFont("helvetica", "normal").setFontSize(10.5).setTextColor(70)
+      .text(rens("Våtfôr er bestilt i hele brett, ikke enkeltbokser. «5 brett» betyr fem brett."), marg, y);
+  }
 
   tegnBunn(doc, null);
   return { blob: doc.output("blob"), filnavn: `Samlebestilling fôr ${rundeDato}.pdf` };
