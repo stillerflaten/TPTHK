@@ -628,10 +628,15 @@ body.ute .spinner { border-color: #333; border-top-color: var(--gull); }
 }
 .forbestilling-felt input:not([type=checkbox]) { width: 110px; margin-left: 6px; }
 .forvarer-rediger { display: grid; gap: 8px; }
-.forvare-rad { display: grid; grid-template-columns: 1fr 190px 100px auto; gap: 8px; align-items: center; }
+.forvare-rad { display: grid; grid-template-columns: 1fr 170px 170px 90px auto; gap: 8px; align-items: center; }
+.forvare-rad input { min-width: 0; width: 100%; }
+@media (max-width: 900px) {
+  .forvare-rad { grid-template-columns: 1fr 1fr 90px auto; }
+  .forvare-rad [data-vnavn] { grid-column: 1 / -1; }
+}
 @media (max-width: 600px) {
   .forvare-rad { grid-template-columns: 1fr 90px auto; padding-bottom: 8px; border-bottom: 1px solid var(--linje); }
-  .forvare-rad [data-vnavn] { grid-column: 1 / -1; }
+  .forvare-rad [data-vnavn], .forvare-rad [data-vpakning] { grid-column: 1 / -1; }
 }
 .forvalg { margin: 4px 0 14px; }
 .forsok { width: 100%; min-height: 42px; padding: 8px 12px; margin-bottom: 8px; border: 1px solid var(--linje-sterk); border-radius: var(--radius-liten); font: inherit; background: var(--kort); }

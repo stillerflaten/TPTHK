@@ -27,7 +27,10 @@ export function forData(S) {
 }
 
 const rundeTekst = (runde) => (runde ? `Runden fra ${datoTekst(runde.slice(0, 10))}` : "");
-const linjeTekst = (l) => `${l.antall} × ${l.navn}`;
+// Pakningen (f.eks. «brett à 12 bokser») står i parentes, så det er tydelig hva antallet gjelder.
+const medPakning = (navn, pakning) => (pakning ? `${navn} (${pakning})` : navn);
+const linjeTekst = (l) => `${l.antall} × ${medPakning(l.navn, l.pakning)}`;
+const MAKS_PAKNING = 40;
 const statusTekst = { ny: "Mottatt", bestilt: "Bestilt", levert: "Levert" };
 const statusKlasse = { ny: "sendt", bestilt: "godkjent", levert: "utbetalt" };
 const statusMerke = (b) => html`<span class="status status-${statusKlasse[b.status] || "sendt"}">${statusTekst[b.status] || b.status}</span>`;
@@ -76,7 +79,8 @@ const sok = {};
 function antallFelter(varer, antallFor, skjema) {
   const felt = (v) => html`
     <li data-sok="${`${v.navn} ${v.kategori || ""} ${SOKEORD.get(v.id) || ""}`.toLowerCase()}">
-      <span><strong>${v.navn}</strong>${v.pris ? raw(html`<span class="hint blokk">Ca. ${kr(v.pris)}</span>`) : ""}</span>
+      <span><strong>${v.navn}</strong>${v.pakning || v.pris ? raw(html`<span class="hint blokk">${[
+        v.pakning ? `Pakning: ${v.pakning}` : "", v.pris ? `ca. ${kr(v.pris)}${v.pakning ? " per pakning" : ""}` : ""].filter(Boolean).join(" · ")}</span>`) : ""}</span>
       <input type="number" name="${v.id}" min="0" max="${MAKS_ANTALL}" step="1" inputmode="numeric" value="${antallFor(v.id)}"
         placeholder="0" aria-label="Antall ${v.navn}">
     </li>`;
@@ -154,7 +158,7 @@ function lesLinjer(varer, v) {
       melding(`Antallet for ${vare.navn} må være et helt tall fra 0 til ${MAKS_ANTALL}.`, "feil");
       return null;
     }
-    if (antall) linjer.push({ vare: vare.id, navn: vare.navn, antall });
+    if (antall) linjer.push({ vare: vare.id, navn: vare.navn, antall, ...(vare.pakning ? { pakning: vare.pakning } : {}) });
   }
   return linjer;
 }
@@ -163,7 +167,7 @@ function lesLinjer(varer, v) {
 export function gjeldendeFast(fast, varer) {
   return (fast || []).map((l) => {
     const v = varer.find((x) => x.id === l.vare);
-    return v ? { vare: v.id, navn: v.navn, antall: l.antall } : null;
+    return v ? { vare: v.id, navn: v.navn, antall: l.antall, ...(v.pakning ? { pakning: v.pakning } : {}) } : null;
   }).filter(Boolean);
 }
 
@@ -177,7 +181,8 @@ const BRUK_MEDLEM = [
       <li>Når fôransvarlig har åpnet en bestillingsrunde, står skjemaet «Ny bestilling» på denne siden.</li>
       <li>Fôret er delt i kategorier, for eksempel «Tørrfôr: Valp» og «Våtfôr: Veterinærfôr». Trykk på en kategori for å åpne den,
         eller skriv i søkefeltet, for eksempel «Maxi», «Labrador» eller «Gastrointestinal».</li>
-      <li>Skriv antall ved fôrtypene du vil ha. La resten stå tomme. Står det en pris, er den omtrentlig. Den endelige står på regningen.</li>
+      <li>Skriv antall ved fôrtypene du vil ha. La resten stå tomme. Står det en pakning under navnet, f.eks. «brett à 12 bokser», gjelder antallet slike pakninger.
+        Står det en pris, er den omtrentlig. Den endelige står på regningen.</li>
       <li>Skriv gjerne en kommentar til fôransvarlig, og trykk «Send bestilling».</li>
     </ol>
     <p>Er det ingen åpen runde, står det når neste runde er planlagt. Fôransvarlig bestiller omtrent hver tredje måned.</p>`],
@@ -208,7 +213,9 @@ const BRUK_ANSVARLIG = [
     <ol>
       <li>Under «Fôrtyper» lenger ned trykker du «Legg inn Royal Canins utvalg». Da kommer hele utvalget av tørr- og våtfôr for hund inn,
         sortert i kategorier. Fjern det klubben ikke vil tilby, og trykk «Lagre fôrtyper».</li>
-      <li>Mangler noe, trykker du «+ Legg til fôrtype», skriver navnet (f.eks. «Royal Canin Maxi Adult»), velger kategori og skriver gjerne prisen.</li>
+      <li>Mangler noe, trykker du «+ Legg til fôrtype», skriver navnet (f.eks. «Royal Canin Maxi Adult»), velger kategori og skriver gjerne pakning og pris.</li>
+      <li>Skriv pakning der det kan misforstås hva ett i antall betyr, særlig på våtfôr: f.eks. «brett à 12 bokser» eller «1 boks». Prisen skal være for én slik pakning.
+        Pakningen vises under navnet når medlemmene bestiller, og i samlet bestilling og PDF.</li>
       <li>Under «Beskjed til medlemmene og varsel» skriver du en tekst som vises øverst på bestillingssiden, og datoen for neste planlagte runde.</li>
       <li>Fyll inn navnet ditt og Vipps-nummeret. De står i betalingsmailen medlemmene får. Trykk «Lagre».</li>
     </ol>
@@ -495,6 +502,7 @@ function redigerVarer(varer) {
   const rad = ({ v, i }) => html`
     <div class="forvare-rad">
       <input data-vnavn="${i}" data-felt="vnavn-${i}" value="${v.navn}" placeholder="F.eks. Royal Canin Maxi Adult" maxlength="100" aria-label="Fôrtype">
+      <input data-vpakning="${i}" data-felt="vpakning-${i}" value="${v.pakning || ""}" placeholder="Pakning, f.eks. sekk 12 kg" maxlength="${MAKS_PAKNING}" aria-label="Pakning">
       <input data-vkat="${i}" data-felt="vkat-${i}" value="${v.kategori || ""}" list="forkategorier" placeholder="Kategori" maxlength="60" aria-label="Kategori">
       <input data-vpris="${i}" data-felt="vpris-${i}" value="${v.prisTekst ?? belopTilInput(v.pris)}" placeholder="Pris" inputmode="decimal" aria-label="Pris i kroner">
       <button type="button" class="ikonknapp" data-vfjern="${i}" aria-label="Fjern ${v.navn || "fôrtypen"}">${raw(ikon("lukk"))}</button>
@@ -509,14 +517,16 @@ function redigerVarer(varer) {
     </details>`))}</div>`;
 }
 
-/** Summerer antall per fôrtype i en runde. */
+/** Summerer antall per fôrtype (og pakning) i en runde. «navn» har med pakningen, «kategoriNavn» er bare fôrtypen. */
 export function samleliste(bestillinger) {
   const sum = new Map();
   for (const b of bestillinger) for (const l of b.linjer || []) {
-    const n = sum.get(l.navn) || 0;
-    sum.set(l.navn, n + Number(l.antall || 0));
+    const navn = medPakning(l.navn, l.pakning);
+    const s = sum.get(navn) || { navn, kategoriNavn: l.navn, antall: 0 };
+    s.antall += Number(l.antall || 0);
+    sum.set(navn, s);
   }
-  return [...sum.entries()].map(([navn, antall]) => ({ navn, antall })).sort((a, b) => a.navn.localeCompare(b.navn, "nb"));
+  return [...sum.values()].sort((a, b) => a.navn.localeCompare(b.navn, "nb"));
 }
 
 /** Prisen for en bestilling ut fra prisene på fôrtypene. null hvis en av fôrtypene mangler pris. */
@@ -659,7 +669,8 @@ export function forAlle(main, S) {
 
     <section class="kort">
       <h2>Fôrtyper</h2>
-      <p class="hint">Dette er lista medlemmene velger fra. Kategorien bestemmer hvor fôrtypen står i lista. Pris er valgfritt og vises som «ca. pris».
+      <p class="hint">Dette er lista medlemmene velger fra. Kategorien bestemmer hvor fôrtypen står i lista.
+        Pakning forteller hva ett i antall betyr, f.eks. «brett à 12 bokser» eller «sekk 12 kg». Skriv prisen for én slik pakning. Pakning og pris er valgfritt.
         Endringer gjelder nye bestillinger, ikke de som er sendt.</p>
       ${nyeFraKatalog(varer) ? raw(html`
         <div class="knapper venstre">
@@ -770,7 +781,7 @@ export function forAlle(main, S) {
   main.querySelector("#forPdf")?.addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
     // Samme kategorier som på bestillingssiden. Fôrtyper som er fjernet siden, havner under «Andre».
     const kategori = new Map(F.varer.map((v) => [v.navn, v.kategori]));
-    const grupper = iKategorier(sum.map((s) => ({ ...s, kategori: kategori.get(s.navn) })));
+    const grupper = iKategorier(sum.map((s) => ({ ...s, kategori: kategori.get(s.kategoriNavn) })));
     const { blob, filnavn } = await lagSamlebestillingPdf(grupper, {
       klubbnavn: S.innst.klubbnavn, runde: valgtRunde, stengt: erGjeldende && !F.aapen ? F.stengt : "",
       ansvarlig: F.ansvarlige.map((e) => F.navn[e] || e).join(", "), bestillinger: iRunden.length,
@@ -851,6 +862,10 @@ export function forAlle(main, S) {
     const u = utkast(); u[Number(inp.dataset.vpris)].prisTekst = inp.value;
     main.querySelector("#lagreVarer").disabled = false;
   }));
+  main.querySelectorAll("[data-vpakning]").forEach((inp) => inp.addEventListener("input", () => {
+    const u = utkast(); u[Number(inp.dataset.vpakning)].pakning = inp.value;
+    main.querySelector("#lagreVarer").disabled = false;
+  }));
   main.querySelectorAll("[data-vkat]").forEach((inp) => inp.addEventListener("input", () => {
     const u = utkast(); u[Number(inp.dataset.vkat)].kategori = inp.value;
     main.querySelector("#lagreVarer").disabled = false;
@@ -895,7 +910,8 @@ export function forAlle(main, S) {
       const pris = prisTekst.trim() ? tolkBelop(prisTekst) : null;
       if (prisTekst.trim() && (pris == null || pris <= 0)) return melding(`Prisen for ${navn} ser ikke riktig ut.`, "feil");
       const kategori = String(v.kategori || "").trim().slice(0, 60);
-      ferdig.push({ id: v.id, navn, pris, ...(kategori ? { kategori } : {}) });
+      const pakning = String(v.pakning || "").trim().slice(0, MAKS_PAKNING);
+      ferdig.push({ id: v.id, navn, pris, ...(kategori ? { kategori } : {}), ...(pakning ? { pakning } : {}) });
     }
     await medKnapp(e.currentTarget, async () => {
       await lagreForInnstillinger({ varer: ferdig });
