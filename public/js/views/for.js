@@ -187,7 +187,8 @@ const BRUK_MEDLEM = [
         Står det en pris, er den omtrentlig. Den endelige står på regningen.</li>
       <li>Skriv gjerne en kommentar til fôransvarlig, og trykk «Send bestilling».</li>
     </ol>
-    <p>Er det ingen åpen runde, står det når neste runde er planlagt. Fôransvarlig bestiller omtrent hver tredje måned.</p>`],
+    <p>Når du bestiller, står det omtrent når neste bestillingsrunde blir. Bestill nok til at fôret holder til da.
+      Er det ingen åpen runde, står det når neste runde er planlagt.</p>`],
   ["Endre eller trekke bestillingen", `
     <p>Så lenge runden er åpen, ser du bestillingen din øverst. Endre antallet og trykk «Lagre endringer», eller trykk «Trekk bestillingen».
     Når fôransvarlig har stengt runden og bestilt fra Royal Canin, kan den ikke endres her lenger. Ta da kontakt med fôransvarlig.</p>`],
@@ -216,13 +217,14 @@ const BRUK_ANSVARLIG = [
       <li>Under «Fôrtyper» lenger ned trykker du «Legg inn Royal Canins utvalg». Da kommer hele utvalget av tørr- og våtfôr for hund inn,
         sortert i kategorier. Fjern det klubben ikke vil tilby, og trykk «Lagre fôrtyper».</li>
       <li>Mangler noe, trykker du «+ Legg til fôrtype», skriver navnet (f.eks. «Royal Canin Maxi Adult»), velger kategori og skriver gjerne prisen. På våtfôr er prisen for ett brett, fordi medlemmene bestiller våtfôr i brett.</li>
-      <li>Under «Beskjed til medlemmene og varsel» skriver du en tekst som vises øverst på bestillingssiden, og datoen for neste planlagte runde.</li>
+      <li>Under «Beskjed til medlemmene og varsel» skriver du en tekst som vises øverst på bestillingssiden.</li>
       <li>Fyll inn navnet ditt og Vipps-nummeret. De står i betalingsmailen medlemmene får. Trykk «Lagre».</li>
     </ol>
     <p>Fôrtypene kan endres når som helst. Endringer gjelder nye bestillinger, ikke de som allerede er sendt.</p>`],
   ["Åpne en bestillingsrunde", `
     <ol>
-      <li>Sett gjerne en bestillingsfrist under «Bestillingsrunde», og trykk «Åpne ny runde».</li>
+      <li>Under «Bestillingsrunde» skriver du en omtrentlig dato for runden etter denne (må fylles ut), og gjerne en bestillingsfrist. Trykk så «Åpne ny runde».
+        Datoen for neste runde står på bestillingssiden, så medlemmene kan bestille nok til å holde til da. Du kan endre den mens runden er åpen.</li>
       <li>Du ser hvor mange påmeldte som får e-post, og hvor mange faste bestillinger som legges inn av seg selv. Trykk «Åpne runden».</li>
       <li>Du får e-post hver gang noen bestiller (kan slås av under «Beskjed til medlemmene og varsel»).</li>
       <li>Før fristen kan du trykke «Send påminnelse til påmeldte». Da får de påmeldte som ikke har bestilt, en påminnelse.</li>
@@ -304,11 +306,13 @@ export function forside(main, S) {
     </section>
 
     ${!F.aapen ? raw(html`<div class="tom">Det er ingen åpen bestillingsrunde nå.
-        ${F.neste && F.neste >= iDag() ? `Neste runde er planlagt ${datoTekst(F.neste)}.` : "Fôransvarlig gir beskjed når neste runde åpner."}</div>`)
+        ${F.neste && F.neste >= iDag() ? `Neste runde er planlagt ca. ${datoTekst(F.neste)}.` : "Fôransvarlig gir beskjed når neste runde åpner."}</div>`)
       : !F.varer.length ? raw(`<div class="tom">Bestillingsrunden er åpen, men fôransvarlig har ikke lagt inn fôrtyper ennå.</div>`)
       : raw(html`
       <form id="bestill" class="skjema kort uthevet">
         <h2>${iRunden ? (iRunden.fast ? "Din bestilling (fra den faste bestillingen)" : "Din bestilling") : "Ny bestilling"}</h2>
+        ${F.neste && F.neste > iDag() ? raw(html`<div class="varsel info"><span>Neste bestillingsrunde er ca. <strong>${datoTekst(F.neste)}</strong>.
+          Bestill nok til at fôret holder til da, og litt til i tilfelle leveringen tar tid.</span></div>`) : ""}
         <p class="hint">${F.frist ? `Bestillingsfrist ${datoTekst(F.frist)}. ` : ""}Skriv antall ved det du vil ha. ${iRunden ? "Du kan endre bestillingen helt til runden stenges." : ""}</p>
         ${raw(antallFelter(F.varer, antallFor, "bestill"))}
         <label>Kommentar til fôransvarlig (valgfritt)<textarea name="kommentar" rows="2" maxlength="500">${iRunden?.kommentar || ""}</textarea></label>
@@ -516,11 +520,12 @@ function redigerVarer(varer) {
     </details>`))}</div>`;
 }
 
-/** Summerer antall per fôrtype i en runde. «antallTekst» har med enheten, f.eks. «5 brett». */
-export function samleliste(bestillinger) {
+/** Summerer antall per fôrtype i en runde. «antallTekst» har med enheten, f.eks. «5 brett».
+ *  Bestillinger fra før enheten ble lagret, får enheten fra fôrtypen slik den er nå. */
+export function samleliste(bestillinger, varer = []) {
   const sum = new Map();
   for (const b of bestillinger) for (const l of b.linjer || []) {
-    const n = sum.get(l.navn) || { navn: l.navn, antall: 0, enhet: "" };
+    const n = sum.get(l.navn) || { navn: l.navn, antall: 0, enhet: enhetFor(varer.find((v) => v.navn === l.navn)) };
     n.antall += Number(l.antall || 0);
     if (l.enhet) n.enhet = l.enhet;
     sum.set(l.navn, n);
@@ -558,7 +563,7 @@ export function forAlle(main, S) {
   const runder = [...new Set([F.runde, ...alle.map((b) => b.runde)].filter(Boolean))].sort().reverse();
   if (!runder.includes(valgtRunde)) valgtRunde = runder[0] || null;
   const iRunden = alle.filter((b) => b.runde === valgtRunde).sort((a, b) => (a.navn || "").localeCompare(b.navn || "", "nb"));
-  const sum = samleliste(iRunden);
+  const sum = samleliste(iRunden, F.varer);
   const medPris = iRunden.filter((b) => b.belop != null);
   const betalt = iRunden.filter((b) => b.betalt);
   const erGjeldende = valgtRunde === F.runde;
@@ -585,8 +590,10 @@ export function forAlle(main, S) {
         <p><span class="status status-utbetalt">Åpen</span> ${rundeTekst(F.runde)}. Medlemmene kan bestille og endre bestillingene sine.</p>
         <div class="knapperad">
           <label class="liten">Bestillingsfrist (valgfritt) <input type="date" id="frist" value="${F.frist}"></label>
-          <button type="button" class="knapp sekundaer liten" id="lagreFrist">Lagre frist</button>
+          <label class="liten">Neste runde, ca. dato <input type="date" id="neste" value="${F.neste}" required></label>
+          <button type="button" class="knapp sekundaer liten" id="lagreFrist">Lagre datoene</button>
         </div>
+        <p class="hint">Datoen for neste runde står på bestillingssiden, så medlemmene kan bestille nok til å holde til da.</p>
         <p class="hint">Når du skal sende bestillingen til Royal Canin, stenger du runden. Da kan ingen bestille eller endre mer, og alle bestillingene merkes som bestilt.</p>
         <div class="knapper venstre">
           ${abonnenter.length ? raw(`<button type="button" class="knapp sekundaer" id="paaminn">Send påminnelse til påmeldte</button>`) : ""}
@@ -597,7 +604,9 @@ export function forAlle(main, S) {
         ${!F.varer.length ? raw(`<p class="hint">Legg inn fôrtypene lenger ned før du åpner en runde.</p>`) : ""}
         <div class="knapperad">
           <label class="liten">Bestillingsfrist (valgfritt) <input type="date" id="frist" value=""></label>
+          <label class="liten">Neste runde etter denne, ca. dato <input type="date" id="neste" value="" required></label>
         </div>
+        <p class="hint">Du må skrive en omtrentlig dato for runden etter denne. Den står på bestillingssiden, så medlemmene kan bestille nok til å holde til da.</p>
         <div class="knapper venstre">
           ${F.runde ? raw(`<button type="button" class="knapp sekundaer" id="gjenaapne">Åpne forrige runde igjen</button>`) : ""}
           <button type="button" class="knapp" id="aapne" ${F.varer.length ? "" : "disabled"}>Åpne ny runde</button>
@@ -690,10 +699,6 @@ export function forAlle(main, S) {
       <label>Tekst øverst på bestillingssiden (valgfritt)
         <textarea name="info" rows="3" maxlength="1000" placeholder="F.eks. Vi bestiller omtrent hver tredje måned. Vipps til Vegard når regningen kommer.">${F.info}</textarea>
       </label>
-      <label>Neste planlagte runde (valgfritt)
-        <input type="date" name="neste" value="${F.neste}">
-        <span class="hint blokk">Vises for medlemmene når ingen runde er åpen, f.eks. de faste kvartalsdatoene.</span>
-      </label>
       <div class="to-kol">
         <label>Ditt navn i betalingsmailen<input name="vippsNavn" value="${F.vippsNavn}" maxlength="60" placeholder="F.eks. Vegard" autocomplete="off"></label>
         <label>Ditt Vipps-nummer<input name="vippsNummer" value="${F.vippsNummer}" inputmode="tel" placeholder="900 00 000" autocomplete="off"></label>
@@ -711,10 +716,22 @@ export function forAlle(main, S) {
 
   // Runden
   const frist = () => main.querySelector("#frist")?.value || "";
-  main.querySelector("#lagreFrist")?.addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
-    await lagreForInnstillinger({ frist: frist() });
-    melding("Fristen er lagret.");
-  }));
+  // Ca. dato for neste runde er påkrevd når en runde åpnes. Gir datoen, eller null (med feilmelding).
+  const neste = () => {
+    const d = main.querySelector("#neste")?.value || "";
+    if (!d) { melding("Skriv en omtrentlig dato for neste bestillingsrunde, så medlemmene vet hvor mye de må bestille.", "feil"); return null; }
+    if (d <= iDag()) { melding("Datoen for neste runde må være etter i dag.", "feil"); return null; }
+    if (frist() && d <= frist()) { melding("Neste runde må være etter bestillingsfristen.", "feil"); return null; }
+    return d;
+  };
+  main.querySelector("#lagreFrist")?.addEventListener("click", (e) => {
+    const n = neste();
+    if (!n) return;
+    medKnapp(e.currentTarget, async () => {
+      await lagreForInnstillinger({ frist: frist(), neste: n });
+      melding("Datoene er lagret.");
+    });
+  });
   main.querySelector("#steng")?.addEventListener("click", async (e) => {
     const n = alle.filter((b) => b.runde === F.runde).length;
     if (!(await bekreft(`Stenge runden? Ingen kan bestille eller endre mer, og ${n} bestilling${n === 1 ? "" : "er"} merkes som bestilt.`, { ja: "Steng runden" }))) return;
@@ -724,6 +741,8 @@ export function forAlle(main, S) {
     });
   });
   main.querySelector("#aapne")?.addEventListener("click", async (e) => {
+    const nesteDato = neste();
+    if (!nesteDato) return main.querySelector("#neste")?.focus();
     const faste = abonnenter.map((a) => ({ ...a, fast: gjeldendeFast(a.fast, F.varer) })).filter((a) => a.fast.length);
     const tekst = [
       "Åpne en ny bestillingsrunde?",
@@ -734,7 +753,7 @@ export function forAlle(main, S) {
     await medKnapp(e.currentTarget, async () => {
       let runde = iDag();
       for (let n = 2; runder.includes(runde); n++) runde = `${iDag()}-${n}`;
-      await aapneForrunde({ runde, aapen: true, frist: frist(), stengt: "" }, faste);
+      await aapneForrunde({ runde, aapen: true, frist: frist(), neste: nesteDato, stengt: "" }, faste);
       valgtRunde = runde;
       if (abonnenter.length) {
         try {
@@ -757,11 +776,15 @@ export function forAlle(main, S) {
       melding("Påminnelsen er sendt.");
     });
   });
-  main.querySelector("#gjenaapne")?.addEventListener("click", (e) => medKnapp(e.currentTarget, async () => {
-    await lagreForInnstillinger({ aapen: true, frist: frist() || F.frist, stengt: "" });
-    valgtRunde = F.runde;
-    melding("Runden er åpen igjen. Bestillinger som var merket som bestilt, kan ikke endres av medlemmene.");
-  }));
+  main.querySelector("#gjenaapne")?.addEventListener("click", (e) => {
+    const nesteDato = neste();
+    if (!nesteDato) return main.querySelector("#neste")?.focus();
+    medKnapp(e.currentTarget, async () => {
+      await lagreForInnstillinger({ aapen: true, frist: frist() || F.frist, neste: nesteDato, stengt: "" });
+      valgtRunde = F.runde;
+      melding("Runden er åpen igjen. Bestillinger som var merket som bestilt, kan ikke endres av medlemmene.");
+    });
+  });
   main.querySelector("#velgRunde")?.addEventListener("change", (e) => { valgtRunde = e.target.value; tegnPaaNytt(); });
   main.querySelector("#slettRunde")?.addEventListener("click", async (e) => {
     const n = iRunden.length;
@@ -929,7 +952,7 @@ export function forAlle(main, S) {
     if (nummer === null) return melding("Vipps-nummeret må være et mobilnummer med 8 siffer.", "feil");
     await medKnapp(e.submitter, async () => {
       await lagreForInnstillinger({
-        info: String(v.get("info") || "").trim().slice(0, 1000), varsel: v.get("varsel") === "on", neste: String(v.get("neste") || ""),
+        info: String(v.get("info") || "").trim().slice(0, 1000), varsel: v.get("varsel") === "on",
         vippsNavn, vippsNummer: nummer || "",
       });
       glemSkjema("forInnst");
