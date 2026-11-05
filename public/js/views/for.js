@@ -9,7 +9,7 @@ import {
   normalEpost, lagreForInnstillinger, sendForbestilling, endreForbestilling, slettForbestilling, slettForrunde,
   varsleOmForbestilling, stengForrunde, aapneForrunde, sendForbeskjed, lagreForabonnement, meldAvFor, sendBetalingsmail,
 } from "../firebase.js";
-import { melding, medKnapp, bekreft } from "../ui.js";
+import { melding, medKnapp, bekreft, dialog } from "../ui.js";
 import { ikon } from "../ikoner.js";
 import { styrerFor, kanVelgeForansvarlig } from "../tilgang.js";
 import { ROYAL_CANIN, KATEGORIER } from "../forkatalog.js";
@@ -173,6 +173,81 @@ export function gjeldendeFast(fast, varer) {
   }).filter(Boolean);
 }
 
+// ---------- Oppsummering før innsending ----------
+// Medlemmene skal se hele bestillingen samlet før de sender, også det som kommer fra den faste bestillingen.
+
+/** Linjene som er skrevet inn i skjemaet akkurat nå, uten feilmeldinger. Ugyldige antall hoppes over. */
+function linjerISkjema(skjema, varer) {
+  const v = Object.fromEntries(new FormData(skjema));
+  const linjer = [];
+  for (const vare of varer) {
+    const antall = Number(v[vare.id] || 0);
+    if (Number.isInteger(antall) && antall > 0 && antall <= MAKS_ANTALL) {
+      linjer.push({ vare: vare.id, navn: vare.navn, antall, ...(enhetFor(vare) ? { enhet: enhetFor(vare) } : {}) });
+    }
+  }
+  return linjer;
+}
+
+/** Totalt antall, f.eks. «3 sekker og 4 brett», og omtrentlig pris for det som har pris. */
+function totalTekst(linjer, varer) {
+  const stk = linjer.filter((l) => !l.enhet).reduce((s, l) => s + l.antall, 0);
+  const brett = linjer.filter((l) => l.enhet === "brett").reduce((s, l) => s + l.antall, 0);
+  const deler = [];
+  if (stk) deler.push(`${stk} stk`);
+  if (brett) deler.push(`${brett} brett`);
+  let pris = 0, manglerPris = false;
+  for (const l of linjer) {
+    const p = varer.find((v) => v.id === l.vare)?.pris;
+    if (p) pris += p * l.antall; else manglerPris = true;
+  }
+  return {
+    antall: deler.join(" og "),
+    pris: pris ? `ca. ${kr(pris)}${manglerPris ? " (noen fôrtyper mangler pris)" : ""}` : "",
+  };
+}
+
+/** Lista over det som er bestilt, brukt både i boksen i skjemaet og i bekreftelsen. */
+function oppsummeringListe(linjer, varer, fastLinjer = []) {
+  if (!linjer.length) return html`<p class="hint">Du har ikke skrevet antall ved noe fôr ennå.</p>`;
+  const t = totalTekst(linjer, varer);
+  const fraFast = (l) => fastLinjer.some((f) => f.vare === l.vare && f.antall === l.antall);
+  return html`
+    <ul class="oppsummering-liste">${linjer.map((l) => raw(html`
+      <li><span class="oppsummering-antall">${l.antall} ${l.enhet || "stk"}</span>
+        <span>${l.navn}${fraFast(l) ? raw(` <span class="hint">(fast)</span>`) : ""}</span></li>`))}</ul>
+    <p class="oppsummering-total"><strong>Totalt: ${t.antall}</strong>${t.pris ? ` · ${t.pris}` : ""}</p>`;
+}
+
+/** Boksen i skjemaet som viser hele bestillingen og oppdateres mens medlemmet skriver. */
+function kobleOppsummering(main, varer, fastLinjer) {
+  const skjema = main.querySelector("#bestill");
+  const boks = main.querySelector("[data-oppsummering]");
+  if (!skjema || !boks) return;
+  const oppdater = () => { boks.innerHTML = oppsummeringListe(linjerISkjema(skjema, varer), varer, fastLinjer); };
+  skjema.addEventListener("input", oppdater);
+  oppdater();
+}
+
+/** Viser hele bestillingen og spør om den skal sendes. Gir true hvis medlemmet trykker send. */
+function bekreftBestilling(linjer, varer, kommentar, { endring, fastLinjer }) {
+  return new Promise((ok) => {
+    const d = dialog(html`
+      <h2>${endring ? "Lagre endringene?" : "Sende bestillingen?"}</h2>
+      <p class="dialog-tekst">Sjekk at alt er med. ${endring ? "Dette blir hele bestillingen din i runden:" : "Dette er hele bestillingen din:"}</p>
+      ${raw(oppsummeringListe(linjer, varer, fastLinjer))}
+      ${kommentar ? raw(html`<p class="dialog-tekst"><strong>Kommentar:</strong> ${kommentar}</p>`) : ""}
+      <p class="hint">Prisen er omtrentlig. Den endelige står på regningen. Du kan endre bestillingen helt til runden stenges.</p>
+      <div class="knapper">
+        <button class="knapp sekundaer" data-svar="nei">Gå tilbake og endre</button>
+        <button class="knapp" data-svar="ja">${endring ? "Lagre endringene" : "Send bestillingen"}</button>
+      </div>`);
+    let svar = false;
+    d.querySelectorAll("[data-svar]").forEach((b) => b.addEventListener("click", () => { svar = b.dataset.svar === "ja"; d.close(); }));
+    d.addEventListener("close", () => ok(svar));
+  });
+}
+
 // ---------- Bruksanvisning ----------
 // Ligger på selve siden. Hvert emne er en sammenleggbar boks. Siden tegnes på nytt når data endrer seg,
 // så hvilke bokser som er åpne, huskes her.
@@ -185,7 +260,8 @@ const BRUK_MEDLEM = [
         eller skriv i søkefeltet, for eksempel «Maxi», «Labrador» eller «Gastrointestinal».</li>
       <li>Skriv antall ved fôrtypene du vil ha. La resten stå tomme. Våtfôr bestilles i brett, ikke enkeltbokser: står det «brett» ved feltet, betyr 2 to brett.
         Står det en pris, er den omtrentlig. Den endelige står på regningen.</li>
-      <li>Skriv gjerne en kommentar til fôransvarlig, og trykk «Send bestilling».</li>
+      <li>Under «Oppsummering av bestillingen» ser du alt du har skrevet antall ved, samlet, med omtrentlig pris.</li>
+      <li>Skriv gjerne en kommentar til fôransvarlig, og trykk «Send bestilling». Du får se hele bestillingen en gang til og trykker «Send bestillingen» for å sende den.</li>
     </ol>
     <p>Når du bestiller, står det omtrent når neste bestillingsrunde blir. Bestill nok til at fôret holder til da.
       Er det ingen åpen runde, står det når neste runde er planlagt.</p>`],
@@ -197,7 +273,9 @@ const BRUK_MEDLEM = [
       <li>Trykk «Meld meg på» under «Fast ordning». Da får du e-post hver gang en ny runde åpner.</li>
       <li>Vil du ha det samme hver gang, trykk «Lag fast bestilling», skriv antall og trykk «Lagre fast bestilling».
         Den legges inn av seg selv hver gang en runde åpner.</li>
-      <li>Vil du ha noe annet én gang, endrer du bare bestillingen i runden. Den faste bestillingen er den samme neste gang.</li>
+      <li>Vil du ha noe annet eller noe i tillegg én gang, endrer du bare bestillingen i runden: den faste bestillingen står allerede i skjemaet,
+        så du skriver antall ved det du vil ha ekstra og trykker «Lagre endringer». Oppsummeringen viser hele bestillingen, og det som kommer fra den faste, er merket «(fast)».
+        Den faste bestillingen er den samme neste gang.</li>
     </ol>
     <p>«Meld meg av» sletter påmeldingen og den faste bestillingen. Du kan fortsatt bestille i åpne runder.</p>`],
   ["Betaling", `
@@ -288,6 +366,7 @@ export function forside(main, S) {
   const iRunden = F.aapen ? mine.find((b) => b.runde === F.runde && b.status === "ny") : null;
   const antallFor = (vareId) => iRunden?.linjer.find((l) => l.vare === vareId)?.antall || "";
   const ansvarligNavn = F.ansvarlige.map((e) => F.navn[e] || e);
+  const fastNaa = S.mittForabonnement ? gjeldendeFast(S.mittForabonnement.fast, F.varer) : [];
 
   main.innerHTML = html`
     <div class="sidetopp">
@@ -314,7 +393,15 @@ export function forside(main, S) {
         ${F.neste && F.neste > iDag() ? raw(html`<div class="varsel info"><span>Neste bestillingsrunde er ca. <strong>${datoTekst(F.neste)}</strong>.
           Bestill nok til at fôret holder til da, og litt til i tilfelle leveringen tar tid.</span></div>`) : ""}
         <p class="hint">${F.frist ? `Bestillingsfrist ${datoTekst(F.frist)}. ` : ""}Skriv antall ved det du vil ha. ${iRunden ? "Du kan endre bestillingen helt til runden stenges." : ""}</p>
+        ${iRunden?.fast ? raw(`<div class="varsel ok"><span>Den faste bestillingen din er lagt inn i runden. Vil du ha noe i tillegg,
+          skriver du antall ved det også. Alt kommer med i samme bestilling, og du ser hele bestillingen i oppsummeringen nederst.</span></div>`) : ""}
+        ${!iRunden && fastNaa.length ? raw(html`<div class="varsel info"><span>Du har en fast bestilling, men den er ikke lagt inn i denne runden.
+          <button type="button" class="lenkeknapp" id="fyllFast">Fyll inn den faste bestillingen</button></span></div>`) : ""}
         ${raw(antallFelter(F.varer, antallFor, "bestill"))}
+        <div class="oppsummering" aria-live="polite">
+          <h3>Oppsummering av bestillingen</h3>
+          <div data-oppsummering></div>
+        </div>
         <label>Kommentar til fôransvarlig (valgfritt)<textarea name="kommentar" rows="2" maxlength="500">${iRunden?.kommentar || ""}</textarea></label>
         <div class="knapper">
           ${iRunden ? raw(`<button type="button" class="knapp farlig sekundaer" id="trekk">Trekk bestillingen</button>`) : ""}
@@ -348,7 +435,9 @@ export function forside(main, S) {
     if (!linjer) return;
     if (!linjer.length) return melding("Skriv antall ved minst én fôrtype.", "feil");
     const kommentar = String(v.kommentar || "").trim().slice(0, 500);
-    await medKnapp(e.submitter, async () => {
+    const knapp = e.submitter;
+    if (!(await bekreftBestilling(linjer, F.varer, kommentar, { endring: !!iRunden, fastLinjer: iRunden?.fast ? fastNaa : [] }))) return;
+    await medKnapp(knapp, async () => {
       if (iRunden) {
         await endreForbestilling(iRunden.id, { linjer, kommentar });
         glemSkjema("bestill");
@@ -371,9 +460,19 @@ export function forside(main, S) {
       melding("Bestillingen er trukket.");
     });
   });
+  main.querySelector("#fyllFast")?.addEventListener("click", () => {
+    for (const l of fastNaa) if (skjema.elements[l.vare]) skjema.elements[l.vare].value = l.antall;
+    skjema.dispatchEvent(new Event("input", { bubbles: true }));
+    skjema.querySelectorAll("details.forgruppe").forEach((d) => {
+      if ([...d.querySelectorAll("input[type=number]")].some((i) => Number(i.value) > 0)) d.open = true;
+      d.dispatchEvent(new Event("input"));
+    });
+    melding("Den faste bestillingen er fylt inn. Legg til mer om du vil, og send.");
+  });
   huskSkjema(main, "bestill", `${F.runde}|${iRunden?.id || ""}`);
   huskSkjema(main, "fast", "fast");
   kobleAntallFelter(main);
+  kobleOppsummering(main, F.varer, iRunden?.fast ? fastNaa : []);
   kobleOrdning(main, S, F);
   kobleVelgAnsvarlig(main, S, F);
 }

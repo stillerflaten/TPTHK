@@ -40,12 +40,12 @@ const DELER = [
         <p>Klubben samler bestillinger av fôr (Royal Canin) noen ganger i året. Gå til <a href="#/for">Fôr</a> i menyen
         (kassereren finner det under «…» øverst til høyre).</p>
         <ol>
-          <li>Når en bestillingsrunde er åpen, skriver du antall ved fôrtypene du vil ha og trykker «Send bestilling».</li>
+          <li>Når en bestillingsrunde er åpen, skriver du antall ved fôrtypene du vil ha. Under «Oppsummering av bestillingen» ser du alt samlet. Trykk «Send bestilling», sjekk oppsummeringen en gang til og trykk «Send bestillingen».</li>
           <li>Du kan endre eller trekke bestillingen helt til fôransvarlig stenger runden.</li>
           <li>Når regningen kommer, får du Vippskrav fra fôransvarlig. Betalingen går ikke via klubben.</li>
         </ol>
         <p>Trykk «Meld meg på» under «Fast ordning», så får du e-post hver gang en runde åpner. Der kan du også lage en fast bestilling.
-        Den legges inn av seg selv hver runde, og du kan endre eller trekke den før runden stenges. «Mine bestillinger» viser status og pris.</p>`],
+        Den legges inn av seg selv hver runde, og du kan endre eller trekke den før runden stenges. Vil du ha noe ekstra, skriver du antall ved det i bestillingen i runden, så kommer alt med i samme bestilling. «Mine bestillinger» viser status og pris.</p>`],
       ["Møter og referater", `
         <p>Under <a href="#/moter">Møter</a> ligger innkallinger og referater. Medlemsmøter og årsmøter er åpne for alle medlemmer.
         Under «Styret» ser du hvem som har hvilke verv.</p>`],
