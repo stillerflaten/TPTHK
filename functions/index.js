@@ -50,6 +50,35 @@ export const slettInnloggingForMedlem = onDocumentDeleted(
   },
 );
 
+// ---------- Varsel til kassereren når noen ber om tilgang ----------
+
+// Når noen har laget konto og ber om tilgang, får adressen under Innstillinger → «E-postvarsel til kassereren»
+// en kort e-post (samme adresse som får varsel om nye søknader). Den som ber om tilgang, har ikke lov til å lese
+// innstillingene eller skrive i «mail», så derfor sendes varselet herfra.
+// E-posten sier ikke hvem som ber om tilgang (navn og e-post står bare på nettsiden), og legges i «mail»,
+// som Firebase-utvidelsen «Trigger Email» sender (se docs/epostvarsel.md).
+export const varsleOmForesporsel = onDocumentCreated(
+  { document: "foresporsler/{epost}", region: "europe-west1" },
+  async (event) => {
+    const db = getFirestore();
+    const til = normalEpost((await db.doc("innstillinger/medlemsinfo").get()).data()?.varselEpost);
+    if (!til) {
+      logger.info("Ingen adresse for varsel er valgt, så det sendes ingen e-post.");
+      return;
+    }
+    if (til === normalEpost(event.params.epost)) return;
+    await db.collection("mail").add({
+      to: til,
+      message: {
+        subject: "Noen ber om tilgang",
+        text: "Noen har laget konto og ber om tilgang til klubbens nettside. Logg inn på https://tpthk.no og gå til Medlemmer for å gi tilgang eller avvise.",
+      },
+      foresporsel: true,
+    });
+    logger.info("Varsel om ny forespørsel er lagt til sending.");
+  },
+);
+
 // ---------- Innkalling og referat fra møter på e-post ----------
 
 const TYPE = { styremote: "styremøte", medlemsmote: "medlemsmøte", arsmote: "årsmøte" };

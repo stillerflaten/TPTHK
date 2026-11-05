@@ -5,7 +5,15 @@ Når et medlem sender en søknad om refusjon, kan kassereren få en kort e-post:
 > **Ny søknad om refusjon**
 > Det har kommet en ny søknad om refusjon av utlegg. Logg inn på https://tpthk.no for å se den.
 
-E-posten inneholder ingen opplysninger om søkeren eller søknaden. Den sendes fra klubbens egen Gmail-konto
+Den samme adressen får også en e-post når noen har laget konto og ber om tilgang til nettsiden:
+
+> **Noen ber om tilgang**
+> Noen har laget konto og ber om tilgang til klubbens nettside. Logg inn på https://tpthk.no og gå til Medlemmer for å gi tilgang eller avvise.
+
+Det varselet sendes av skyfunksjonen `varsleOmForesporsel` (i `functions/index.js`), fordi den som ber om tilgang,
+ikke har lov til å se innstillingene. Funksjonen legger e-posten i `mail` på samme måte som de andre varslene.
+
+E-postene inneholder ingen opplysninger om søkeren, søknaden eller den som ber om tilgang. De sendes fra klubbens egen Gmail-konto
 av en ferdig Firebase-utvidelse («Trigger Email from Firestore»). Det koster i praksis ingenting.
 
 Dette settes opp én gang. Alt gjøres i nettleseren og tar 15–20 minutter.
@@ -49,7 +57,7 @@ Får du feilen «Permission denied while using the Eventarc Service Agent» før
 ## Steg 3: Velg hvem som skal få varselet
 
 1. Logg inn på https://tpthk.no som kasserer (eller be Mona gjøre det).
-2. Gå til **Innstillinger** → **Varsel om nye søknader**.
+2. Gå til **Innstillinger** → **E-postvarsel til kassereren**.
 3. Skriv inn e-postadressen som skal få varselet (Mona sin) og trykk **Lagre**.
 
 ## Test
@@ -69,7 +77,7 @@ App-passordet ligger også i Google Cloud → Secret Manager → `firestore-send
 
 ## Bytte mottaker eller slå det av
 
-Endre eller tøm feltet under **Innstillinger → Varsel om nye søknader**. Tomt felt betyr at ingen e-post sendes.
+Endre eller tøm feltet under **Innstillinger → E-postvarsel til kassereren**. Tomt felt betyr at ingen e-post sendes.
 Ny kasserer: husk å bytte adressen her ved overlevering.
 
 ## Fôrbestilling
