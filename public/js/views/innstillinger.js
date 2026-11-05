@@ -47,9 +47,10 @@ export function innstillinger(main, S) {
       <label>Betalingsinformasjon til medlemmene (vises på «Min side»)
         <textarea name="betalingsinfo" rows="2" placeholder="F.eks. Betal til konto over eller Vipps #12345. Merk betalingen med navnet ditt.">${info.betalingsinfo || ""}</textarea>
       </label>
-      <h2>Varsel om nye søknader</h2>
+      <h2>E-postvarsel til kassereren</h2>
       <label>Send e-post til (valgfritt)<input name="varselEpost" type="email" value="${info.varselEpost || ""}" placeholder="F.eks. kassereren sin e-post" autocomplete="off"></label>
-      <p class="hint">Når et medlem sender en søknad om refusjon, får denne adressen en kort e-post om at det har kommet en ny søknad.
+      <p class="hint">Denne adressen får en kort e-post når et medlem sender en søknad om refusjon, og når noen ber om tilgang til nettsiden.
+        E-posten sier ikke hvem det gjelder. Det ser du når du logger inn.
         Står feltet tomt, sendes ingen e-post. Krever at e-postvarsel er satt opp i Firebase (se veiledningen <code>docs/epostvarsel.md</code>).</p>
       <div class="knapper"><button class="knapp" type="submit">Lagre</button></div>
     </form>

@@ -184,6 +184,7 @@ const DELER = [
         <p><a href="#/minside">Min side</a> finner du under «…» øverst til høyre, sammen med Hjelp og Logg ut. Der ser du kontingenten din og kan endre navn og kontonummer.
         Regelverket finner du under «Møter».</p>`],
       ["Gi nye brukere tilgang", `<p>Når noen ber om tilgang, vises de øverst under Medlemmer. Trykk «Gi tilgang» eller «Avvis».
+        Er det fylt inn en adresse under Innstillinger → «E-postvarsel til kassereren», får den adressen en e-post når noen ber om tilgang.
         Du kan også åpne et medlem med e-post og huke av for innlogging. Da kommer personen inn når hen lager konto med samme e-post.</p>`],
       ["Styreverv", `<p>Under «Møter» og «Styret» trykker du «Endre verv» for å velge hvem som har hvilket verv. Den som har et verv,
         ser oversikten og søknadene og kan legge ut møter. Vervet «Kasserer» er bare en tittel. Tilgang til regnskapet gis under Innstillinger.</p>`, ["verv"]],
